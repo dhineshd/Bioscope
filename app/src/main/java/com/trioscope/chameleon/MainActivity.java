@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
 
-import com.trioscope.chameleon.com.trioscope.chameleon.camera.CameraPreview;
+import com.trioscope.chameleon.camera.CameraPreview;
 
 import static android.view.View.OnClickListener;
 

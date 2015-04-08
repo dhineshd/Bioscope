@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.com.trioscope.chameleon.camera;
+package com.trioscope.chameleon.camera;
 
 import android.content.Context;
 import android.hardware.Camera;
