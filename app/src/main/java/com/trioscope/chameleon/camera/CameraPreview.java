@@ -7,6 +7,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by rohitraghunathan on 4/7/15.
@@ -29,13 +30,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        try {
-            camera.setPreviewDisplay(holder);
-            camera.startPreview();
-            Log.d(TAG, "Preview Display Started");
-        } catch (IOException e) {
-            Log.e(TAG, "Error setting camera preview: ", e);
-        }
+        // Do nothing
     }
 
     @Override
@@ -56,8 +51,15 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             // ignore: tried to stop a non-existent preview
         }
 
+        // TODO: Handle landscape mode here?
         // set preview size and make any resize, rotate or
         // reformatting changes here
+
+        // Print preview and surface size for debugging
+        Camera.Parameters params =  camera.getParameters();
+        Log.d(TAG, "Camera preview size width, height: " + params.getPreviewSize().width + ", " + params.getPreviewSize().height);
+
+        Log.d(TAG, "Surface view size width, height: " + width + ", " + height);
 
         // start preview with new settings
         try {
