@@ -34,13 +34,13 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             camera.startPreview();
             Log.d(TAG, "Preview Display Started");
         } catch (IOException e) {
-            Log.e(TAG, "Error setting camera preview: " + e.getMessage() + " " + e.getStackTrace() );
+            Log.e(TAG, "Error setting camera preview: ", e);
         }
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-    // If your preview can change or rotate, take care of those events here.
+        // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
 
         if (surfaceHolder.getSurface() == null) {
@@ -66,12 +66,12 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             Log.d(TAG, "Preview Display Started");
 
         } catch (Exception e) {
-            Log.e(TAG, "Error setting camera preview: " + e.getMessage() + " " + e.getStackTrace() );;
+            Log.e(TAG, "Error setting camera preview: ", e);
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-    // empty. Take care of releasing the Camera preview in your activity.
+        // empty. Take care of releasing the Camera preview in your activity.
     }
 }
