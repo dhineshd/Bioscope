@@ -7,7 +7,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v7.app.ActionBarActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -16,6 +15,9 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.trioscope.chameleon.camera.CameraPreview;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,11 +28,10 @@ import static android.view.View.OnClickListener;
 
 
 public class MainActivity extends ActionBarActivity {
-
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
-    private static final String TAG = "MainActivity";
+    private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
     private Camera camera;
     private CameraPreview cameraPreview;
     private MediaRecorder mediaRecorder;
@@ -50,8 +51,8 @@ public class MainActivity extends ActionBarActivity {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
-        Log.d(TAG, String.valueOf(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM)));
+        LOG.info("{}", Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM));
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM), "Camera");
         // This location works best if you want the created images to be shared
@@ -60,7 +61,7 @@ public class MainActivity extends ActionBarActivity {
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
-                Log.d(TAG, "failed to create directory");
+                LOG.warn("failed to create directory");
                 return null;
             }
         }
@@ -81,8 +82,8 @@ public class MainActivity extends ActionBarActivity {
             return null;
         }
 
-        if(mediaFile != null) {
-            Log.d(TAG, "File name is : " + mediaFile.getAbsolutePath());
+        if (mediaFile != null) {
+            LOG.info("File name is {}", mediaFile.getAbsolutePath());
         }
         return mediaFile;
     }
@@ -114,20 +115,20 @@ public class MainActivity extends ActionBarActivity {
                     camera.lock();         // take camera access back from MediaRecorder
                     button.setText("Record!");
                     isRecording = false;
-                    Log.d(TAG, "isRecording is:" + isRecording);
+                    LOG.info("isRecording is {}", isRecording);
                 } else {
                     // initialize video camera
                     if (prepareVideoRecorder()) {
                         mediaRecorder.start();
                         button.setText("Done!");
                         isRecording = true;
-                        Log.d(TAG, "isRecording is" + isRecording);
+                        LOG.info("isRecording is {}", isRecording);
                     } else {
                         // prepare didn't work, release the camera
                         releaseMediaRecorder();
                         // inform user
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
-                        Log.e(TAG, "Failed to initialize media recorder");
+                        LOG.error("Failed to initialize media recorder");
                     }
                 }
             }
@@ -178,11 +179,11 @@ public class MainActivity extends ActionBarActivity {
             c = Camera.open(); // attempt to get a Camera instance
 
             if (c != null) {
-                Log.d(TAG, "Successfully opened camera");
+                LOG.info("Successfully opened camera");
             }
 
         } catch (Exception e) {
-            Log.e(TAG, "Could not open camera: ", e);
+            LOG.error("Could not open camera: ", e);
         }
         return c; // returns null if camera is unavailable
     }
@@ -205,7 +206,7 @@ public class MainActivity extends ActionBarActivity {
         // Step 4: Set output file
         mediaRecorder.setOutputFile(getOutputMediaFile(MEDIA_TYPE_VIDEO).toString());
 
-        Log.d(TAG, getOutputMediaFile(MEDIA_TYPE_VIDEO).toString());
+        LOG.info("{}", getOutputMediaFile(MEDIA_TYPE_VIDEO));
 
         // Step 5: Set the preview output
         mediaRecorder.setPreviewDisplay(cameraPreview.getSurfaceHolder().getSurface());
@@ -214,11 +215,11 @@ public class MainActivity extends ActionBarActivity {
         try {
             mediaRecorder.prepare();
         } catch (IllegalStateException e) {
-            Log.d(TAG, "IllegalStateException preparing MediaRecorder: " + e.getMessage());
+            LOG.error("IllegalStateException preparing MediaRecorder", e);
             releaseMediaRecorder();
             return false;
         } catch (IOException e) {
-            Log.d(TAG, "IOException preparing MediaRecorder: ", e);
+            LOG.error("IOException preparing MediaRecorder", e);
             releaseMediaRecorder();
             return false;
         }

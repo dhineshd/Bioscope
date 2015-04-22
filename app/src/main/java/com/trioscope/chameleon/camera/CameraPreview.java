@@ -2,16 +2,18 @@ package com.trioscope.chameleon.camera;
 
 import android.content.Context;
 import android.hardware.Camera;
-import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Created by rohitraghunathan on 4/7/15.
  */
 public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
 
-    private static final String TAG = "CameraPreview";
+    private static final Logger LOG = LoggerFactory.getLogger(CameraPreview.class);
 
     private SurfaceHolder surfaceHolder;
 
@@ -28,7 +30,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         // Do nothing
-        Log.d(TAG, "surfaceCreated called");
+        LOG.info("Surface Created");
     }
 
     @Override
@@ -36,7 +38,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
 
-        Log.d(TAG, "surfaceChanged called");
+        LOG.info("Surface changed");
 
         if (surfaceHolder.getSurface() == null) {
             // preview surface does not exist
@@ -46,7 +48,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         // stop preview before making changes
         try {
             camera.stopPreview();
-            Log.d(TAG, "Preview Display Stopped");
+            LOG.info("Preview Display Stopped");
         } catch (Exception e) {
             // ignore: tried to stop a non-existent preview
         }
@@ -57,25 +59,25 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
         // Print preview and surface size for debugging
         Camera.Parameters params = camera.getParameters();
-        Log.d(TAG, "Camera preview size width, height: " + params.getPreviewSize().width + ", " + params.getPreviewSize().height);
+        LOG.info("Camera preview size width, height: {}, {}", params.getPreviewSize().width, params.getPreviewSize().height);
 
-        Log.d(TAG, "Surface view size width, height: " + width + ", " + height);
+        LOG.info("Surface view size width, height: {}, {}", width, height);
 
         // start preview with new settings
         try {
             camera.setPreviewDisplay(surfaceHolder);
             camera.startPreview();
-            Log.d(TAG, "Preview Display Started");
+            LOG.info("Preview Display Started");
 
         } catch (Exception e) {
-            Log.e(TAG, "Error setting camera preview: ", e);
+            LOG.error("Error setting camera preview: ", e);
         }
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         // empty. Take care of releasing the Camera preview in your activity.
-        Log.d(TAG, "surfaceDestroyed called");
+        LOG.info("Surface destroyed");
     }
 
     public SurfaceHolder getSurfaceHolder() {
