@@ -16,7 +16,7 @@
         android:id="@+id/capture"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Make Photo" />
+        android:text="Record!" />
 
 </RelativeLayout>
 

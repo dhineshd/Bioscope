@@ -6,9 +6,6 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import java.io.IOException;
-import java.util.List;
-
 /**
  * Created by rohitraghunathan on 4/7/15.
  */
@@ -31,12 +28,15 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         // Do nothing
+        Log.d(TAG, "surfaceCreated called");
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         // If your preview can change or rotate, take care of those events here.
         // Make sure to stop the preview before resizing or reformatting it.
+
+        Log.d(TAG, "surfaceChanged called");
 
         if (surfaceHolder.getSurface() == null) {
             // preview surface does not exist
@@ -56,7 +56,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
         // reformatting changes here
 
         // Print preview and surface size for debugging
-        Camera.Parameters params =  camera.getParameters();
+        Camera.Parameters params = camera.getParameters();
         Log.d(TAG, "Camera preview size width, height: " + params.getPreviewSize().width + ", " + params.getPreviewSize().height);
 
         Log.d(TAG, "Surface view size width, height: " + width + ", " + height);
@@ -75,5 +75,10 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         // empty. Take care of releasing the Camera preview in your activity.
+        Log.d(TAG, "surfaceDestroyed called");
+    }
+
+    public SurfaceHolder getSurfaceHolder() {
+        return this.surfaceHolder;
     }
 }
