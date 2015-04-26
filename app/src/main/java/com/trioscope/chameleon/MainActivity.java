@@ -1,5 +1,6 @@
 package com.trioscope.chameleon;
 
+import android.content.Intent;
 import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
@@ -35,6 +36,7 @@ public class MainActivity extends ActionBarActivity {
     private CameraPreview cameraPreview;
     private MediaRecorder mediaRecorder;
     private boolean isRecording = false;
+    private File videoFile;
 
     /**
      * Create a file Uri for saving an image or video
@@ -125,12 +127,12 @@ public class MainActivity extends ActionBarActivity {
             public void onClick(View v) {
 
                 if (isRecording) {
-                    mediaRecorder.stop();
-                    releaseMediaRecorder();
-                    camera.lock();         // take camera access back from MediaRecorder
-                    button.setText("Record!");
+
+                    finishVideoRecording();
+
                     isRecording = false;
                     Log.d(TAG, "isRecording is:" + isRecording);
+                    button.setText("Record!");
                 } else {
                     // initialize video camera
                     if (prepareVideoRecorder()) {
@@ -205,6 +207,9 @@ public class MainActivity extends ActionBarActivity {
 
     private boolean prepareVideoRecorder() {
 
+        //Create a file for storing the recorded video
+        videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
+
         mediaRecorder = new MediaRecorder();
 
         // Step 1: Unlock and set camera to MediaRecorder
@@ -219,7 +224,7 @@ public class MainActivity extends ActionBarActivity {
         mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
 
         // Step 4: Set output file
-        mediaRecorder.setOutputFile(getOutputMediaFile(MEDIA_TYPE_VIDEO).toString());
+        mediaRecorder.setOutputFile(videoFile.toString());
 
         Log.d(TAG, getOutputMediaFile(MEDIA_TYPE_VIDEO).toString());
 
@@ -236,6 +241,26 @@ public class MainActivity extends ActionBarActivity {
             return false;
         }
         return true;
+    }
+
+    private void finishVideoRecording() {
+        mediaRecorder.stop();
+        releaseMediaRecorder();
+        camera.lock();         // take camera access back from MediaRecorder
+
+
+        if (videoFile != null) {
+
+            //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
+            Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+            addVideoIntent.setData(Uri.fromFile(videoFile));
+
+            sendBroadcast(addVideoIntent);
+        }
+
+        //Video file is successfully saved and a broadcast has been sent to add it to the Gallery Apps
+        // We can now remove reference to it
+        videoFile = null;
     }
 
     private void releaseMediaRecorder() {
