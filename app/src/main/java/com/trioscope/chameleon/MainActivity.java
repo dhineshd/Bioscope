@@ -40,28 +40,42 @@ public class MainActivity extends ActionBarActivity {
     /**
      * Create a file Uri for saving an image or video
      */
-    private static Uri getOutputMediaFileUri(int type) {
+    private Uri getOutputMediaFileUri(int type) {
         return Uri.fromFile(getOutputMediaFile(type));
+    }
+
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * Create a File for saving an image or video
      */
-    private static File getOutputMediaFile(int type) {
+    private File getOutputMediaFile(int type) {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
         LOG.info("{}", Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM));
+
+        if (!isExternalStorageWritable()) {
+            LOG.error("External Storage is not mounted for Read-Write");
+            return null;
+        }
+
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM), "Camera");
+                Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
         // This location works best if you want the created images to be shared
         // between applications and persist after your app has been uninstalled.
 
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
-                LOG.warn("failed to create directory");
+                LOG.error("failed to create directory");
                 return null;
             }
         }
@@ -208,10 +222,7 @@ public class MainActivity extends ActionBarActivity {
 
         LOG.info("{}", getOutputMediaFile(MEDIA_TYPE_VIDEO));
 
-        // Step 5: Set the preview output
-        mediaRecorder.setPreviewDisplay(cameraPreview.getSurfaceHolder().getSurface());
-
-        // Step 6: Prepare configured MediaRecorder
+        // Step 5: Prepare configured MediaRecorder
         try {
             mediaRecorder.prepare();
         } catch (IllegalStateException e) {
