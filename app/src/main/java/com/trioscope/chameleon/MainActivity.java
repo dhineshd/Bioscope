@@ -2,8 +2,6 @@ package com.trioscope.chameleon;
 
 import android.content.Intent;
 import android.hardware.Camera;
-import android.media.CamcorderProfile;
-import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -15,13 +13,14 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.CameraPreview;
+import com.trioscope.chameleon.camera.VideoRecorder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -35,9 +34,9 @@ public class MainActivity extends ActionBarActivity {
     private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
     private Camera camera;
     private CameraPreview cameraPreview;
-    private MediaRecorder mediaRecorder;
     private boolean isRecording = false;
     private File videoFile;
+    private VideoRecorder videoRecorder = new BackgroundRecorder(this);
 
     /**
      * Create a file Uri for saving an image or video
@@ -61,7 +60,7 @@ public class MainActivity extends ActionBarActivity {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
-        LOG.info("{}", Environment.getExternalStoragePublicDirectory(
+        LOG.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM));
 
         if (!isExternalStorageWritable()) {
@@ -135,13 +134,11 @@ public class MainActivity extends ActionBarActivity {
                 } else {
                     // initialize video camera
                     if (prepareVideoRecorder()) {
-                        mediaRecorder.start();
+                        videoRecorder.startRecording();
                         button.setText("Done!");
                         isRecording = true;
                         LOG.info("isRecording is {}", isRecording);
                     } else {
-                        // prepare didn't work, release the camera
-                        releaseMediaRecorder();
                         // inform user
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
                         LOG.error("Failed to initialize media recorder");
@@ -175,15 +172,21 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     protected void onPause() {
-
-        releaseMediaRecorder();
-
-        if (camera != null) {
-            camera.release();
-            camera = null;
-        }
-
+        LOG.info("onPause: App is no longer in foreground");
         super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        LOG.info("onDestroy: App is no longer used by user");
+        videoRecorder.stopRecording();
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        LOG.info("onStop: App is no longer visible to user");
+        super.onStop();
     }
 
     /**
@@ -205,51 +208,18 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private boolean prepareVideoRecorder() {
-
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
-
-        mediaRecorder = new MediaRecorder();
-
-        // Step 1: Unlock and set camera to MediaRecorder
-        camera.unlock();
-        mediaRecorder.setCamera(camera);
-
-        // Step 2: Set sources
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
-        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-
-        // Step 3: Set a CamcorderProfile (requires API Level 8 or higher)
-        mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
-
-        // Step 4: Set output file
-        mediaRecorder.setOutputFile(videoFile.toString());
-
-        LOG.info("{}", getOutputMediaFile(MEDIA_TYPE_VIDEO));
-
-        // Step 5: Prepare configured MediaRecorder
-        try {
-            mediaRecorder.prepare();
-        } catch (IllegalStateException e) {
-            LOG.error("IllegalStateException preparing MediaRecorder", e);
-            releaseMediaRecorder();
-            return false;
-        } catch (IOException e) {
-            LOG.error("IOException preparing MediaRecorder", e);
-            releaseMediaRecorder();
-            return false;
-        }
+        videoRecorder.setOutputFile(videoFile);
+        videoRecorder.setCamera(camera);
         return true;
     }
 
     private void finishVideoRecording() {
-        mediaRecorder.stop();
-        releaseMediaRecorder();
-        camera.lock();         // take camera access back from MediaRecorder
-
+        videoRecorder.stopRecording();
+        camera.lock();         // take camera access back from video recorder
 
         if (videoFile != null) {
-
             //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
             Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             addVideoIntent.setData(Uri.fromFile(videoFile));
@@ -260,14 +230,5 @@ public class MainActivity extends ActionBarActivity {
         //Video file is successfully saved and a broadcast has been sent to add it to the Gallery Apps
         // We can now remove reference to it
         videoFile = null;
-    }
-
-    private void releaseMediaRecorder() {
-        if (mediaRecorder != null) {
-            mediaRecorder.reset();   // clear recorder configuration
-            mediaRecorder.release(); // release the recorder object
-            mediaRecorder = null;
-            camera.lock();
-        }
     }
 }
