@@ -1,6 +1,7 @@
 package com.trioscope.chameleon;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
@@ -110,6 +111,8 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Log.i(TAG, "Creating a new Activity");
+
         // create an instance of the camera
         camera = getCameraInstance();
 
@@ -184,6 +187,10 @@ public class MainActivity extends ActionBarActivity {
             camera = null;
         }
 
+        if(videoFile != null) {
+            videoFile = null;
+        }
+
         super.onPause();
     }
 
@@ -224,9 +231,9 @@ public class MainActivity extends ActionBarActivity {
         mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
 
         // Step 4: Set output file
-        mediaRecorder.setOutputFile(videoFile.toString());
+        mediaRecorder.setOutputFile(videoFile.getPath());
 
-        Log.d(TAG, getOutputMediaFile(MEDIA_TYPE_VIDEO).toString());
+        Log.d(TAG, getOutputMediaFile(MEDIA_TYPE_VIDEO).getPath());
 
         // Step 5: Prepare configured MediaRecorder
         try {
@@ -270,5 +277,20 @@ public class MainActivity extends ActionBarActivity {
             mediaRecorder = null;
             camera.lock();
         }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig){
+
+        Log.d(TAG, "Configuration Changed");
+
+        // Checks the orientation of the screen
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            Toast.makeText(this, "landscape", Toast.LENGTH_SHORT).show();
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT){
+            Toast.makeText(this, "portrait", Toast.LENGTH_SHORT).show();
+        }
+
+        super.onConfigurationChanged(newConfig);
     }
 }
