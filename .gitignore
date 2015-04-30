@@ -1,4 +1,6 @@
 .gradle
+app/app.iml
+Chameleon.iml
 /local.properties
 /.idea/workspace.xml
 /.idea/libraries
