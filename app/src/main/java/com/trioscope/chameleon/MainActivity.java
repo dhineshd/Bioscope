@@ -10,11 +10,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.trioscope.chameleon.camera.BackgroundRecorder;
-import com.trioscope.chameleon.camera.CameraPreview;
 import com.trioscope.chameleon.camera.VideoRecorder;
 
 import org.slf4j.Logger;
@@ -32,8 +30,8 @@ public class MainActivity extends ActionBarActivity {
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
     private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
-    private Camera camera;
-    private CameraPreview cameraPreview;
+    //private Camera camera;
+    //private CameraPreview cameraPreview;
     private boolean isRecording = false;
     private File videoFile;
     private VideoRecorder videoRecorder = new BackgroundRecorder(this);
@@ -108,14 +106,16 @@ public class MainActivity extends ActionBarActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        LOG.info("Created main activity");
+
         // create an instance of the camera
-        camera = getCameraInstance();
+        //camera = getCameraInstance();
 
         // create preview view and set it to the UI layout
-        cameraPreview = new CameraPreview(this, camera);
+      //  cameraPreview = new CameraPreview(this, camera);
 
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(cameraPreview);
+        //FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        //preview.addView(cameraPreview);
 
 
         final Button button = (Button) findViewById(R.id.capture);
@@ -211,13 +211,13 @@ public class MainActivity extends ActionBarActivity {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
         videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCamera(camera);
+        //videoRecorder.setCamera(camera);
         return true;
     }
 
     private void finishVideoRecording() {
         videoRecorder.stopRecording();
-        camera.lock();         // take camera access back from video recorder
+        //camera.lock();         // take camera access back from video recorder
 
         if (videoFile != null) {
             //Send a broadcast about the newly added video file for Gallery Apps to recognize the video

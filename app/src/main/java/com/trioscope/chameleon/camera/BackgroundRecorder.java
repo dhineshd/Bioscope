@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.hardware.Camera;
-import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
@@ -16,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.IOException;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -31,10 +29,6 @@ public class BackgroundRecorder implements VideoRecorder {
 
     @Getter
     @Setter
-    private Camera camera;
-
-    @Getter
-    @Setter
     private boolean recording;
 
     @Setter
@@ -43,14 +37,13 @@ public class BackgroundRecorder implements VideoRecorder {
     /* Background recording */
     private BackgroundRecorderService backgroundRecorderService;
     private boolean serviceBound;
-    private MediaRecorder mediaRecorder;
     private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             LOG.info("Service {} is bound from BackgroundRecorder", name);
             serviceBound = true;
             backgroundRecorderService = ((BackgroundRecorderBinder) service).getService();
-            backgroundRecorderService.setMediaRecorder(mediaRecorder);
+            backgroundRecorderService.setOutputFile(outputFile);
             backgroundRecorderService.startRecording();
         }
 
@@ -68,41 +61,10 @@ public class BackgroundRecorder implements VideoRecorder {
 
     @Override
     public boolean startRecording() {
-        mediaRecorder = new MediaRecorder();
-
-        // Prepare the media recorder in 5 steps, then pass it off to the background recording service
-        // Step 1: Unlock and set camera to MediaRecorder
-        camera.unlock();
-        mediaRecorder.setCamera(camera);
-
-        // Step 2: Set sources
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
-        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-
-        // Step 3: Set a CamcorderProfile (requires API Level 8 or higher)
-        mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
-
-        // Step 4: Set output file
-        mediaRecorder.setOutputFile(outputFile.getPath());
-
-        // Step 5: Prepare configured MediaRecorder
-        try {
-            mediaRecorder.prepare();
-        } catch (IllegalStateException e) {
-            LOG.error("IllegalStateException preparing MediaRecorder", e);
-            releaseMediaRecorder(mediaRecorder);
-            return false;
-        } catch (IOException e) {
-            LOG.error("IOException preparing MediaRecorder", e);
-            releaseMediaRecorder(mediaRecorder);
-            return false;
-        }
-
+        LOG.info("Binding service with intent");
         // Bind the service, and when it becomes available, give it the mediaRecorder
         Intent bindServiceIntent = new Intent(context, BackgroundRecorderService.class);
         context.bindService(bindServiceIntent, connection, Context.BIND_AUTO_CREATE);
-
-
         recording = true;
         return true;
     }
@@ -121,5 +83,10 @@ public class BackgroundRecorder implements VideoRecorder {
             serviceBound = false;
         }
         recording = false;
+    }
+
+    @Override
+    public void setCamera(Camera c) {
+
     }
 }
