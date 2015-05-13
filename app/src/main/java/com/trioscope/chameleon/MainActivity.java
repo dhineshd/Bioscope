@@ -10,9 +10,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.trioscope.chameleon.camera.BackgroundRecorder;
+import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.camera.VideoRecorder;
 
 import org.slf4j.Logger;
@@ -34,7 +36,8 @@ public class MainActivity extends ActionBarActivity {
     //private CameraPreview cameraPreview;
     private boolean isRecording = false;
     private File videoFile;
-    private VideoRecorder videoRecorder = new BackgroundRecorder(this);
+    private VideoRecorder videoRecorder;
+    private ForwardedCameraPreview cameraPreview;
 
     /**
      * Create a file Uri for saving an image or video
@@ -107,15 +110,16 @@ public class MainActivity extends ActionBarActivity {
         setContentView(R.layout.activity_main);
 
         LOG.info("Created main activity");
+        videoRecorder = new BackgroundRecorder(this);
 
         // create an instance of the camera
         //camera = getCameraInstance();
 
         // create preview view and set it to the UI layout
-      //  cameraPreview = new CameraPreview(this, camera);
+        cameraPreview = new ForwardedCameraPreview(this);
 
-        //FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        //preview.addView(cameraPreview);
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview.addView(cameraPreview);
 
 
         final Button button = (Button) findViewById(R.id.capture);
@@ -123,7 +127,7 @@ public class MainActivity extends ActionBarActivity {
         button.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                LOG.info("Capture video button clicked");
                 if (isRecording) {
 
                     finishVideoRecording();
@@ -211,7 +215,7 @@ public class MainActivity extends ActionBarActivity {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
         videoRecorder.setOutputFile(videoFile);
-        //videoRecorder.setCamera(camera);
+        videoRecorder.setCameraPreview(cameraPreview);
         return true;
     }
 

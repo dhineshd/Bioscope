@@ -34,6 +34,9 @@ public class BackgroundRecorder implements VideoRecorder {
     @Setter
     private File outputFile;
 
+    @Setter
+    private ForwardedCameraPreview cameraPreview;
+
     /* Background recording */
     private BackgroundRecorderService backgroundRecorderService;
     private boolean serviceBound;
@@ -42,8 +45,9 @@ public class BackgroundRecorder implements VideoRecorder {
         public void onServiceConnected(ComponentName name, IBinder service) {
             LOG.info("Service {} is bound from BackgroundRecorder", name);
             serviceBound = true;
-            backgroundRecorderService = ((BackgroundRecorderBinder) service).getService();
+            backgroundRecorderService = ((BackgroundRecorderBinder<BackgroundRecorderService>) service).getService();
             backgroundRecorderService.setOutputFile(outputFile);
+            backgroundRecorderService.setCameraPreview(cameraPreview);
             backgroundRecorderService.startRecording();
         }
 
@@ -78,7 +82,7 @@ public class BackgroundRecorder implements VideoRecorder {
 
     @Override
     public void stopRecording() {
-        if(serviceBound) {
+        if (serviceBound) {
             context.unbindService(connection);
             serviceBound = false;
         }
@@ -89,4 +93,5 @@ public class BackgroundRecorder implements VideoRecorder {
     public void setCamera(Camera c) {
 
     }
+
 }

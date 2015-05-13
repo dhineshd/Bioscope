@@ -15,4 +15,6 @@ public interface VideoRecorder {
     //TODO: Move initialization parameters into factory class
     void setOutputFile(File outputFile);
     void setCamera(Camera c);
+
+    void setCameraPreview(ForwardedCameraPreview cameraPreview);
 }

@@ -1,5 +1,6 @@
 package com.trioscope.chameleon.service;
 
+import android.app.Service;
 import android.os.Binder;
 
 import lombok.Getter;
@@ -7,11 +8,11 @@ import lombok.Getter;
 /**
  * Created by phand on 4/29/15.
  */
-public class BackgroundRecorderBinder extends Binder {
+public class BackgroundRecorderBinder<T extends Service> extends Binder {
     @Getter
-    private final BackgroundRecorderService service;
+    private final T service;
 
-    public BackgroundRecorderBinder(BackgroundRecorderService backgroundRecorder) {
+    public BackgroundRecorderBinder(T backgroundRecorder) {
         this.service = backgroundRecorder;
     }
 }

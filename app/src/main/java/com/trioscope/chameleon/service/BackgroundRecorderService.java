@@ -14,17 +14,20 @@ import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 
+import com.trioscope.chameleon.camera.ForwardedCameraPreview;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 
 import lombok.Setter;
 
 /**
  * Created by phand on 4/29/15.
  */
-public class BackgroundRecorderService extends Service implements SurfaceHolder.Callback {
+public class BackgroundRecorderService extends Service implements SurfaceHolder.Callback, Camera.PreviewCallback {
     private static final Logger LOG = LoggerFactory.getLogger(BackgroundRecorderService.class);
     private BackgroundRecorderBinder backgroundRecorderBinder = new BackgroundRecorderBinder(this);
 
@@ -32,6 +35,9 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
     private WindowManager windowManager;
     private SurfaceView surfaceView;
     private Camera camera = null;
+
+    @Setter
+    private ForwardedCameraPreview cameraPreview;
 
     @Setter
     private File outputFile;
@@ -61,12 +67,16 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
     @Override
     public boolean onUnbind(Intent intent) {
         LOG.info("Last client has unbound from service - ending video recording for backgroundRecorderService {}", this);
+        releaseMediaRecorder();
+        return super.onUnbind(intent);
+    }
+
+    private void releaseMediaRecorder() {
         if (mediaRecorder != null) {
             LOG.info("Releasing mediaRecorder {}", mediaRecorder);
             mediaRecorder.reset();   // clear recorder configuration
             mediaRecorder.release(); // release the recorder object
         }
-        return super.onUnbind(intent);
     }
 
     public void startRecording() {
@@ -78,22 +88,45 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
         }
 
         camera = Camera.open();
-        mediaRecorder = new MediaRecorder();
-        camera.unlock();
+        camera.setPreviewCallback(this);
+        try {
+            camera.setPreviewDisplay(lastCreatedSurfaceHolder);
+            camera.startPreview();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-        mediaRecorder.setPreviewDisplay(lastCreatedSurfaceHolder.getSurface());
+        mediaRecorder = new MediaRecorder();
+
+        // Step 1: Unlock and set camera to MediaRecorder
+        camera.unlock();
         mediaRecorder.setCamera(camera);
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+
+        // Step 2: Set sources
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+
+        // Step 4: Set output file
+        LOG.info("Setting outputh path = {}", outputFile.getPath());
         mediaRecorder.setOutputFile(outputFile.getPath());
 
+        // Step 5: Prepare configured MediaRecorder
         try {
             mediaRecorder.prepare();
-        } catch (Exception e) {
-            LOG.error("Error preparing media recorder", e);
+        } catch (IllegalStateException e) {
+            LOG.error("IllegalStateException preparing MediaRecorder: ", e);
+            releaseMediaRecorder();
+            return;
+        } catch (IOException e) {
+            LOG.error("IOException preparing MediaRecorder: ", e);
+            releaseMediaRecorder();
+            return;
         }
+
         mediaRecorder.start();
+        // This seems to be a hack
+        camera.setPreviewCallback(this);
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
     }
@@ -113,4 +146,11 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
     public void surfaceDestroyed(SurfaceHolder holder) {
         LOG.info("Surface destroyed");
     }
+
+    @Override
+    public void onPreviewFrame(byte[] data, Camera camera) {
+        LOG.info("Preview Frame Received");
+        cameraPreview.drawData(data, camera.getParameters());
+    }
+
 }
