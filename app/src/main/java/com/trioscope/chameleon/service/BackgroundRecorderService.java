@@ -9,12 +9,13 @@ import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 import android.view.Gravity;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.WindowManager;
-import android.view.WindowManager.LayoutParams;
 
+import com.trioscope.chameleon.MainActivity;
+import com.trioscope.chameleon.RenderRequestFrameListener;
+import com.trioscope.chameleon.SystemOverlayGLSurface;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
+import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,22 +28,26 @@ import lombok.Setter;
 /**
  * Created by phand on 4/29/15.
  */
-public class BackgroundRecorderService extends Service implements SurfaceHolder.Callback, Camera.PreviewCallback {
+public class BackgroundRecorderService extends Service implements Camera.PreviewCallback {
     private static final Logger LOG = LoggerFactory.getLogger(BackgroundRecorderService.class);
     private BackgroundRecorderBinder backgroundRecorderBinder = new BackgroundRecorderBinder(this);
 
     private MediaRecorder mediaRecorder;
     private WindowManager windowManager;
-    private SurfaceView surfaceView;
+    private SystemOverlayGLSurface surfaceView;
     private Camera camera = null;
 
     @Setter
     private ForwardedCameraPreview cameraPreview;
 
     @Setter
+    private CameraPreviewFrameListener frameListener;
+
+    @Setter
     private File outputFile;
 
-    private SurfaceHolder lastCreatedSurfaceHolder;
+    @Setter
+    private MainActivity.MainThreadHandler mainThreadHandler;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -50,8 +55,8 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
 
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
-        surfaceView = new SurfaceView(this);
-        LayoutParams layoutParams = new WindowManager.LayoutParams(
+        surfaceView = new SystemOverlayGLSurface(this);
+        WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
                 1, 1,
                 WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
@@ -59,7 +64,6 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
         );
         layoutParams.gravity = Gravity.LEFT | Gravity.TOP;
         windowManager.addView(surfaceView, layoutParams);
-        surfaceView.getHolder().addCallback(this);
 
         return backgroundRecorderBinder;
     }
@@ -80,17 +84,26 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
     }
 
     public void startRecording() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            LOG.error("Unable to sleep for 1s", e);
+        }
         LOG.info("Starting recording");
 
-        if (lastCreatedSurfaceHolder == null) {
-            LOG.warn("Surface not yet created");
-            return;
-        }
+        LOG.info("EGLContext from surfaceView is {}", surfaceView.getEglContext());
+        EGLContextAvailableMessage msg = new EGLContextAvailableMessage();
+        msg.setSurfaceTexture(surfaceView.getSurfaceTexture());
+        msg.setGlTextureId(surfaceView.getTextureId());
+        msg.setEglContext(surfaceView.getEglContext());
+        mainThreadHandler.sendMessage(mainThreadHandler.obtainMessage(MainActivity.MainThreadHandler.EGL_CONTEXT_AVAILABLE, msg));
 
         camera = Camera.open();
-        camera.setPreviewCallback(this);
         try {
-            camera.setPreviewDisplay(lastCreatedSurfaceHolder);
+            // Race condition here - fix with surfaceHolderListener
+            frameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
+            surfaceView.getSurfaceTexture().setOnFrameAvailableListener(frameListener);
+            camera.setPreviewTexture(surfaceView.getSurfaceTexture());
             camera.startPreview();
         } catch (IOException e) {
             e.printStackTrace();
@@ -125,26 +138,8 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
         }
 
         mediaRecorder.start();
-        // This seems to be a hack
-        camera.setPreviewCallback(this);
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
-    }
-
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        LOG.info("Surface created");
-        lastCreatedSurfaceHolder = holder;
-    }
-
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        LOG.info("Surface changed");
-    }
-
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        LOG.info("Surface destroyed");
     }
 
     @Override
@@ -153,4 +148,7 @@ public class BackgroundRecorderService extends Service implements SurfaceHolder.
         cameraPreview.drawData(data, camera.getParameters());
     }
 
+    public void attachFrameListener(FrameListener listener) {
+        frameListener.addFrameListener(listener);
+    }
 }

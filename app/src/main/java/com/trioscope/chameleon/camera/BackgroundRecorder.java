@@ -8,8 +8,11 @@ import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
+import com.trioscope.chameleon.MainActivity;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
+import com.trioscope.chameleon.service.CameraPreviewFrameListener;
+import com.trioscope.chameleon.service.FrameListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,17 +40,26 @@ public class BackgroundRecorder implements VideoRecorder {
     @Setter
     private ForwardedCameraPreview cameraPreview;
 
+    @Setter
+    private CameraPreviewFrameListener frameListener;
+
+    @Setter
+    private MainActivity.MainThreadHandler mainThreadHandler;
+
+
     /* Background recording */
-    private BackgroundRecorderService backgroundRecorderService;
-    private boolean serviceBound;
+    private volatile BackgroundRecorderService backgroundRecorderService;
+    private volatile boolean serviceBound;
     private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            LOG.info("Service {} is bound from BackgroundRecorder", name);
+            LOG.info("Service {} is bound from BackgroundRecorder, with mainThreadHandler {}", name, mainThreadHandler);
             serviceBound = true;
             backgroundRecorderService = ((BackgroundRecorderBinder<BackgroundRecorderService>) service).getService();
             backgroundRecorderService.setOutputFile(outputFile);
             backgroundRecorderService.setCameraPreview(cameraPreview);
+            backgroundRecorderService.setFrameListener(frameListener);
+            backgroundRecorderService.setMainThreadHandler(mainThreadHandler);
             backgroundRecorderService.startRecording();
         }
 
@@ -94,4 +106,10 @@ public class BackgroundRecorder implements VideoRecorder {
 
     }
 
+    public void attachFrameListener(FrameListener listener) {
+        if(serviceBound)
+            backgroundRecorderService.attachFrameListener(listener);
+        else
+            LOG.warn("Service not yet bound, cannot attach frame listener");
+    }
 }

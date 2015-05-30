@@ -1,21 +1,29 @@
 package com.trioscope.chameleon;
 
 import android.content.Intent;
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.net.Uri;
+import android.opengl.EGL14;
+import android.opengl.EGLExt;
+import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.Toast;
+import android.widget.RelativeLayout;
 
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
-import com.trioscope.chameleon.camera.VideoRecorder;
+import com.trioscope.chameleon.service.CameraPreviewFrameListener;
+import com.trioscope.chameleon.service.ThreadLoggingHandler;
+import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +32,14 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import javax.microedition.khronos.egl.EGL10;
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.egl.EGLContext;
+import javax.microedition.khronos.egl.EGLDisplay;
+
 import static android.view.View.OnClickListener;
 
-
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements SurfaceTextureUser {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
@@ -36,8 +48,15 @@ public class MainActivity extends ActionBarActivity {
     //private CameraPreview cameraPreview;
     private boolean isRecording = false;
     private File videoFile;
-    private VideoRecorder videoRecorder;
+    private BackgroundRecorder videoRecorder;
     private ForwardedCameraPreview cameraPreview;
+
+    // Surface texture that was created in the OpenGL thread
+    private SurfaceTexture createdSurfaceTexture;
+
+    public ThreadLoggingHandler logHandler;
+
+    public MainThreadHandler mainThreadHandler;
 
     /**
      * Create a file Uri for saving an image or video
@@ -107,20 +126,21 @@ public class MainActivity extends ActionBarActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
+
         setContentView(R.layout.activity_main);
 
         LOG.info("Created main activity");
-        videoRecorder = new BackgroundRecorder(this);
+        videoRecorder = createBackgroundRecorder();
+
+        LOG.info("Current thread is {}", Thread.currentThread());
 
         // create an instance of the camera
         //camera = getCameraInstance();
 
-        // create preview view and set it to the UI layout
-        cameraPreview = new ForwardedCameraPreview(this);
-
-        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        preview.addView(cameraPreview);
-
+        LOG.info("Adding camera preview to list of preview surfaces");
+        CameraPreviewFrameListener frameListener = new CameraPreviewFrameListener();
+        videoRecorder.setFrameListener(frameListener);
 
         final Button button = (Button) findViewById(R.id.capture);
 
@@ -137,7 +157,7 @@ public class MainActivity extends ActionBarActivity {
                     button.setText("Record!");
                 } else {
                     // initialize video camera
-                    if (prepareVideoRecorder()) {
+                    /*if (prepareVideoRecorder()) {
                         videoRecorder.startRecording();
                         button.setText("Done!");
                         isRecording = true;
@@ -146,10 +166,28 @@ public class MainActivity extends ActionBarActivity {
                         // inform user
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
                         LOG.error("Failed to initialize media recorder");
-                    }
+                    }*/
+
+                    startCameraPreview(createdSurfaceTexture);
                 }
             }
         });
+
+        LOG.info("Adding a logging handler to main thread");
+        logHandler = new ThreadLoggingHandler(Looper.getMainLooper());
+    }
+
+    private BackgroundRecorder createBackgroundRecorder() {
+        BackgroundRecorder recorder = new BackgroundRecorder(this);
+        recorder.setMainThreadHandler(mainThreadHandler);
+
+        return recorder;
+    }
+
+    public void startCameraPreview(SurfaceTexture texture) {
+        videoRecorder.setOutputFile(getOutputMediaFile(MEDIA_TYPE_VIDEO));
+        videoRecorder.startRecording();
+        LOG.info("Starting camera preview");
     }
 
     @Override
@@ -234,5 +272,111 @@ public class MainActivity extends ActionBarActivity {
         //Video file is successfully saved and a broadcast has been sent to add it to the Gallery Apps
         // We can now remove reference to it
         videoFile = null;
+    }
+
+    @Override
+    public void setSurfaceTexture(SurfaceTexture createdSurfaceTexture) {
+        this.createdSurfaceTexture = createdSurfaceTexture;
+    }
+
+
+    private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
+        SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(this);
+        previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
+            @Override
+            public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
+                LOG.info("Creating shared EGLContext");
+                EGLConfig config = getConfig(FLAG_RECORDABLE, 2, display);
+                int[] attrib2_list = {
+                        EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
+                        EGL14.EGL_NONE
+                };
+
+                EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(display, eglConfig, contextMessage.getEglContext(), attrib2_list);
+
+                LOG.info("Created a shared EGL context {}", newContext);
+                return newContext;
+            }
+
+            @Override
+            public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
+
+            }
+        });
+
+        previewDisplay.setTextureId(contextMessage.getGlTextureId());
+        previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
+        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer());
+        previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        videoRecorder.attachFrameListener(new RenderRequestFrameListener(previewDisplay));
+
+        RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
+        layout.addView(previewDisplay);
+    }
+
+    // See https://github.com/google/grafika/blob/master/src/com/android/grafika/gles/EglCore.java
+    // Android-specific extension.
+    private static final int EGL_RECORDABLE_ANDROID = 0x3142;
+    /**
+     * Constructor flag: surface must be recordable.  This discourages EGL from using a
+     * pixel format that cannot be converted efficiently to something usable by the video
+     * encoder.
+     */
+    public static final int FLAG_RECORDABLE = 0x01;
+
+
+    private EGLConfig getConfig(int flags, int version, EGLDisplay mEGLDisplay) {
+        int renderableType = EGL14.EGL_OPENGL_ES2_BIT;
+        if (version >= 3) {
+            renderableType |= EGLExt.EGL_OPENGL_ES3_BIT_KHR;
+        }
+
+        // The actual surface is generally RGBA or RGBX, so situationally omitting alpha
+        // doesn't really help.  It can also lead to a huge performance hit on glReadPixels()
+        // when reading into a GL_RGBA buffer.
+        int[] attribList = {
+                EGL14.EGL_RED_SIZE, 8,
+                EGL14.EGL_GREEN_SIZE, 8,
+                EGL14.EGL_BLUE_SIZE, 8,
+                EGL14.EGL_ALPHA_SIZE, 8,
+                //EGL14.EGL_DEPTH_SIZE, 16,
+                //EGL14.EGL_STENCIL_SIZE, 8,
+                EGL14.EGL_RENDERABLE_TYPE, renderableType,
+                EGL14.EGL_NONE, 0,      // placeholder for recordable [@-3]
+                EGL14.EGL_NONE
+        };
+        if ((flags & FLAG_RECORDABLE) != 0) {
+            attribList[attribList.length - 3] = EGL_RECORDABLE_ANDROID;
+            attribList[attribList.length - 2] = 1;
+        }
+        EGLConfig[] configs = new EGLConfig[1];
+        int[] numConfigs = new int[1];
+        if (!((EGL10) EGLContext.getEGL()).eglChooseConfig(mEGLDisplay, attribList, configs, 0,
+                numConfigs)) {
+            LOG.warn("unable to find RGB8888 / " + version + " EGLConfig");
+            return null;
+        }
+        return configs[0];
+    }
+
+    public class MainThreadHandler extends Handler {
+        public static final int EGL_CONTEXT_AVAILABLE = 1;
+
+        public MainThreadHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case EGL_CONTEXT_AVAILABLE:
+                    LOG.info("EGL Context is available, parameters {}", msg.obj);
+                    createSurfaceTextureWithSharedEglContext((EGLContextAvailableMessage) msg.obj);
+                    break;
+                default:
+                    super.handleMessage(msg);
+            }
+            super.handleMessage(msg);
+        }
     }
 }
