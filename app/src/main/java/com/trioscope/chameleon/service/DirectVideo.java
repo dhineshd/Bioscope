@@ -47,10 +47,10 @@ public class DirectVideo {
     // number of coordinates per vertex in this array
     static final int COORDS_PER_VERTEX = 2;
     static float squareVertices[] = { // in counterclockwise order:
-            -1.0f, 1.0f,
-            -1.0f, -1.0f,
+            1.0f, 1.0f,
             1.0f, -1.0f,
-            1.0f, 1.0f
+            -1.0f, -1.0f,
+            -1.0f, 1.0f
     };
 
     private short drawOrder[] = {0, 1, 2, 0, 2, 3}; // order to draw vertices
