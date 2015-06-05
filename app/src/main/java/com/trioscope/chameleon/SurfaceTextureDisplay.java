@@ -53,18 +53,19 @@ public class SurfaceTextureDisplay extends GLSurfaceView {
             // note -- dont log in here, this is frame loop
             // Redraw background color
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-            LOG.info("Rendering frame");
+            LOG.debug("Rendering frame");
             if(textureId != -1) {
                 if(directVideo == null) {
-                    LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
+                    LOG.debug("Creating directVideo at start of drawFrame using texture {}", textureId);
                     directVideo = new DirectVideo(textureId);
                 }
-                LOG.info("Drawing direct video");
+                LOG.debug("Drawing direct video");
                 directVideo.draw();
             }
         }
 
         public void onSurfaceCreated(GL10 unused, EGLConfig config) {
+            LOG.info("Surface is created");
             GLES20.glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
         }
 
