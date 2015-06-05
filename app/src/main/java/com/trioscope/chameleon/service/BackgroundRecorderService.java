@@ -1,15 +1,11 @@
 package com.trioscope.chameleon.service;
 
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.IBinder;
-import android.view.Gravity;
-import android.view.WindowManager;
 
 import com.trioscope.chameleon.MainActivity;
 import com.trioscope.chameleon.RenderRequestFrameListener;
@@ -33,7 +29,6 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
     private BackgroundRecorderBinder backgroundRecorderBinder = new BackgroundRecorderBinder(this);
 
     private MediaRecorder mediaRecorder;
-    private WindowManager windowManager;
     private SystemOverlayGLSurface surfaceView;
     private Camera camera = null;
 
@@ -52,18 +47,6 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
     @Override
     public IBinder onBind(Intent intent) {
         LOG.info("Initial binding to the service");
-
-        // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
-        windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
-        surfaceView = new SystemOverlayGLSurface(this);
-        WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
-                1, 1,
-                WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
-                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-                PixelFormat.TRANSLUCENT
-        );
-        layoutParams.gravity = Gravity.LEFT | Gravity.TOP;
-        windowManager.addView(surfaceView, layoutParams);
 
         return backgroundRecorderBinder;
     }
@@ -84,14 +67,8 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
     }
 
     public void startRecording() {
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            LOG.error("Unable to sleep for 1s", e);
-        }
         LOG.info("Starting recording");
 
-        LOG.info("EGLContext from surfaceView is {}", surfaceView.getEglContext());
         EGLContextAvailableMessage msg = new EGLContextAvailableMessage();
         msg.setSurfaceTexture(surfaceView.getSurfaceTexture());
         msg.setGlTextureId(surfaceView.getTextureId());

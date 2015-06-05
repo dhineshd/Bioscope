@@ -5,7 +5,9 @@ import android.graphics.SurfaceTexture;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
-import android.util.AttributeSet;
+import android.os.Handler;
+
+import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +24,11 @@ import lombok.Getter;
  */
 public class SystemOverlayGLSurface extends GLSurfaceView {
     private static final Logger LOG = LoggerFactory.getLogger(SystemOverlayGLSurface.class);
+    private Handler eglContextHandler;
 
     private SurfaceTextureRenderer renderer;
+
+    @Getter
     private SurfaceTexture surfaceTexture;
 
     @Getter
@@ -32,13 +37,9 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
     @Getter
     private int textureId;
 
-    public SystemOverlayGLSurface(Context context) {
+    public SystemOverlayGLSurface(Context context, Handler eglContextHandler) {
         super(context);
-        init(context);
-    }
-
-    public SystemOverlayGLSurface(Context context, AttributeSet attrs) {
-        super(context, attrs);
+        this.eglContextHandler = eglContextHandler;
         init(context);
     }
 
@@ -53,17 +54,13 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
         setRenderMode(RENDERMODE_WHEN_DIRTY);
     }
 
-    public SurfaceTexture getSurfaceTexture() {
-        return surfaceTexture;
-    }
-
     public class SurfaceTextureRenderer implements GLSurfaceView.Renderer {
         public void onDrawFrame(GL10 unused) {
             // note -- dont log in here, this is frame loop
             // Redraw background color
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             surfaceTexture.updateTexImage();
-            LOG.trace("Drawing surfaceView frame");
+            LOG.debug("Drawing surfaceView frame");
         }
 
         public void onSurfaceCreated(GL10 unused, EGLConfig config) {
@@ -72,6 +69,13 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             GLES20.glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
 
             createSurfaceTexture();
+
+            // Alert the application that the EGLContext is created, and the surfaceTexture is ready for use
+            EGLContextAvailableMessage msg = new EGLContextAvailableMessage();
+            msg.setEglContext(eglContext);
+            msg.setGlTextureId(textureId);
+            msg.setSurfaceTexture(surfaceTexture);
+            eglContextHandler.sendMessage(eglContextHandler.obtainMessage(ChameleonApplication.EGLContextAvailableHandler.EGL_CONTEXT_AVAILABLE, msg));
         }
 
         private void createSurfaceTexture() {

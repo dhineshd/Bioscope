@@ -16,6 +16,7 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
@@ -39,7 +40,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 
 import static android.view.View.OnClickListener;
 
-public class MainActivity extends ActionBarActivity implements SurfaceTextureUser {
+public class MainActivity extends ActionBarActivity {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
@@ -51,12 +52,9 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
     private BackgroundRecorder videoRecorder;
     private ForwardedCameraPreview cameraPreview;
 
-    // Surface texture that was created in the OpenGL thread
-    private SurfaceTexture createdSurfaceTexture;
-
     public ThreadLoggingHandler logHandler;
-
     public MainThreadHandler mainThreadHandler;
+    private SurfaceTextureDisplay previewDisplay;
 
     /**
      * Create a file Uri for saving an image or video
@@ -126,9 +124,14 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
 
         setContentView(R.layout.activity_main);
+
+        RelativeLayout mainLayout = (RelativeLayout) findViewById(R.id.main_layout);
+        LOG.info("Found main layout {}", mainLayout);
+        LOG.info("Layout has {} children", mainLayout.getChildCount());
 
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
@@ -167,14 +170,13 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
                         LOG.error("Failed to initialize media recorder");
                     }*/
-
-                    startCameraPreview(createdSurfaceTexture);
                 }
             }
         });
 
-        LOG.info("Adding a logging handler to main thread");
-        logHandler = new ThreadLoggingHandler(Looper.getMainLooper());
+        // Tell the application we're ready to show preview whenever
+        ChameleonApplication application = (ChameleonApplication) getApplication();
+        application.setEglContextCallback(this);
     }
 
     private BackgroundRecorder createBackgroundRecorder() {
@@ -274,14 +276,14 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
         videoFile = null;
     }
 
-    @Override
-    public void setSurfaceTexture(SurfaceTexture createdSurfaceTexture) {
-        this.createdSurfaceTexture = createdSurfaceTexture;
-    }
-
 
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
-        SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(this);
+        if (previewDisplay != null) {
+            LOG.info("Destroying previous previewDisplay first");
+            ((ViewGroup) previewDisplay.getParent()).removeView(previewDisplay);
+        }
+
+        previewDisplay = new SurfaceTextureDisplay(this);
         previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
             @Override
             public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
@@ -308,10 +310,14 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
         previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
         previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer());
         previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        videoRecorder.attachFrameListener(new RenderRequestFrameListener(previewDisplay));
 
+        ((ChameleonApplication) getApplication()).getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
+
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(512,256);
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
-        layout.addView(previewDisplay);
+        layout.addView(previewDisplay, layoutParams);
+        LOG.info("Added child - now has {} children", layout.getChildCount());
+        previewDisplay.requestRender();
     }
 
     // See https://github.com/google/grafika/blob/master/src/com/android/grafika/gles/EglCore.java
@@ -357,6 +363,11 @@ public class MainActivity extends ActionBarActivity implements SurfaceTextureUse
             return null;
         }
         return configs[0];
+    }
+
+    public void eglContextAvailable(EGLContextAvailableMessage eglContextMsg) {
+        LOG.info("EGLContext is now available, going to display preview, thread {}", Thread.currentThread());
+        createSurfaceTextureWithSharedEglContext(eglContextMsg);
     }
 
     public class MainThreadHandler extends Handler {

@@ -103,7 +103,7 @@ public class DirectVideo {
     }
 
     public void draw() {
-        LOG.info("Rendering direct video using thread {}", Thread.currentThread());
+        LOG.debug("Rendering direct video using thread {}", Thread.currentThread());
         GLES20.glUseProgram(mProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture);

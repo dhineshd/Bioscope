@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 public class RenderRequestFrameListener implements FrameListener {
     private final GLSurfaceView renderable;
 
-
     @Override
     public void frameAvailable() {
         renderable.requestRender();
