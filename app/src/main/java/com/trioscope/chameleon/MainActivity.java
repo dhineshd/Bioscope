@@ -22,7 +22,7 @@ import android.widget.RelativeLayout;
 
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
-import com.trioscope.chameleon.service.CameraPreviewFrameListener;
+import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
@@ -142,7 +142,7 @@ public class MainActivity extends ActionBarActivity {
         //camera = getCameraInstance();
 
         LOG.info("Adding camera preview to list of preview surfaces");
-        CameraPreviewFrameListener frameListener = new CameraPreviewFrameListener();
+        CameraPreviewTextureListener frameListener = new CameraPreviewTextureListener();
         videoRecorder.setFrameListener(frameListener);
 
         final Button button = (Button) findViewById(R.id.capture);
@@ -282,6 +282,8 @@ public class MainActivity extends ActionBarActivity {
             LOG.info("Destroying previous previewDisplay first");
             ((ViewGroup) previewDisplay.getParent()).removeView(previewDisplay);
         }
+
+        LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
 
         previewDisplay = new SurfaceTextureDisplay(this);
         previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {

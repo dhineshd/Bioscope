@@ -6,7 +6,7 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 
-import com.trioscope.chameleon.service.DirectVideo;
+import com.trioscope.chameleon.opengl.DirectVideo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,14 +49,13 @@ public class SurfaceTextureDisplay extends GLSurfaceView {
 
     public class SurfaceTextureRenderer implements Renderer {
         public void onDrawFrame(GL10 unused) {
-            LOG.info("SurfaceTextureDisplay OpenGL thread {}", Thread.currentThread());
-            // note -- dont log in here, this is frame loop
+            // note -- dont LOG here, this is frame loop
             // Redraw background color
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             LOG.debug("Rendering frame");
             if(textureId != -1) {
                 if(directVideo == null) {
-                    LOG.debug("Creating directVideo at start of drawFrame using texture {}", textureId);
+                    LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
                     directVideo = new DirectVideo(textureId);
                 }
                 LOG.debug("Drawing direct video");

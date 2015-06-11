@@ -7,10 +7,14 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 
+import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.opengl.DirectVideo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.IntBuffer;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -18,6 +22,7 @@ import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.opengles.GL10;
 
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Created by phand on 5/18/15.
@@ -36,6 +41,11 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
 
     @Getter
     private int textureId;
+    private int fboId;
+    private DirectVideo directVideo;
+
+    @Setter
+    private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     public SystemOverlayGLSurface(Context context, Handler eglContextHandler) {
         super(context);
@@ -61,6 +71,77 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             surfaceTexture.updateTexImage();
             LOG.debug("Drawing surfaceView frame");
+
+            if (textureId != -1) {
+                if (directVideo == null) {
+                    fboId = createFBO();
+                    LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
+                    directVideo = new DirectVideo(textureId, fboId);
+                }
+                LOG.debug("Drawing direct video");
+                directVideo.draw();
+                pullRenderIntoMemory();
+
+                // Rebind default frame buffer
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+            }
+        }
+
+        /**
+         * Creates a user-defined FrameBufferObject (FBO) for rendering rather than using the default FrameBuffer
+         *
+         * @return the OpenGL id for the created FBO
+         */
+        private int createFBO() {
+            // Create an FBO for rendering rather than rendering directly to the default FrameBuffer
+            int[] ids = new int[1];
+            GLES20.glGenFramebuffers(1, ids, 0);
+            int fboId = ids[0];
+            LOG.info("Creating frame buffer id {}", fboId);
+
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+            GLES20.glGenRenderbuffers(1, ids, 0);
+            int colorBufferId = ids[0];
+            LOG.info("Generated color buffer {}", colorBufferId);
+            GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, colorBufferId);
+            //The storage format is RGBA8
+            // TODO: Size the buffer storage appropriately for the camera, not 256x256
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_RGB565, 256, 256);
+            LOG.info("Created render buffer storage");
+            GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_RENDERBUFFER, colorBufferId);
+            LOG.info("FrameBuffer color render buffer is set");
+            //-------------------------
+            GLES20.glGenRenderbuffers(1, ids, 0);
+            int depthBufferId = ids[0];
+            LOG.info("Generated depth buffer {}", depthBufferId);
+            GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, depthBufferId);
+            LOG.info("Bound depth buffer as render buffer");
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, 256, 256);
+            LOG.info("Created storage for depth buffer");
+            //-------------------------
+            //Attach depth buffer to FBO
+            GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_DEPTH_ATTACHMENT, GLES20.GL_RENDERBUFFER, depthBufferId);
+            LOG.info("Done creating FBO with id {}", fboId);
+
+
+            int status = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER);
+            LOG.info("FrameBuffer Status is {} (complete={})", status, GLES20.GL_FRAMEBUFFER_COMPLETE);
+
+            return fboId;
+        }
+
+        private void pullRenderIntoMemory() {
+            LOG.debug("Pulling rendered FBO into main memory");
+            int w = 10, h = 10;
+            int b[] = new int[w * h];
+            IntBuffer ib = IntBuffer.wrap(b);
+            ib.position(0);
+
+            // Bind rendered FBO and read pixels
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+            GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
+            LOG.debug("IntBuffer: {}", b);
+            cameraFrameBuffer.frameAvailable(ib.array());
         }
 
         public void onSurfaceCreated(GL10 unused, EGLConfig config) {

@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.service;
+package com.trioscope.chameleon.opengl;
 
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
@@ -35,6 +35,7 @@ public class DirectVideo {
                     "void main() {" +
                     "  gl_FragColor = texture2D( s_texture, textureCoordinate );" +
                     "}";
+    private int fboId;
 
     private FloatBuffer vertexBuffer, textureVerticesBuffer;
     private ShortBuffer drawListBuffer;
@@ -60,10 +61,15 @@ public class DirectVideo {
 
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
 
-    private int texture;
+    private int textureId;
 
     public DirectVideo(int _texture) {
-        texture = _texture;
+        this(_texture, 0); // Default FrameBuffer is 0
+    }
+
+    public DirectVideo(int textureId, int fboId) {
+        this.textureId = textureId;
+        this.fboId = fboId;
 
         ByteBuffer bb = ByteBuffer.allocateDirect(squareVertices.length * 4);
         bb.order(ByteOrder.nativeOrder());
@@ -90,8 +96,9 @@ public class DirectVideo {
         GLES20.glAttachShader(mProgram, vertexShader);   // add the vertex shader to program
         GLES20.glAttachShader(mProgram, fragmentShader); // add the fragment shader to program
         GLES20.glLinkProgram(mProgram);
-    }
 
+        LOG.info("Created DirectVideo programs in OpenGL context using textureId {} and fboId {}", textureId, fboId);
+    }
 
     private static int loadShader(int type, String shaderCode) {
         int shader = GLES20.glCreateShader(type);
@@ -103,10 +110,16 @@ public class DirectVideo {
     }
 
     public void draw() {
-        LOG.debug("Rendering direct video using thread {}", Thread.currentThread());
+        LOG.debug("Binding to fboId {} and drawing {}", fboId, Thread.currentThread());
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+        drawColor();
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+    }
+
+    private void drawColor() {
         GLES20.glUseProgram(mProgram);
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture);
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId);
 
         mPositionHandle = GLES20.glGetAttribLocation(mProgram, "position");
         GLES20.glEnableVertexAttribArray(mPositionHandle);
