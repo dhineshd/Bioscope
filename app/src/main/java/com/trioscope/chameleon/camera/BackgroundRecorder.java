@@ -11,7 +11,7 @@ import android.os.IBinder;
 import com.trioscope.chameleon.MainActivity;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
-import com.trioscope.chameleon.service.CameraPreviewFrameListener;
+import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.service.FrameListener;
 
 import org.slf4j.Logger;
@@ -41,7 +41,7 @@ public class BackgroundRecorder implements VideoRecorder {
     private ForwardedCameraPreview cameraPreview;
 
     @Setter
-    private CameraPreviewFrameListener frameListener;
+    private CameraPreviewTextureListener frameListener;
 
     @Setter
     private MainActivity.MainThreadHandler mainThreadHandler;

@@ -10,7 +10,9 @@ import android.view.Gravity;
 import android.view.WindowManager;
 
 import com.trioscope.chameleon.camera.VideoRecorder;
-import com.trioscope.chameleon.service.CameraPreviewFrameListener;
+import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
+import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
@@ -40,7 +42,9 @@ public class ChameleonApplication extends Application {
     private SystemOverlayGLSurface surfaceView;
     private Camera camera;
     @Getter
-    private CameraPreviewFrameListener cameraPreviewFrameListener = new CameraPreviewFrameListener();
+    private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
+    private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
+
     private boolean previewStarted = false;
 
     @Override
@@ -51,6 +55,7 @@ public class ChameleonApplication extends Application {
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
         surfaceView = new SystemOverlayGLSurface(this, new EGLContextAvailableHandler());
+        surfaceView.setCameraFrameBuffer(cameraFrameBuffer);
         WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
                 1, 1,
                 WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
@@ -60,6 +65,9 @@ public class ChameleonApplication extends Application {
         layoutParams.gravity = Gravity.LEFT | Gravity.TOP;
         windowManager.addView(surfaceView, layoutParams);
         LOG.info("Created system overlay SurfaceView {}", surfaceView);
+
+        // Add FPS listener to CameraBuffer
+        cameraFrameBuffer.addListener(new UpdateRateListener());
     }
 
     @Override
@@ -81,7 +89,6 @@ public class ChameleonApplication extends Application {
             }
         }
     }
-
 
     private void startPreview() {
         if (!previewStarted) {

@@ -11,6 +11,7 @@ import com.trioscope.chameleon.MainActivity;
 import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SystemOverlayGLSurface;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
+import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
     private ForwardedCameraPreview cameraPreview;
 
     @Setter
-    private CameraPreviewFrameListener frameListener;
+    private CameraPreviewTextureListener frameListener;
 
     @Setter
     private File outputFile;
