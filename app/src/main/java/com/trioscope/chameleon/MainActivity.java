@@ -315,9 +315,8 @@ public class MainActivity extends ActionBarActivity {
 
         ((ChameleonApplication) getApplication()).getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
 
-        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(512,256);
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
-        layout.addView(previewDisplay, layoutParams);
+        layout.addView(previewDisplay);
         LOG.info("Added child - now has {} children", layout.getChildCount());
         previewDisplay.requestRender();
     }
