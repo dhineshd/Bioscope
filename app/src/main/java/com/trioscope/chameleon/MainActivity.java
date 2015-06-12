@@ -23,6 +23,8 @@ import android.widget.RelativeLayout;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
+import com.trioscope.chameleon.camera.stream.RtspVideoStreamer;
+import com.trioscope.chameleon.camera.stream.VideoStreamer;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
@@ -51,6 +53,7 @@ public class MainActivity extends ActionBarActivity {
     private File videoFile;
     private BackgroundRecorder videoRecorder;
     private ForwardedCameraPreview cameraPreview;
+    private VideoStreamer videoStreamer;
 
     public ThreadLoggingHandler logHandler;
     public MainThreadHandler mainThreadHandler;
@@ -135,6 +138,7 @@ public class MainActivity extends ActionBarActivity {
 
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
+        videoStreamer = new RtspVideoStreamer();
 
         LOG.info("Current thread is {}", Thread.currentThread());
 
@@ -189,6 +193,7 @@ public class MainActivity extends ActionBarActivity {
     public void startCameraPreview(SurfaceTexture texture) {
         videoRecorder.setOutputFile(getOutputMediaFile(MEDIA_TYPE_VIDEO));
         videoRecorder.startRecording();
+        videoStreamer.startStreaming();
         LOG.info("Starting camera preview");
     }
 

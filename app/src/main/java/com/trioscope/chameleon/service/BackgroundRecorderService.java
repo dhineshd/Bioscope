@@ -80,6 +80,7 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
         try {
             // Race condition here - fix with surfaceHolderListener
             frameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
+            frameListener.addFrameListener(new VideoStreamFrameListener());
             surfaceView.getSurfaceTexture().setOnFrameAvailableListener(frameListener);
             camera.setPreviewTexture(surfaceView.getSurfaceTexture());
             camera.startPreview();

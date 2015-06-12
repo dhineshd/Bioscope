@@ -30,6 +30,8 @@ public class CameraPreviewTextureListener implements SurfaceTexture.OnFrameAvail
 
         for (FrameListener listener : frameListeners)
             listener.frameAvailable();
+
+
     }
 
     public void addDisplaySurface(GLSurfaceView surface) {
