@@ -10,9 +10,15 @@
 
     <Button
         android:id="@+id/capture"
+        android:layout_width="100px"
+        android:layout_height="100px"
+        android:text="Record!" />
+
+    <Button
+        android:id="@+id/gl_rotate_activity"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Record!" />
+        android:text="Move to Rotation Test" android:layout_below="@id/capture" android:onClick="foo"/>
 
 </RelativeLayout>
 

@@ -9,6 +9,7 @@ import android.os.Message;
 import android.view.Gravity;
 import android.view.WindowManager;
 
+import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
@@ -46,6 +47,7 @@ public class ChameleonApplication extends Application {
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
+    private EGLContextAvailableHandler eglContextAvailHandler;
 
     @Override
     public void onCreate() {
@@ -54,7 +56,8 @@ public class ChameleonApplication extends Application {
 
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
-        surfaceView = new SystemOverlayGLSurface(this, new EGLContextAvailableHandler());
+        eglContextAvailHandler = new EGLContextAvailableHandler();
+        surfaceView = new SystemOverlayGLSurface(this, eglContextAvailHandler);
         surfaceView.setCameraFrameBuffer(cameraFrameBuffer);
         WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
                 1, 1,
@@ -81,7 +84,7 @@ public class ChameleonApplication extends Application {
             LOG.info("Adding EGLContextCallback for when EGLContext is available");
             if (globalEglContextInfo != null) {
                 LOG.info("EGLContext immediately available, calling now");
-                eglCallback.eglContextAvailable(globalEglContextInfo);
+                mainActivity.eglContextAvailable(globalEglContextInfo);
                 startPreview();
             } else {
                 LOG.info("EGLContext not immediately available, going to call later");

@@ -8,7 +8,7 @@ import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
-import com.trioscope.chameleon.MainActivity;
+import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;

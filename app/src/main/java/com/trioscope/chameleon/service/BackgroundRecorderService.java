@@ -7,7 +7,7 @@ import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
-import com.trioscope.chameleon.MainActivity;
+import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SystemOverlayGLSurface;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
