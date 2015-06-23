@@ -3,6 +3,8 @@ package com.trioscope.chameleon.opengl;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 
+import com.trioscope.chameleon.state.RotationState;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,6 +12,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
+
+import lombok.Setter;
 
 /**
  * Created by phand on 5/28/15.
@@ -37,7 +41,7 @@ public class DirectVideo {
                     "}";
     private int fboId;
 
-    private FloatBuffer vertexBuffer, textureVerticesBuffer;
+    private FloatBuffer vertexBuffer, textureVerticesBuffer, textureVerticesRotatedBuffer;
     private ShortBuffer drawListBuffer;
     private final int mProgram;
     private int mPositionHandle;
@@ -47,7 +51,7 @@ public class DirectVideo {
 
     // number of coordinates per vertex in this array
     static final int COORDS_PER_VERTEX = 2;
-    static float squareVertices[] = { // in counterclockwise order:
+    static float squareVertices[] = { // in clockwise order:
             1.0f, 1.0f,
             1.0f, -1.0f,
             -1.0f, -1.0f,
@@ -59,9 +63,16 @@ public class DirectVideo {
     static float textureVertices[] = { // in counterclockwise order:
             0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,};
 
+
+    static float textureVerticesRotated[] = { // in counterclockwise order:
+            1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,};
+
     private final int vertexStride = COORDS_PER_VERTEX * 4; // 4 bytes per vertex
 
     private int textureId;
+
+    @Setter
+    private RotationState rotationState;
 
     public DirectVideo(int _texture) {
         this(_texture, 0); // Default FrameBuffer is 0
@@ -88,6 +99,13 @@ public class DirectVideo {
         textureVerticesBuffer = bb2.asFloatBuffer();
         textureVerticesBuffer.put(textureVertices);
         textureVerticesBuffer.position(0);
+
+
+        bb2 = ByteBuffer.allocateDirect(textureVerticesRotated.length * 4);
+        bb2.order(ByteOrder.nativeOrder());
+        textureVerticesRotatedBuffer = bb2.asFloatBuffer();
+        textureVerticesRotatedBuffer.put(textureVerticesRotated);
+        textureVerticesRotatedBuffer.position(0);
 
         int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode);
         int fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode);
@@ -127,8 +145,13 @@ public class DirectVideo {
 
         mTextureCoordHandle = GLES20.glGetAttribLocation(mProgram, "inputTextureCoordinate");
         GLES20.glEnableVertexAttribArray(mTextureCoordHandle);
-        GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesBuffer);
 
+        if (rotationState == null || rotationState.isPortrait())
+            GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesBuffer);
+        else {
+            LOG.info("Rotation state is landscape!");
+            GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesRotatedBuffer);
+        }
         mColorHandle = GLES20.glGetUniformLocation(mProgram, "s_texture");
 
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawOrder.length,

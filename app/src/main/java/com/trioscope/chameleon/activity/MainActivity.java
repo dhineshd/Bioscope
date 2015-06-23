@@ -128,6 +128,8 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ((ChameleonApplication) getApplication()).updateOrientation();
+
         mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
 
         setContentView(R.layout.activity_main);
@@ -325,7 +327,7 @@ public class MainActivity extends ActionBarActivity {
         previewDisplay.setTextureId(contextMessage.getGlTextureId());
         previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
         //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer());
+        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(((ChameleonApplication) getApplication()).getRotationState()));
         //previewDisplay.setPreserveEGLContextOnPause(true);
 
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);

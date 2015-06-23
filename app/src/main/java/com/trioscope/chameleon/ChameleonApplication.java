@@ -14,6 +14,7 @@ import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
+import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
@@ -33,6 +34,9 @@ public class ChameleonApplication extends Application {
     private VideoRecorder videoRecorder;
 
     @Getter
+    private RotationState rotationState = new RotationState();
+
+    @Getter
     @Setter
     private EGLContextAvailableMessage globalEglContextInfo;
     private MainActivity eglCallback;
@@ -48,6 +52,7 @@ public class ChameleonApplication extends Application {
 
     private boolean previewStarted = false;
     private EGLContextAvailableHandler eglContextAvailHandler;
+
 
     @Override
     public void onCreate() {
@@ -109,6 +114,16 @@ public class ChameleonApplication extends Application {
         } else {
             LOG.info("Preview already started");
         }
+    }
+
+    public void updateOrientation() {
+        LOG.info("Updating current device orientation");
+
+        int orientation = getResources().getConfiguration().orientation;
+
+        boolean isLandscape = getResources().getConfiguration().ORIENTATION_LANDSCAPE == orientation;
+        LOG.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
+        rotationState.setLandscape(isLandscape);
     }
 
     public class EGLContextAvailableHandler extends Handler {

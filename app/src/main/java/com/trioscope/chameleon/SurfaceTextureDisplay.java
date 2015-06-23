@@ -8,6 +8,7 @@ import android.util.AttributeSet;
 import android.view.SurfaceHolder;
 
 import com.trioscope.chameleon.opengl.DirectVideo;
+import com.trioscope.chameleon.state.RotationState;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import lombok.Data;
 import lombok.Setter;
 
 /**
@@ -74,7 +76,10 @@ public class SurfaceTextureDisplay extends GLSurfaceView implements SurfaceHolde
     }
 
 
+    @Data
     public class SurfaceTextureRenderer implements Renderer {
+        private final RotationState rotationState;
+
         public void onDrawFrame(GL10 unused) {
             // note -- dont LOG here, this is frame loop
             // Redraw background color
@@ -84,6 +89,7 @@ public class SurfaceTextureDisplay extends GLSurfaceView implements SurfaceHolde
                 if (directVideo == null) {
                     LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
                     directVideo = new DirectVideo(textureId);
+                    directVideo.setRotationState(rotationState);
                 }
                 LOG.debug("Drawing direct video");
                 directVideo.draw();
