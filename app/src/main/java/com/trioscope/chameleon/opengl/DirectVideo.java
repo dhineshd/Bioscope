@@ -149,7 +149,7 @@ public class DirectVideo {
         if (rotationState == null || rotationState.isPortrait())
             GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesBuffer);
         else {
-            LOG.info("Rotation state is landscape!");
+            // essentially rotate the view port
             GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, vertexStride, textureVerticesRotatedBuffer);
         }
         mColorHandle = GLES20.glGetUniformLocation(mProgram, "s_texture");

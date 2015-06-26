@@ -15,7 +15,9 @@ import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.state.RotationState;
+import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,8 @@ public class ChameleonApplication extends Application {
     private WindowManager windowManager;
     private SystemOverlayGLSurface surfaceView;
     private Camera camera;
+    @Getter
+    private CameraInfo cameraInfo;
     @Getter
     private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
@@ -102,6 +106,12 @@ public class ChameleonApplication extends Application {
         if (!previewStarted) {
             LOG.info("Grabbing camera and starting preview");
             camera = Camera.open();
+
+            Camera.Parameters params = camera.getParameters();
+
+            cameraInfo = CameraInfoFactory.createCameraInfo(params);
+            LOG.info("CameraInfo for opened camera is {}", cameraInfo);
+
             try {
                 cameraPreviewFrameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
                 globalEglContextInfo.getSurfaceTexture().setOnFrameAvailableListener(cameraPreviewFrameListener);
@@ -116,7 +126,7 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public void updateOrientation() {
+    public synchronized void updateOrientation() {
         LOG.info("Updating current device orientation");
 
         int orientation = getResources().getConfiguration().orientation;

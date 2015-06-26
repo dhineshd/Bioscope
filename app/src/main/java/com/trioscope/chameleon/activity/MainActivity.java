@@ -2,7 +2,6 @@ package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
-import android.hardware.Camera;
 import android.net.Uri;
 import android.opengl.EGL14;
 import android.opengl.EGLExt;
@@ -252,24 +251,6 @@ public class MainActivity extends ActionBarActivity {
     protected void onStop() {
         LOG.info("onStop: Activity is no longer visible to user");
         super.onStop();
-    }
-
-    /**
-     * A safe way to get an instance of the Camera object.
-     */
-    private Camera getCameraInstance() {
-        Camera c = null;
-        try {
-            c = Camera.open(); // attempt to get a Camera instance
-
-            if (c != null) {
-                LOG.info("Successfully opened camera");
-            }
-
-        } catch (Exception e) {
-            LOG.error("Could not open camera: ", e);
-        }
-        return c; // returns null if camera is unavailable
     }
 
     private boolean prepareVideoRecorder() {
