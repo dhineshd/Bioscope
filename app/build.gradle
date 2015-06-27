@@ -31,7 +31,6 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.12'
 
 
-
     // Supports Android 4.0.3 and later (API level 15)
     compile 'com.journeyapps:zxing-android-embedded:2.0.1@aar'
 
