@@ -1,5 +1,6 @@
 package com.trioscope.chameleon.types;
 
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -9,5 +10,10 @@ import lombok.Data;
 @Data
 @Builder
 public class CameraInfo {
-    private final int width, height;
+    private final Size size;
+
+    @Data
+    public static class Size {
+        private final int width, height;
+    }
 }

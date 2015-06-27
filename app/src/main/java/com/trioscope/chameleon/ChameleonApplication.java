@@ -84,8 +84,8 @@ public class ChameleonApplication extends Application {
 
     @Override
     public void onTerminate() {
-        super.onTerminate();
         LOG.info("Terminating application");
+        super.onTerminate();
     }
 
     public void setEglContextCallback(MainActivity mainActivity) {
@@ -110,6 +110,7 @@ public class ChameleonApplication extends Application {
             Camera.Parameters params = camera.getParameters();
 
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
+            surfaceView.setCameraInfo(cameraInfo);
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
 
             try {
