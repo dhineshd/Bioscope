@@ -12,6 +12,7 @@ import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SystemOverlayGLSurface;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
+import com.trioscope.chameleon.listener.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
@@ -80,7 +81,6 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
         try {
             // Race condition here - fix with surfaceHolderListener
             frameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
-            frameListener.addFrameListener(new VideoStreamFrameListener());
             surfaceView.getSurfaceTexture().setOnFrameAvailableListener(frameListener);
             camera.setPreviewTexture(surfaceView.getSurfaceTexture());
             camera.startPreview();

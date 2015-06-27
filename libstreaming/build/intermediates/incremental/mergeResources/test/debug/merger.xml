@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merger version="3"><dataSet config="debug"><source path="/Users/johny/AndroidStudioProjects/chameleon/libstreaming/build/intermediates/bundles/debug/res"/></dataSet><dataSet config="main"><source path="/Users/johny/AndroidStudioProjects/chameleon/libstreaming/src/androidTest/res"/><source path="/Users/johny/AndroidStudioProjects/chameleon/libstreaming/build/generated/res/rs/test/debug"/><source path="/Users/johny/AndroidStudioProjects/chameleon/libstreaming/build/generated/res/generated/test/debug"/></dataSet><mergedItems/></merger>

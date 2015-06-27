@@ -6,6 +6,7 @@ import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
+import android.util.Log;
 
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.opengl.DirectVideo;
@@ -132,7 +133,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
 
         private void pullRenderIntoMemory() {
             LOG.debug("Pulling rendered FBO into main memory");
-            int w = 10, h = 10;
+            int w = 176, h = 144;
             int b[] = new int[w * h];
             IntBuffer ib = IntBuffer.wrap(b);
             ib.position(0);

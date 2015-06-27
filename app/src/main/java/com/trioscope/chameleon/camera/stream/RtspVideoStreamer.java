@@ -74,7 +74,6 @@ public class RtspVideoStreamer implements FrameListener{
 
     }
 
-    @Override
     public void onFrameReceived(byte[] data, Camera.Parameters cameraParams) {
         if (isStreaming) {
             oldnow = now;

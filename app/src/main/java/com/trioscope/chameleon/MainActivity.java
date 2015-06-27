@@ -138,7 +138,7 @@ public class MainActivity extends ActionBarActivity {
 
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
-        videoStreamer = new RtspVideoStreamer();
+        //videoStreamer = new RtspVideoStreamer();
 
         LOG.info("Current thread is {}", Thread.currentThread());
 
