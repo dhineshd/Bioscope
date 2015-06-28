@@ -10,7 +10,8 @@ import lombok.Data;
 @Data
 @Builder
 public class CameraInfo {
-    private final Size size;
+    private final Size cameraResolution;
+    private final Size captureResolution;
 
     @Data
     public static class Size {

@@ -47,6 +47,7 @@ public class ChameleonApplication extends Application {
     // For background image recording
     private WindowManager windowManager;
     private SystemOverlayGLSurface surfaceView;
+    @Getter
     private Camera camera;
     @Getter
     private CameraInfo cameraInfo;

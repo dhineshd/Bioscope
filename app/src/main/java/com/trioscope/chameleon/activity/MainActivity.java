@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
@@ -24,7 +25,6 @@ import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
@@ -140,10 +140,6 @@ public class MainActivity extends ActionBarActivity {
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
 
-        LOG.info("Adding camera preview to list of preview surfaces");
-        CameraPreviewTextureListener frameListener = new CameraPreviewTextureListener();
-        videoRecorder.setFrameListener(frameListener);
-
         final Button button = (Button) findViewById(R.id.capture);
 
         button.setOnClickListener(new OnClickListener() {
@@ -151,7 +147,6 @@ public class MainActivity extends ActionBarActivity {
             public void onClick(View v) {
                 LOG.info("Capture video button clicked");
                 if (isRecording) {
-
                     finishVideoRecording();
 
                     isRecording = false;
@@ -159,7 +154,7 @@ public class MainActivity extends ActionBarActivity {
                     button.setText("Record!");
                 } else {
                     // initialize video camera
-                    /*if (prepareVideoRecorder()) {
+                    if (prepareVideoRecorder()) {
                         videoRecorder.startRecording();
                         button.setText("Done!");
                         isRecording = true;
@@ -168,7 +163,7 @@ public class MainActivity extends ActionBarActivity {
                         // inform user
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
                         LOG.error("Failed to initialize media recorder");
-                    }*/
+                    }
                 }
             }
         });
@@ -257,7 +252,7 @@ public class MainActivity extends ActionBarActivity {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
         videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCameraPreview(cameraPreview);
+        videoRecorder.setCamera(((ChameleonApplication) getApplication()).getCamera());
         return true;
     }
 

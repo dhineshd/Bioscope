@@ -114,7 +114,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             LOG.info("Generated color buffer {}", colorBufferId);
             GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, colorBufferId);
             //The storage format is RGBA8
-            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_RGB565, cameraInfo.getSize().getWidth(), cameraInfo.getSize().getHeight());
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_RGB565, cameraInfo.getCaptureResolution().getWidth(), cameraInfo.getCaptureResolution().getHeight());
             LOG.info("Created render buffer storage");
             GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_RENDERBUFFER, colorBufferId);
             LOG.info("FrameBuffer color render buffer is set");
@@ -124,7 +124,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             LOG.info("Generated depth buffer {}", depthBufferId);
             GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, depthBufferId);
             LOG.info("Bound depth buffer as render buffer");
-            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, cameraInfo.getSize().getWidth(), cameraInfo.getSize().getHeight());
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, cameraInfo.getCaptureResolution().getWidth(), cameraInfo.getCaptureResolution().getHeight());
             LOG.info("Created storage for depth buffer");
             //-------------------------
             //Attach depth buffer to FBO
@@ -143,7 +143,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 LOG.info("Camera info not available - not pulling into memory");
             } else {
                 LOG.debug("Pulling rendered FBO into main memory");
-                int w = 192, h = 108;
+                int w = cameraInfo.getCaptureResolution().getWidth(), h = cameraInfo.getCaptureResolution().getHeight();
                 int b[] = new int[w * h];
                 IntBuffer ib = IntBuffer.wrap(b);
                 ib.position(0);
