@@ -138,6 +138,8 @@ public class MainActivity extends ActionBarActivity {
 
         LOG.info("Current thread is {}", Thread.currentThread());
 
+        LOG.info("Calling onCreate for Activity " + this);
+
         // create an instance of the camera
         //camera = getCameraInstance();
 
@@ -171,6 +173,16 @@ public class MainActivity extends ActionBarActivity {
                         LOG.error("Failed to initialize media recorder");
                     }*/
                 }
+            }
+        });
+
+        final Button startConnectionButton = (Button) findViewById(R.id.startConnection);
+
+        startConnectionButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MainActivity.this, ConnectionEstablishmentActivity.class);
+                startActivity(i);
             }
         });
 

@@ -2,18 +2,22 @@ package com.trioscope.chameleon;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Handler;
 import android.os.Message;
 import android.view.Gravity;
 import android.view.WindowManager;
 
+import com.trioscope.chameleon.broadcastreceiver.WiFiDirectBroadcastReceiver;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +51,20 @@ public class ChameleonApplication extends Application {
 
     private boolean previewStarted = false;
 
+    @Getter
+    private WifiP2pManager wifiP2pManager;
+    @Getter
+    private WifiP2pManager.Channel wifiP2pChannel;
+
+    @Getter
+    @Setter
+    private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
+
+    private WiFiDirectBroadcastReceiver wiFiDirectBroadcastReceiver;
+
+    private IntentFilter wifiIntentFilter;
+
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -68,10 +86,17 @@ public class ChameleonApplication extends Application {
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
+
+
     }
 
     @Override
     public void onTerminate() {
+
+        if(wiFiDirectBroadcastReceiver!=null) {
+            unregisterReceiver(wiFiDirectBroadcastReceiver);
+        }
+
         super.onTerminate();
         LOG.info("Terminating application");
     }
@@ -129,4 +154,30 @@ public class ChameleonApplication extends Application {
             }
         }
     }
+
+
+
+    public void initializeWifi() {
+
+        if(wifiP2pManager == null) {
+            LOG.debug("Acquiring WifiP2pManager");
+            wifiP2pManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
+
+            LOG.debug("Acquiring WifiChannel");
+            wifiP2pChannel = wifiP2pManager.initialize(this, getMainLooper(), null);
+
+            wiFiDirectBroadcastReceiver = new WiFiDirectBroadcastReceiver(wifiP2pManager, wifiP2pChannel);
+
+            wifiIntentFilter = new IntentFilter();
+            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+
+            registerReceiver(wiFiDirectBroadcastReceiver, wifiIntentFilter);
+
+        }
+    }
+
+
 }

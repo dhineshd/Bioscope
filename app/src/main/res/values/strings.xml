@@ -4,5 +4,9 @@
     <string name="app_name">Chameleon</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="title_activity_qrcode">QRCodeActivity</string>
+    <string name="title_activity_connection_establishment_nfc">ConnectionEstablishmentNFCActivity
+    </string>
+    <string name="title_activity_connection_receive_nfc">ConnectionReceiveNFCActivity</string>
 
 </resources>
