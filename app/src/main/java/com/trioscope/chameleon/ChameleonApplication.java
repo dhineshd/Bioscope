@@ -16,6 +16,7 @@ import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
+import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
@@ -32,6 +33,7 @@ import lombok.Setter;
  */
 public class ChameleonApplication extends Application {
     private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
+    private static ChameleonApplication instance;
 
     private VideoRecorder videoRecorder;
 
@@ -47,6 +49,7 @@ public class ChameleonApplication extends Application {
     private Camera camera;
     @Getter
     private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
+    @Getter
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
@@ -64,6 +67,7 @@ public class ChameleonApplication extends Application {
 
     private IntentFilter wifiIntentFilter;
 
+    private VideoStreamFrameListener streamListener;
 
     @Override
     public void onCreate() {
@@ -86,8 +90,8 @@ public class ChameleonApplication extends Application {
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
-
-
+        streamListener = new VideoStreamFrameListener();
+        cameraFrameBuffer.addListener(streamListener);
     }
 
     @Override

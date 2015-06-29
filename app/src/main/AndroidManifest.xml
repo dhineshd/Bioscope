@@ -24,7 +24,6 @@
     <uses-feature
         android:name="android.hardware.nfc"
         android:required="true" />
-
     <application
         android:name=".ChameleonApplication"
         android:allowBackup="true"
@@ -56,6 +55,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/com.trioscope.chameleon.connect.wifi" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".ReceiveConnectionInfoActivity"
+            android:label="@string/title_activity_receive_connection_info" >
         </activity>
     </application>
 

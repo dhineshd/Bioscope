@@ -5,8 +5,9 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_qrcode">QRCodeActivity</string>
-    <string name="title_activity_connection_establishment_nfc">ConnectionEstablishmentNFCActivity
-    </string>
+    <string name="title_activity_connection_establishment_nfc">ConnectionEstablishmentNFCActivity</string>
     <string name="title_activity_connection_receive_nfc">ConnectionReceiveNFCActivity</string>
-
+    <string name="title_activity_receive_connection_info">ReceiveConnectionInfoActivity</string>
+    <string name="connecting_message">Connecting..</string>
+    <string name="connected_message">Connected</string>
 </resources>

@@ -20,6 +20,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.google.zxing.integration.android.IntentResult;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
@@ -55,6 +57,7 @@ public class MainActivity extends ActionBarActivity {
     public ThreadLoggingHandler logHandler;
     public MainThreadHandler mainThreadHandler;
     private SurfaceTextureDisplay previewDisplay;
+
 
     /**
      * Create a file Uri for saving an image or video
@@ -189,6 +192,42 @@ public class MainActivity extends ActionBarActivity {
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
+
+        Intent intent = new Intent(this, ReceiveConnectionInfoActivity.class);
+        startActivity(intent);
+    }
+
+    private void launchScan(){
+        Intent i=new Intent(this,com.google.zxing.client.android.CaptureActivity.class);
+        i.setAction(com.google.zxing.client.android.Intents.Scan.ACTION);
+        i.putExtra("SCAN_MODE","ONE_D_QRCODE_MODE");
+        i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivityForResult(i,1);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
+        LOG.info("Activity result invoked ");
+//        if (result != null) {
+//            String contents = result.getContents();
+//            LOG.info("Activity result contents : " + result.getContents());
+//            if (contents != null) {
+//                LOG.info(R.string.result_succeeded + " : " + result);
+//            } else {
+//                LOG.info(R.string.result_failed + ":" + getString(R.string.result_failed_why));
+//            }
+//        }
+        if (resultCode == RESULT_OK) {
+            String contents=intent.getStringExtra("SCAN_RESULT");
+            String format=intent.getStringExtra("SCAN_RESULT_FORMAT");
+            LOG.info("Scan success!! Format: " + format + "\nContents: "+ contents);
+
+            //connectToWifiNetwork("JohnyCL", "6144778485");
+        }
+        else     if (resultCode == RESULT_CANCELED) {
+            LOG.info("Scan failed!!");
+        }
     }
 
     private BackgroundRecorder createBackgroundRecorder() {
