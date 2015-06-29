@@ -67,6 +67,7 @@ public class ChameleonApplication extends Application {
 
     private IntentFilter wifiIntentFilter;
 
+    @Getter
     private VideoStreamFrameListener streamListener;
 
     @Override

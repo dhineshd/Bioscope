@@ -54,7 +54,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
         LOG.info("Frame available for streaming");
         int w = 50, h = 50;
         //if (Math.random() < 0.1) {
-            localUiHandler.sendMessage(localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod2(data, w, h)));
+        // localUiHandler.sendMessage(localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod2(data, w, h)));
         //}
     }
     private Bitmap convertToBmpMethod1(final int[] data, final int width, final int height){

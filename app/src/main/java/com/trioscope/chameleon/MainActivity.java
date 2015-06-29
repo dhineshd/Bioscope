@@ -193,8 +193,8 @@ public class MainActivity extends ActionBarActivity {
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
 
-        Intent intent = new Intent(this, ReceiveConnectionInfoActivity.class);
-        startActivity(intent);
+        //Intent intent = new Intent(this, ReceiveConnectionInfoActivity.class);
+        //startActivity(intent);
     }
 
     private void launchScan(){
