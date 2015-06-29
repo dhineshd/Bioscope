@@ -62,11 +62,6 @@ public class TwoPreviewRecorder extends SurfaceView implements VideoRecorder, Su
     }
 
     @Override
-    public void setCameraPreview(ForwardedCameraPreview cameraPreview) {
-
-    }
-
-    @Override
     public void surfaceCreated(SurfaceHolder holder) {
         LOG.info("Surface created");
         //Some callback buffers to increase performance

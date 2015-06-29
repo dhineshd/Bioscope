@@ -9,6 +9,7 @@ import android.os.Handler;
 
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.opengl.DirectVideo;
+import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
 import org.slf4j.Logger;
@@ -47,6 +48,9 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
     @Setter
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
+    @Setter
+    private CameraInfo cameraInfo;
+
     public SystemOverlayGLSurface(Context context, Handler eglContextHandler) {
         super(context);
         this.eglContextHandler = eglContextHandler;
@@ -74,16 +78,21 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
 
             if (textureId != -1) {
                 if (directVideo == null) {
-                    fboId = createFBO();
-                    LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
-                    directVideo = new DirectVideo(textureId, fboId);
-                }
-                LOG.debug("Drawing direct video");
-                directVideo.draw();
-                pullRenderIntoMemory();
+                    if (cameraInfo != null) {
+                        fboId = createFBO();
+                        LOG.info("Creating directVideo at start of drawFrame using texture {}", textureId);
+                        directVideo = new DirectVideo(textureId, fboId);
+                    } else {
+                        LOG.info("Waiting to create DirectVideo since we dont have cameraInfo yet");
+                    }
+                } else {
+                    LOG.debug("Drawing direct video");
+                    directVideo.draw();
+                    pullRenderIntoMemory();
 
-                // Rebind default frame buffer
-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+                    // Rebind default frame buffer
+                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+                }
             }
         }
 
@@ -105,8 +114,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             LOG.info("Generated color buffer {}", colorBufferId);
             GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, colorBufferId);
             //The storage format is RGBA8
-            // TODO: Size the buffer storage appropriately for the camera, not 256x256
-            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_RGB565, 256, 256);
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_RGB565, cameraInfo.getCaptureResolution().getWidth(), cameraInfo.getCaptureResolution().getHeight());
             LOG.info("Created render buffer storage");
             GLES20.glFramebufferRenderbuffer(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_RENDERBUFFER, colorBufferId);
             LOG.info("FrameBuffer color render buffer is set");
@@ -116,7 +124,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             LOG.info("Generated depth buffer {}", depthBufferId);
             GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, depthBufferId);
             LOG.info("Bound depth buffer as render buffer");
-            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, 256, 256);
+            GLES20.glRenderbufferStorage(GLES20.GL_RENDERBUFFER, GLES20.GL_DEPTH_COMPONENT16, cameraInfo.getCaptureResolution().getWidth(), cameraInfo.getCaptureResolution().getHeight());
             LOG.info("Created storage for depth buffer");
             //-------------------------
             //Attach depth buffer to FBO
@@ -131,17 +139,23 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
         }
 
         private void pullRenderIntoMemory() {
-            LOG.debug("Pulling rendered FBO into main memory");
-            int w = 10, h = 10;
-            int b[] = new int[w * h];
-            IntBuffer ib = IntBuffer.wrap(b);
-            ib.position(0);
+            if (cameraInfo == null) {
+                LOG.info("Camera info not available - not pulling into memory");
+            } else {
+                LOG.debug("Pulling rendered FBO into main memory");
+                int w = cameraInfo.getCaptureResolution().getWidth(), h = cameraInfo.getCaptureResolution().getHeight();
+                int b[] = new int[w * h];
+                IntBuffer ib = IntBuffer.wrap(b);
+                ib.position(0);
 
-            // Bind rendered FBO and read pixels
-            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
-            GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
-            LOG.debug("IntBuffer: {}", b);
-            cameraFrameBuffer.frameAvailable(ib.array());
+                // Bind rendered FBO and read pixels
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+
+                // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
+                GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
+                LOG.debug("IntBuffer: {}", b);
+                cameraFrameBuffer.frameAvailable(cameraInfo, ib.array());
+            }
         }
 
         public void onSurfaceCreated(GL10 unused, EGLConfig config) {

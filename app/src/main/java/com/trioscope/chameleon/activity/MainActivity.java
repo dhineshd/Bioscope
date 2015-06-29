@@ -1,8 +1,7 @@
-package com.trioscope.chameleon;
+package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
-import android.hardware.Camera;
 import android.net.Uri;
 import android.opengl.EGL14;
 import android.opengl.EGLExt;
@@ -16,12 +15,17 @@ import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
+import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.ConnectionEstablishmentActivity;
+import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.RenderRequestFrameListener;
+import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
@@ -128,6 +132,8 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ((ChameleonApplication) getApplication()).updateOrientation();
+
         mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
 
         setContentView(R.layout.activity_main);
@@ -139,17 +145,6 @@ public class MainActivity extends ActionBarActivity {
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
 
-        LOG.info("Current thread is {}", Thread.currentThread());
-
-        LOG.info("Calling onCreate for Activity " + this);
-
-        // create an instance of the camera
-        //camera = getCameraInstance();
-
-        LOG.info("Adding camera preview to list of preview surfaces");
-        CameraPreviewTextureListener frameListener = new CameraPreviewTextureListener();
-        videoRecorder.setFrameListener(frameListener);
-
         final Button button = (Button) findViewById(R.id.capture);
 
         button.setOnClickListener(new OnClickListener() {
@@ -157,7 +152,6 @@ public class MainActivity extends ActionBarActivity {
             public void onClick(View v) {
                 LOG.info("Capture video button clicked");
                 if (isRecording) {
-
                     finishVideoRecording();
 
                     isRecording = false;
@@ -165,7 +159,7 @@ public class MainActivity extends ActionBarActivity {
                     button.setText("Record!");
                 } else {
                     // initialize video camera
-                    /*if (prepareVideoRecorder()) {
+                    if (prepareVideoRecorder()) {
                         videoRecorder.startRecording();
                         button.setText("Done!");
                         isRecording = true;
@@ -174,7 +168,7 @@ public class MainActivity extends ActionBarActivity {
                         // inform user
                         Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
                         LOG.error("Failed to initialize media recorder");
-                    }*/
+                    }
                 }
             }
         });
@@ -188,6 +182,19 @@ public class MainActivity extends ActionBarActivity {
                 startActivity(i);
             }
         });
+
+        final Button moveToGLRotationTest = (Button) findViewById(R.id.gl_rotate_activity);
+
+        moveToGLRotationTest.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Broadcasting intent to change activities");
+                Intent k = new Intent(MainActivity.this, GLSurfaceViewRotation.class);
+                startActivity(k);
+            }
+        });
+
+        LOG.info("Set the click listener to {}", moveToGLRotationTest);
 
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
@@ -267,46 +274,36 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     protected void onPause() {
-        LOG.info("onPause: App is no longer in foreground");
+        LOG.info("onPause: Activity is no longer in foreground");
+        if (previewDisplay != null)
+            previewDisplay.onPause();
         super.onPause();
+    }
+
+    public void onResume() {
+        if (previewDisplay != null)
+            previewDisplay.onResume();
+        super.onResume();
     }
 
     @Override
     protected void onDestroy() {
-        LOG.info("onDestroy: App is no longer used by user");
+        LOG.info("onDestroy: Activity is no longer used by user");
         videoRecorder.stopRecording();
         super.onDestroy();
     }
 
     @Override
     protected void onStop() {
-        LOG.info("onStop: App is no longer visible to user");
+        LOG.info("onStop: Activity is no longer visible to user");
         super.onStop();
-    }
-
-    /**
-     * A safe way to get an instance of the Camera object.
-     */
-    private Camera getCameraInstance() {
-        Camera c = null;
-        try {
-            c = Camera.open(); // attempt to get a Camera instance
-
-            if (c != null) {
-                LOG.info("Successfully opened camera");
-            }
-
-        } catch (Exception e) {
-            LOG.error("Could not open camera: ", e);
-        }
-        return c; // returns null if camera is unavailable
     }
 
     private boolean prepareVideoRecorder() {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
         videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCameraPreview(cameraPreview);
+        videoRecorder.setCamera(((ChameleonApplication) getApplication()).getCamera());
         return true;
     }
 
@@ -327,13 +324,7 @@ public class MainActivity extends ActionBarActivity {
         videoFile = null;
     }
 
-
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
-        if (previewDisplay != null) {
-            LOG.info("Destroying previous previewDisplay first");
-            ((ViewGroup) previewDisplay.getParent()).removeView(previewDisplay);
-        }
-
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
 
         previewDisplay = new SurfaceTextureDisplay(this);
@@ -349,27 +340,28 @@ public class MainActivity extends ActionBarActivity {
 
                 EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(display, eglConfig, contextMessage.getEglContext(), attrib2_list);
 
-                LOG.info("Created a shared EGL context {}", newContext);
+                LOG.info("Created a shared EGL context: {}", newContext);
                 return newContext;
             }
 
             @Override
             public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
-
+                LOG.info("EGLContext is being destroyed");
+                egl.eglDestroyContext(display, context);
             }
         });
 
         previewDisplay.setTextureId(contextMessage.getGlTextureId());
         previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
-        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer());
-        previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-
-        ((ChameleonApplication) getApplication()).getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
+        //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(((ChameleonApplication) getApplication()).getRotationState()));
+        //previewDisplay.setPreserveEGLContextOnPause(true);
 
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
         layout.addView(previewDisplay);
-        LOG.info("Added child - now has {} children", layout.getChildCount());
-        previewDisplay.requestRender();
+
+        ((ChameleonApplication) getApplication()).getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
+
     }
 
     // See https://github.com/google/grafika/blob/master/src/com/android/grafika/gles/EglCore.java

@@ -10,6 +10,7 @@ import android.widget.ImageView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
+import com.trioscope.chameleon.types.CameraInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
     }
 
     @Override
-    public void onFrameAvailable(int[] data) {
+    public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
         LOG.info("Frame available for streaming");
         int w = 50, h = 50;
         //if (Math.random() < 0.1) {

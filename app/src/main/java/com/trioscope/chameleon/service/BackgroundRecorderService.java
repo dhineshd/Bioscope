@@ -7,12 +7,8 @@ import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
-import com.trioscope.chameleon.MainActivity;
-import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SystemOverlayGLSurface;
-import com.trioscope.chameleon.camera.ForwardedCameraPreview;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
-import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.activity.MainActivity;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,19 +21,15 @@ import lombok.Setter;
 /**
  * Created by phand on 4/29/15.
  */
-public class BackgroundRecorderService extends Service implements Camera.PreviewCallback {
+public class BackgroundRecorderService extends Service {
     private static final Logger LOG = LoggerFactory.getLogger(BackgroundRecorderService.class);
     private BackgroundRecorderBinder backgroundRecorderBinder = new BackgroundRecorderBinder(this);
 
     private MediaRecorder mediaRecorder;
     private SystemOverlayGLSurface surfaceView;
+
+    @Setter
     private Camera camera = null;
-
-    @Setter
-    private ForwardedCameraPreview cameraPreview;
-
-    @Setter
-    private CameraPreviewTextureListener frameListener;
 
     @Setter
     private File outputFile;
@@ -70,23 +62,6 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
     public void startRecording() {
         LOG.info("Starting recording");
 
-        EGLContextAvailableMessage msg = new EGLContextAvailableMessage();
-        msg.setSurfaceTexture(surfaceView.getSurfaceTexture());
-        msg.setGlTextureId(surfaceView.getTextureId());
-        msg.setEglContext(surfaceView.getEglContext());
-        mainThreadHandler.sendMessage(mainThreadHandler.obtainMessage(MainActivity.MainThreadHandler.EGL_CONTEXT_AVAILABLE, msg));
-
-        camera = Camera.open();
-        try {
-            // Race condition here - fix with surfaceHolderListener
-            frameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
-            surfaceView.getSurfaceTexture().setOnFrameAvailableListener(frameListener);
-            camera.setPreviewTexture(surfaceView.getSurfaceTexture());
-            camera.startPreview();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         mediaRecorder = new MediaRecorder();
 
         // Step 1: Unlock and set camera to MediaRecorder
@@ -118,15 +93,5 @@ public class BackgroundRecorderService extends Service implements Camera.Preview
         mediaRecorder.start();
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
-    }
-
-    @Override
-    public void onPreviewFrame(byte[] data, Camera camera) {
-        LOG.info("Preview Frame Received");
-        cameraPreview.drawData(data, camera.getParameters());
-    }
-
-    public void attachFrameListener(FrameListener listener) {
-        frameListener.addFrameListener(listener);
     }
 }

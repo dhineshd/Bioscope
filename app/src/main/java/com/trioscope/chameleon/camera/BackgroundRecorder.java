@@ -8,11 +8,9 @@ import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
-import com.trioscope.chameleon.MainActivity;
+import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
-import com.trioscope.chameleon.service.FrameListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +36,7 @@ public class BackgroundRecorder implements VideoRecorder {
     private File outputFile;
 
     @Setter
-    private ForwardedCameraPreview cameraPreview;
-
-    @Setter
-    private CameraPreviewTextureListener frameListener;
+    private Camera camera;
 
     @Setter
     private MainActivity.MainThreadHandler mainThreadHandler;
@@ -57,8 +52,7 @@ public class BackgroundRecorder implements VideoRecorder {
             serviceBound = true;
             backgroundRecorderService = ((BackgroundRecorderBinder<BackgroundRecorderService>) service).getService();
             backgroundRecorderService.setOutputFile(outputFile);
-            backgroundRecorderService.setCameraPreview(cameraPreview);
-            backgroundRecorderService.setFrameListener(frameListener);
+            backgroundRecorderService.setCamera(camera);
             backgroundRecorderService.setMainThreadHandler(mainThreadHandler);
             backgroundRecorderService.startRecording();
         }
@@ -101,15 +95,4 @@ public class BackgroundRecorder implements VideoRecorder {
         recording = false;
     }
 
-    @Override
-    public void setCamera(Camera c) {
-
-    }
-
-    public void attachFrameListener(FrameListener listener) {
-        if(serviceBound)
-            backgroundRecorderService.attachFrameListener(listener);
-        else
-            LOG.warn("Service not yet bound, cannot attach frame listener");
-    }
 }

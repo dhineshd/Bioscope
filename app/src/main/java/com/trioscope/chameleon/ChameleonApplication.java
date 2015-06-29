@@ -12,6 +12,7 @@ import android.view.Gravity;
 import android.view.WindowManager;
 
 import com.trioscope.chameleon.broadcastreceiver.WiFiDirectBroadcastReceiver;
+import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
@@ -19,6 +20,10 @@ import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.state.RotationState;
+import com.trioscope.chameleon.types.CameraInfo;
+import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +43,9 @@ public class ChameleonApplication extends Application {
     private VideoRecorder videoRecorder;
 
     @Getter
+    private RotationState rotationState = new RotationState();
+
+    @Getter
     @Setter
     private EGLContextAvailableMessage globalEglContextInfo;
     private MainActivity eglCallback;
@@ -46,13 +54,18 @@ public class ChameleonApplication extends Application {
     // For background image recording
     private WindowManager windowManager;
     private SystemOverlayGLSurface surfaceView;
+    @Getter
     private Camera camera;
+    @Getter
+    private CameraInfo cameraInfo;
     @Getter
     private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
     @Getter
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
+    private EGLContextAvailableHandler eglContextAvailHandler;
+
 
     @Getter
     private WifiP2pManager wifiP2pManager;
@@ -77,7 +90,8 @@ public class ChameleonApplication extends Application {
 
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
-        surfaceView = new SystemOverlayGLSurface(this, new EGLContextAvailableHandler());
+        eglContextAvailHandler = new EGLContextAvailableHandler();
+        surfaceView = new SystemOverlayGLSurface(this, eglContextAvailHandler);
         surfaceView.setCameraFrameBuffer(cameraFrameBuffer);
         WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
                 1, 1,
@@ -101,9 +115,8 @@ public class ChameleonApplication extends Application {
         if(wiFiDirectBroadcastReceiver!=null) {
             unregisterReceiver(wiFiDirectBroadcastReceiver);
         }
-
-        super.onTerminate();
         LOG.info("Terminating application");
+        super.onTerminate();
     }
 
     public void setEglContextCallback(MainActivity mainActivity) {
@@ -111,7 +124,7 @@ public class ChameleonApplication extends Application {
             LOG.info("Adding EGLContextCallback for when EGLContext is available");
             if (globalEglContextInfo != null) {
                 LOG.info("EGLContext immediately available, calling now");
-                eglCallback.eglContextAvailable(globalEglContextInfo);
+                mainActivity.eglContextAvailable(globalEglContextInfo);
                 startPreview();
             } else {
                 LOG.info("EGLContext not immediately available, going to call later");
@@ -124,6 +137,13 @@ public class ChameleonApplication extends Application {
         if (!previewStarted) {
             LOG.info("Grabbing camera and starting preview");
             camera = Camera.open();
+
+            Camera.Parameters params = camera.getParameters();
+
+            cameraInfo = CameraInfoFactory.createCameraInfo(params);
+            surfaceView.setCameraInfo(cameraInfo);
+            LOG.info("CameraInfo for opened camera is {}", cameraInfo);
+
             try {
                 cameraPreviewFrameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
                 globalEglContextInfo.getSurfaceTexture().setOnFrameAvailableListener(cameraPreviewFrameListener);
@@ -136,6 +156,16 @@ public class ChameleonApplication extends Application {
         } else {
             LOG.info("Preview already started");
         }
+    }
+
+    public synchronized void updateOrientation() {
+        LOG.info("Updating current device orientation");
+
+        int orientation = getResources().getConfiguration().orientation;
+
+        boolean isLandscape = getResources().getConfiguration().ORIENTATION_LANDSCAPE == orientation;
+        LOG.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
+        rotationState.setLandscape(isLandscape);
     }
 
     public class EGLContextAvailableHandler extends Handler {
