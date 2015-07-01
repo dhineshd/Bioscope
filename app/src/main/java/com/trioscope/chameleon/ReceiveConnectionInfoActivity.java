@@ -108,7 +108,6 @@ public class ReceiveConnectionInfoActivity extends ActionBarActivity {
         connectToWifiNetwork(networkSSID, networkPassword);
 
         ImageView imageView = (ImageView) findViewById(R.id.imageView_stream);
-        LOG.info("imageView = " + imageView);
 
         VideoStreamFrameListener.StreamThreadHandler streamThreadHandler =
                 ((ChameleonApplication) getApplication()).getStreamListener().getHandler();
@@ -238,7 +237,7 @@ public class ReceiveConnectionInfoActivity extends ActionBarActivity {
             return;
         }
 
-        surfaceView = (SurfaceView) findViewById(R.id.stream_surfaceView);
+        //surfaceView = (SurfaceView) findViewById(R.id.stream_surfaceView);
         surfaceHolder = surfaceView.getHolder();
 
         mMediaPlayer = new MediaPlayer();

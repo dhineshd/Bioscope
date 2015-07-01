@@ -39,6 +39,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
                 switch (msg.what) {
                     case PREVIEW_IMAGE_AVAILABLE:
                         if (imageView != null){
+                            LOG.info("Setting bitmap to ImageView..");
                             imageView.setImageBitmap((Bitmap) msg.obj);
                         }
                         break;
@@ -52,11 +53,12 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
 
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
-        LOG.info("Frame available for streaming");
-        int w = 50, h = 50;
-        //if (Math.random() < 0.1) {
-        // localUiHandler.sendMessage(localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod2(data, w, h)));
-        //}
+        int w = cameraInfos.getCaptureResolution().getWidth();
+        int h = cameraInfos.getCaptureResolution().getHeight();
+        LOG.info("Frame available for streaming w = {}, h = {}", w, h);
+        if (Math.random() < 0.1) {
+            //localUiHandler.sendMessage(localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod3(data, w, h)));
+        }
     }
     private Bitmap convertToBmpMethod1(final int[] data, final int width, final int height){
         int screenshotSize = width * height;
@@ -76,12 +78,27 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
     }
 
     private Bitmap convertToBmpMethod2(final int[] data, final int width, final int height){
-        int screenshotSize = width * height;
-
         IntBuffer pixelsBuffer = IntBuffer.wrap(data);
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         bmp.copyPixelsFromBuffer(pixelsBuffer);
         return  bmp;
+    }
+
+    private Bitmap convertToBmpMethod3(final int[] data, final int width, final int height){
+        int offset1, offset2;
+        int bitmapSource[] = new int[width * height];
+        for (int i = 0; i < height; i++) {
+            offset1 = i * width;
+            offset2 = (height - i - 1) * width;
+            for (int j = 0; j < width; j++) {
+                int texturePixel = data[offset1 + j];
+                int blue = (texturePixel >> 16) & 0xff;
+                int red = (texturePixel << 16) & 0x00ff0000;
+                int pixel = (texturePixel & 0xff00ff00) | red | blue;
+                bitmapSource[offset2 + j] = pixel;
+            }
+        }
+        return Bitmap.createBitmap(bitmapSource, width, height, Bitmap.Config.ARGB_8888);
     }
     public class StreamThreadHandler extends Handler {
         public static final int IMAGEVIEW_AVAILABLE = 1;

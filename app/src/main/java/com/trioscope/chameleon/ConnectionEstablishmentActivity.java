@@ -6,8 +6,8 @@ import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.nfc.NfcEvent;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -15,8 +15,14 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
+import org.apache.http.conn.util.InetAddressUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
 
 import static android.nfc.NdefRecord.createMime;
 
@@ -27,7 +33,6 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
 
     private Gson mGson = new Gson();
     private NfcAdapter mNfcAdapter;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,13 +69,18 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
                         Toast.LENGTH_LONG).show();
                 LOG.debug("Wifi hotspot details {} ", group);
 
-                LOG.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ", group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
+                LOG.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
+                        group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
 
-                WiFiNetworkConnectionInfo nci = new WiFiNetworkConnectionInfo();
+                WiFiNetworkConnectionInfo nci =
+                        WiFiNetworkConnectionInfo.builder()
+                        .SSID(group.getNetworkName())
+                        .passPhrase(group.getPassphrase())
+                        .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
+                        .serverPort(ChameleonApplication.SERVER_PORT)
+                        .build();
 
-                nci.setSsid(group.getNetworkName());
-                nci.setWifiP2pPassPhrase(group.getPassphrase());
-
+                // Connection info will be used in other components of the app
                 chameleonApplication.setWiFiNetworkConnectionInfo(nci);
             }
         });
@@ -82,6 +92,27 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
         mNfcAdapter.setNdefPushMessageCallback(this, this);
     }
 
+    private InetAddress getIpAddressForInterface(final String networkInterfaceName){
+        try {
+            for (Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+                 networkInterfaces.hasMoreElements();){
+                NetworkInterface networkInterface = networkInterfaces.nextElement();
+                if (networkInterface.getName().equalsIgnoreCase(networkInterfaceName)){
+                    for (Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+                         inetAddresses.hasMoreElements();){
+                        InetAddress inetAddress = inetAddresses.nextElement();
+                        if (!inetAddress.isLoopbackAddress() &&
+                                InetAddressUtils.isIPv4Address(inetAddress.getHostAddress())){
+                            return inetAddress;
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -103,6 +134,11 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 
     @Override

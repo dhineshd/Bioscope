@@ -11,18 +11,18 @@ import android.os.Message;
 import android.view.Gravity;
 import android.view.WindowManager;
 
-import com.trioscope.chameleon.broadcastreceiver.WiFiDirectBroadcastReceiver;
 import com.trioscope.chameleon.activity.MainActivity;
+import com.trioscope.chameleon.broadcastreceiver.WiFiDirectBroadcastReceiver;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
-import com.trioscope.chameleon.stream.VideoStreamFrameListener;
-import com.trioscope.chameleon.types.EGLContextAvailableMessage;
-import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.state.RotationState;
+import com.trioscope.chameleon.stream.ConnectionServer;
+import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 
 import org.slf4j.Logger;
@@ -38,9 +38,10 @@ import lombok.Setter;
  */
 public class ChameleonApplication extends Application {
     private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
-    private static ChameleonApplication instance;
-
+    public final static int SERVER_PORT = 7080;
     private VideoRecorder videoRecorder;
+    private ConnectionServer connectionServer =
+            new ConnectionServer(ChameleonApplication.SERVER_PORT);
 
     @Getter
     private RotationState rotationState = new RotationState();
@@ -107,6 +108,9 @@ public class ChameleonApplication extends Application {
         cameraFrameBuffer.addListener(new UpdateRateListener());
         streamListener = new VideoStreamFrameListener();
         cameraFrameBuffer.addListener(streamListener);
+
+        // Setup connection server to receive connections from client
+        connectionServer.start();
     }
 
     @Override
@@ -115,6 +119,7 @@ public class ChameleonApplication extends Application {
         if(wiFiDirectBroadcastReceiver!=null) {
             unregisterReceiver(wiFiDirectBroadcastReceiver);
         }
+        connectionServer.stop();
         LOG.info("Terminating application");
         super.onTerminate();
     }
@@ -190,8 +195,6 @@ public class ChameleonApplication extends Application {
         }
     }
 
-
-
     public void initializeWifi() {
 
         if(wifiP2pManager == null) {
@@ -213,6 +216,4 @@ public class ChameleonApplication extends Application {
 
         }
     }
-
-
 }

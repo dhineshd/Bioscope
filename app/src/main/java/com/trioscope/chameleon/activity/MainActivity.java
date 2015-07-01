@@ -28,7 +28,6 @@ import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
@@ -199,9 +198,6 @@ public class MainActivity extends ActionBarActivity {
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
-
-        //Intent intent = new Intent(this, ReceiveConnectionInfoActivity.class);
-        //startActivity(intent);
     }
 
     private void launchScan(){
@@ -216,15 +212,6 @@ public class MainActivity extends ActionBarActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
         LOG.info("Activity result invoked ");
-//        if (result != null) {
-//            String contents = result.getContents();
-//            LOG.info("Activity result contents : " + result.getContents());
-//            if (contents != null) {
-//                LOG.info(R.string.result_succeeded + " : " + result);
-//            } else {
-//                LOG.info(R.string.result_failed + ":" + getString(R.string.result_failed_why));
-//            }
-//        }
         if (resultCode == RESULT_OK) {
             String contents=intent.getStringExtra("SCAN_RESULT");
             String format=intent.getStringExtra("SCAN_RESULT_FORMAT");
