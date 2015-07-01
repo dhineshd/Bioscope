@@ -16,6 +16,11 @@ public class CameraInfoFactory {
 
         Camera.Size previewSize = params.getPreviewSize();
 
-        return CameraInfo.builder().cameraResolution(new CameraInfo.Size(previewSize.width, previewSize.height)).captureResolution(new CameraInfo.Size(CAP_WIDTH, CAP_HEIGHT)).build();
+        CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
+
+        builder.cameraResolution(new CameraInfo.Size(previewSize.width, previewSize.height));
+        builder.captureResolution(new CameraInfo.Size(CAP_WIDTH, CAP_HEIGHT));
+
+        return builder.build();
     }
 }
