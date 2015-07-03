@@ -1,4 +1,4 @@
-package com.trioscope.chameleon;
+package com.trioscope.chameleon.activity;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,38 +10,34 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
-import com.trioscope.chameleon.stream.VideoStreamFrameListener;
+import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteOrder;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ConnectionReceiveNFCActivity extends ActionBarActivity {
+public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
 
     private Gson mGson = new Gson();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_connection_receive_nfc);
+        setContentView(R.layout.activity_receive_connection_info_nfc);
     }
 
 
@@ -108,26 +104,29 @@ public class ConnectionReceiveNFCActivity extends ActionBarActivity {
                             intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
                     if(networkInfo.getType() == ConnectivityManager.TYPE_WIFI &&
                             networkInfo.isConnected() && getLocalIpAddressForWifi() != null) {
+
+                        // Done with checking Wifi state
+                        unregisterReceiver(this);
+
                         TextView textView = (TextView) findViewById(R.id.textView_connection_status);
                         String connectedMessage = "Connected to " + connectionInfo.getSSID();
                         textView.setText(connectedMessage);
+
                         try {
-                            InetAddress hostIp = InetAddress.getByName(connectionInfo.getServerIpAddress());
-                            new ConnectToServerTask(hostIp, connectionInfo.getServerPort())
-                                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                            PeerInfo peerInfo = PeerInfo.builder()
+                                    .ipAddress(InetAddress.getByName(connectionInfo.getServerIpAddress()))
+                                    .port(connectionInfo.getServerPort())
+                                    .build();
 
-                            ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_client);
-
-                            VideoStreamFrameListener.StreamThreadHandler streamThreadHandler =
-                                    ((ChameleonApplication) getApplication()).getStreamListener().getHandler();
-                            streamThreadHandler.sendMessage(streamThreadHandler.obtainMessage(
-                                    VideoStreamFrameListener.StreamThreadHandler.IMAGEVIEW_AVAILABLE, imageView));
+                            Intent connectionEstablishedIntent = new Intent(context, ConnectionEstablishedActivity.class);
+                            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
+                                    new Gson().toJson(peerInfo));
+                            startActivity(connectionEstablishedIntent);
 
                         } catch (UnknownHostException e) {
                             throw new RuntimeException(e);
                         }
-                        // Done with checking Wifi state
-                        unregisterReceiver(this);
+
                     }
                 }
             }
@@ -136,6 +135,14 @@ public class ConnectionReceiveNFCActivity extends ActionBarActivity {
 
         connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
 
+    }
+
+    private void sendConnectionRequestToServer(){
+        //            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
+//            String messageToServer = "My IP : " + getLocalIpAddressForWifi() + "\n";
+//            pw.write(messageToServer);
+//            pw.close();
+//            log.info("Sent message to server : " + messageToServer);
     }
 
     private String getLocalIpAddressForWifi(){
@@ -158,30 +165,6 @@ public class ConnectionReceiveNFCActivity extends ActionBarActivity {
         return ipAddressString;
     }
 
-    class ConnectToServerTask extends AsyncTask<Void, Void, Void>{
-        private Thread mThread;
-
-        public ConnectToServerTask(final InetAddress hostIp, final int port){
-            mThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    connectToRemoteHost(hostIp, port);
-                }
-            });
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            mThread.start();
-            return null;
-        }
-
-        public void tearDown(){
-            mThread.interrupt();
-        }
-
-    }
-
     private void connectToWifiNetwork(final String networkSSID, final String networkPassword){
         WifiConfiguration conf = new WifiConfiguration();
         conf.SSID = "\"" + networkSSID + "\"";
@@ -196,26 +179,4 @@ public class ConnectionReceiveNFCActivity extends ActionBarActivity {
         wifiManager.reconnect();
     }
 
-    private void connectToRemoteHost(final InetAddress remoteHostIp, final int port){
-        try {
-            Socket socket = new Socket(remoteHostIp, port);
-            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
-            String messageToServer = "My IP : " + getLocalIpAddressForWifi() + "\n";
-            pw.write(messageToServer);
-            pw.close();
-            log.info("Sent message to server : " + messageToServer);
-            char[] buffer = new char[16384];
-//            BufferedReader br = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-//            while(true){
-//                // TODO More robust
-//                while(br.read(buffer) != -1){
-//                    LOG.info("Received frame bytes = " + buffer.length);
-//                }
-//            }
-            //connectToRemoteServer(socket);
-            //socket.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

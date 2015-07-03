@@ -8,6 +8,7 @@ import android.hardware.Camera;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Handler;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
 import android.view.Gravity;
 import android.view.WindowManager;
 
@@ -19,9 +20,11 @@ import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
+import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 
@@ -40,8 +43,6 @@ public class ChameleonApplication extends Application {
     private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
     public final static int SERVER_PORT = 7080;
     private VideoRecorder videoRecorder;
-    private ConnectionServer connectionServer =
-            new ConnectionServer(ChameleonApplication.SERVER_PORT);
 
     @Getter
     private RotationState rotationState = new RotationState();
@@ -77,12 +78,28 @@ public class ChameleonApplication extends Application {
     @Setter
     private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
 
+    @Getter
+    @Setter
+    private PeerInfo peerInfo;
+
+    @Getter
+    @Setter
+    private SurfaceTextureDisplay previewDisplay;
+
     private WiFiDirectBroadcastReceiver wiFiDirectBroadcastReceiver;
 
     private IntentFilter wifiIntentFilter;
 
     @Getter
     private VideoStreamFrameListener streamListener;
+    private ParcelFileDescriptor[] parcelFds;
+    private ConnectionServer connectionServer;
+    @Getter
+    private ServerEventListener serverEventListener;
+
+    @Setter
+    @Getter
+    private boolean isDirector;
 
     @Override
     public void onCreate() {
@@ -106,10 +123,20 @@ public class ChameleonApplication extends Application {
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
-        streamListener = new VideoStreamFrameListener();
+
+        try {
+            parcelFds = ParcelFileDescriptor.createPipe();
+        } catch (IOException e) {
+            LOG.error("Failed to create pipe");
+        }
+
+        streamListener = new VideoStreamFrameListener(parcelFds[1]);
         cameraFrameBuffer.addListener(streamListener);
 
+
         // Setup connection server to receive connections from client
+        serverEventListener = new ServerEventListener();
+        connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, parcelFds[0], serverEventListener);
         connectionServer.start();
     }
 

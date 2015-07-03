@@ -22,7 +22,6 @@ import android.widget.Toast;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 import com.trioscope.chameleon.ChameleonApplication;
-import com.trioscope.chameleon.ConnectionEstablishmentActivity;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
@@ -177,7 +176,7 @@ public class MainActivity extends ActionBarActivity {
         startConnectionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(MainActivity.this, ConnectionEstablishmentActivity.class);
+                Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
         });
@@ -198,6 +197,8 @@ public class MainActivity extends ActionBarActivity {
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
+
+        application.getServerEventListener().setContext(this.getApplicationContext());
     }
 
     private void launchScan(){
@@ -347,7 +348,9 @@ public class MainActivity extends ActionBarActivity {
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
         layout.addView(previewDisplay);
 
-        ((ChameleonApplication) getApplication()).getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
+        ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
+        chameleonApplication.setPreviewDisplay(previewDisplay);
+        chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
 
     }
 

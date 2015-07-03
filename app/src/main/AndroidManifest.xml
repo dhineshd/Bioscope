@@ -24,6 +24,7 @@
     <uses-feature
         android:name="android.hardware.nfc"
         android:required="true" />
+
     <application
         android:name=".ChameleonApplication"
         android:allowBackup="true"
@@ -40,23 +41,30 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity android:name=".activity.GLSurfaceViewRotation" android:label="RotationActivity" />
+        <activity
+            android:name=".activity.GLSurfaceViewRotation"
+            android:label="RotationActivity" />
 
         <service android:name=".service.BackgroundRecorderService" />
 
         <activity
-            android:name=".ConnectionEstablishmentActivity"
+            android:name=".activity.SendConnectionInfoNFCActivity"
             android:label="@string/title_activity_connection_establishment_nfc" >
         </activity>
         <activity
-            android:name=".ConnectionReceiveNFCActivity"
+            android:name=".activity.ReceiveConnectionInfoNFCActivity"
             android:label="@string/title_activity_connection_receive_nfc" >
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+
                 <category android:name="android.intent.category.DEFAULT" />
+
                 <data android:mimeType="application/com.trioscope.chameleon.connect.wifi" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".activity.ConnectionEstablishedActivity"
+            android:label="@string/title_activity_connection_established" >
         </activity>
     </application>
 

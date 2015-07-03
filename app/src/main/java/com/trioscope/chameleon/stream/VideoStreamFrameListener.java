@@ -1,63 +1,75 @@
 package com.trioscope.chameleon.stream;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
 import android.os.ParcelFileDescriptor;
-import android.widget.ImageView;
 
-import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.types.CameraInfo;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 
-import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Created by dhinesh.dharman on 6/28/15.
  */
+@Slf4j
 public class VideoStreamFrameListener implements CameraFrameAvailableListener {
-    private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
     private final static int PREVIEW_IMAGE_AVAILABLE = 1;
-    private ImageView imageView;
-    private Context context;
     private Handler localUiHandler;
-    private ParcelFileDescriptor writeParcelFd;
-    @Getter
-    private StreamThreadHandler handler = new StreamThreadHandler();
-    public VideoStreamFrameListener(){
-        //Canvas canvas = new Canvas(bmp);
-        localUiHandler = new Handler(Looper.getMainLooper()){
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case PREVIEW_IMAGE_AVAILABLE:
-                        if (imageView != null){
-                            LOG.info("Setting bitmap to ImageView..");
-                            imageView.setImageBitmap((Bitmap) msg.obj);
-                        }
-                        break;
-                    default:
-                        super.handleMessage(msg);
-                }
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024);
+    private ParcelFileDescriptor.AutoCloseOutputStream outputStream;
 
-            }
-        };
+    public VideoStreamFrameListener(final ParcelFileDescriptor writeStreamFd){
+        outputStream = new ParcelFileDescriptor.AutoCloseOutputStream(writeStreamFd);
+//        localUiHandler = new Handler(Looper.getMainLooper()){
+//            private ParcelFileDescriptor.AutoCloseOutputStream os =
+//                    new ParcelFileDescriptor.AutoCloseOutputStream(writeStreamFd);
+//            private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024);
+//            @Override
+//            public void handleMessage(Message msg) {
+//                switch (msg.what) {
+//                    case PREVIEW_IMAGE_AVAILABLE:
+//                        Bitmap bmp = (Bitmap) msg.obj;
+//                        log.info("Sending preview image to local server.. bytes = " + bmp.getByteCount());
+//                        stream.reset();
+//                        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
+//                        try {
+//                            byte[] byteArray = stream.toByteArray();
+//                            os.write(byteArray, 0, byteArray.length);
+//                        } catch (IOException e) {
+//                            throw new RuntimeException(e);
+//                        }
+//                        bmp.recycle();
+//                        break;
+//                    default:
+//                        super.handleMessage(msg);
+//                }
+//            }
+//        };
     }
 
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
-        LOG.info("Frame available for streaming w = {}, h = {}", w, h);
-        if (Math.random() < 0.1) {
-            //localUiHandler.sendMessage(localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod3(data, w, h)));
+        log.info("Frame available for streaming w = {}, h = {}", w, h);
+//        localUiHandler.sendMessage(
+//                localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod4(data, w, h)));
+        Bitmap bmp = convertToBmpMethod4(data, w, h);
+        log.info("Sending preview image to local server.. bytes = " + bmp.getByteCount());
+        stream.reset();
+        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        bmp.recycle();
+        try {
+            byte[] byteArray = stream.toByteArray();
+            outputStream.write(byteArray, 0, byteArray.length);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
     private Bitmap convertToBmpMethod1(final int[] data, final int width, final int height){
@@ -72,14 +84,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
             pixelsBuffer[i] = ((pixelsBuffer[i] & 0xff00ff00)) | ((pixelsBuffer[i] & 0x000000ff) << 16) | ((pixelsBuffer[i] & 0x00ff0000) >> 16);
         }
 
-        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
         bmp.setPixels(pixelsBuffer, screenshotSize - width, -width, 0, 0, width, height);
         return bmp;
     }
 
     private Bitmap convertToBmpMethod2(final int[] data, final int width, final int height){
         IntBuffer pixelsBuffer = IntBuffer.wrap(data);
-        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
         bmp.copyPixelsFromBuffer(pixelsBuffer);
         return  bmp;
     }
@@ -98,27 +110,29 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
                 bitmapSource[offset2 + j] = pixel;
             }
         }
-        return Bitmap.createBitmap(bitmapSource, width, height, Bitmap.Config.ARGB_8888);
+        return Bitmap.createBitmap(bitmapSource, width, height, Bitmap.Config.RGB_565);
     }
-    public class StreamThreadHandler extends Handler {
-        public static final int IMAGEVIEW_AVAILABLE = 1;
-        public static final int FRAME_DESTINATION_AVAILABLE = 2;
 
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case IMAGEVIEW_AVAILABLE:
-                    LOG.info("ImageView available, parameters {}", msg.obj);
-                    imageView = (ImageView) msg.obj;
-                    break;
-                case FRAME_DESTINATION_AVAILABLE:
-                    LOG.info("Frame destination available, parameters {}", msg.obj);
-                    writeParcelFd = (ParcelFileDescriptor) msg.obj;
-                    break;
-                default:
-                    super.handleMessage(msg);
-            }
-            super.handleMessage(msg);
+    private Bitmap convertToBmpMethod4(final int[] data, final int width, final int height){
+        final Bitmap bitmap = Bitmap.createBitmap(width, height,
+                Bitmap.Config.RGB_565);
+        final int screenshotSize = width * height;
+        bitmap.setPixels(data, screenshotSize - width, -width,
+                0, 0, width, height);
+
+        short sBuffer[] = new short[screenshotSize];
+        ShortBuffer sb = ShortBuffer.wrap(sBuffer);
+        bitmap.copyPixelsToBuffer(sb);
+
+        // Making created bitmap (from OpenGL points) compatible with
+        // Android
+        // bitmap
+        for (int i = 0; i < screenshotSize; ++i) {
+            short v = sBuffer[i];
+            sBuffer[i] = (short) (((v & 0x1f) << 11) | (v & 0x7e0) | ((v & 0xf800) >> 11));
         }
+        sb.rewind();
+        bitmap.copyPixelsFromBuffer(sb);
+        return bitmap;
     }
 }

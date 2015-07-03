@@ -1,5 +1,6 @@
-package com.trioscope.chameleon;
+package com.trioscope.chameleon.activity;
 
+import android.content.Context;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.nfc.NdefMessage;
@@ -13,6 +14,8 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
@@ -24,12 +27,14 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
 
+import lombok.extern.slf4j.Slf4j;
+
 import static android.nfc.NdefRecord.createMime;
 
+@Slf4j
+public class SendConnectionInfoNFCActivity extends ActionBarActivity implements NfcAdapter.CreateNdefMessageCallback {
 
-public class ConnectionEstablishmentActivity extends ActionBarActivity implements NfcAdapter.CreateNdefMessageCallback {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ConnectionEstablishmentActivity.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SendConnectionInfoNFCActivity.class);
 
     private Gson mGson = new Gson();
     private NfcAdapter mNfcAdapter;
@@ -37,10 +42,16 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_connection_establishment_nfc);
+        setContentView(R.layout.activity_send_connection_info_nfc);
+
+        final ChameleonApplication chameleonApplication = ((ChameleonApplication)getApplication());
+        chameleonApplication.setDirector(true);
+
+        final Context context = this.getApplicationContext();
+
+        chameleonApplication.getServerEventListener().setContext(context);
 
         //Initialize wifiManager and wifiChannel
-        final ChameleonApplication chameleonApplication = ((ChameleonApplication)getApplication());
 
         chameleonApplication.initializeWifi();
 
@@ -74,11 +85,11 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
 
                 WiFiNetworkConnectionInfo nci =
                         WiFiNetworkConnectionInfo.builder()
-                        .SSID(group.getNetworkName())
-                        .passPhrase(group.getPassphrase())
-                        .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
-                        .serverPort(ChameleonApplication.SERVER_PORT)
-                        .build();
+                                .SSID(group.getNetworkName())
+                                .passPhrase(group.getPassphrase())
+                                .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
+                                .serverPort(ChameleonApplication.SERVER_PORT)
+                                .build();
 
                 // Connection info will be used in other components of the app
                 chameleonApplication.setWiFiNetworkConnectionInfo(nci);
@@ -90,6 +101,7 @@ public class ConnectionEstablishmentActivity extends ActionBarActivity implement
 
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
+
     }
 
     private InetAddress getIpAddressForInterface(final String networkInterfaceName){

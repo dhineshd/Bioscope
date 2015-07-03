@@ -10,4 +10,5 @@
     <string name="title_activity_receive_connection_info">ReceiveConnectionInfoActivity</string>
     <string name="connecting_message">Connecting..</string>
     <string name="connected_message">Connected</string>
+    <string name="title_activity_connection_established">ConnectionEstablishedActivity</string>
 </resources>
