@@ -6,6 +6,7 @@ import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+import javax.microedition.khronos.egl.EGLConfig;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,6 +53,10 @@ public class ChameleonApplication extends Application {
     @Getter
     @Setter
     private EGLContextAvailableMessage globalEglContextInfo;
+    @Getter
+    @Setter
+    private GLSurfaceView.EGLContextFactory eglContextFactory;
+
     private MainActivity eglCallback;
     private final Object eglCallbackLock = new Object();
 
@@ -67,6 +74,9 @@ public class ChameleonApplication extends Application {
 
     private boolean previewStarted = false;
     private EGLContextAvailableHandler eglContextAvailHandler;
+    @Getter
+    @Setter
+    private EGLConfig eglConfig;
 
 
     @Getter
@@ -81,10 +91,6 @@ public class ChameleonApplication extends Application {
     @Getter
     @Setter
     private PeerInfo peerInfo;
-
-    @Getter
-    @Setter
-    private SurfaceTextureDisplay previewDisplay;
 
     private WiFiDirectBroadcastReceiver wiFiDirectBroadcastReceiver;
 

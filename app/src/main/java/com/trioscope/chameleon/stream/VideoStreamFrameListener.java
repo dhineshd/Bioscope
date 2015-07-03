@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.stream;
 
 import android.graphics.Bitmap;
-import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
@@ -12,6 +11,7 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -19,38 +19,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoStreamFrameListener implements CameraFrameAvailableListener {
-    private final static int PREVIEW_IMAGE_AVAILABLE = 1;
-    private Handler localUiHandler;
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024);
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(160 * 90 * 2); // 160 x 90
+    @NonNull
     private ParcelFileDescriptor.AutoCloseOutputStream outputStream;
 
     public VideoStreamFrameListener(final ParcelFileDescriptor writeStreamFd){
         outputStream = new ParcelFileDescriptor.AutoCloseOutputStream(writeStreamFd);
-//        localUiHandler = new Handler(Looper.getMainLooper()){
-//            private ParcelFileDescriptor.AutoCloseOutputStream os =
-//                    new ParcelFileDescriptor.AutoCloseOutputStream(writeStreamFd);
-//            private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024);
-//            @Override
-//            public void handleMessage(Message msg) {
-//                switch (msg.what) {
-//                    case PREVIEW_IMAGE_AVAILABLE:
-//                        Bitmap bmp = (Bitmap) msg.obj;
-//                        log.info("Sending preview image to local server.. bytes = " + bmp.getByteCount());
-//                        stream.reset();
-//                        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
-//                        try {
-//                            byte[] byteArray = stream.toByteArray();
-//                            os.write(byteArray, 0, byteArray.length);
-//                        } catch (IOException e) {
-//                            throw new RuntimeException(e);
-//                        }
-//                        bmp.recycle();
-//                        break;
-//                    default:
-//                        super.handleMessage(msg);
-//                }
-//            }
-//        };
     }
 
     @Override
@@ -58,16 +32,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
         log.info("Frame available for streaming w = {}, h = {}", w, h);
-//        localUiHandler.sendMessage(
-//                localUiHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, convertToBmpMethod4(data, w, h)));
         Bitmap bmp = convertToBmpMethod4(data, w, h);
-        log.info("Sending preview image to local server.. bytes = " + bmp.getByteCount());
         stream.reset();
-        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        bmp.compress(Bitmap.CompressFormat.PNG, 90, stream);
         bmp.recycle();
         try {
             byte[] byteArray = stream.toByteArray();
             outputStream.write(byteArray, 0, byteArray.length);
+            log.info("Sending preview image to local server.. bytes = " + byteArray.length);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

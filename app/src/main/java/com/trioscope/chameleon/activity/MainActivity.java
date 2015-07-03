@@ -19,8 +19,6 @@ import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.RenderRequestFrameListener;
@@ -201,30 +199,6 @@ public class MainActivity extends ActionBarActivity {
         application.getServerEventListener().setContext(this.getApplicationContext());
     }
 
-    private void launchScan(){
-        Intent i=new Intent(this,com.google.zxing.client.android.CaptureActivity.class);
-        i.setAction(com.google.zxing.client.android.Intents.Scan.ACTION);
-        i.putExtra("SCAN_MODE","ONE_D_QRCODE_MODE");
-        i.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-        startActivityForResult(i,1);
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, intent);
-        LOG.info("Activity result invoked ");
-        if (resultCode == RESULT_OK) {
-            String contents=intent.getStringExtra("SCAN_RESULT");
-            String format=intent.getStringExtra("SCAN_RESULT_FORMAT");
-            LOG.info("Scan success!! Format: " + format + "\nContents: "+ contents);
-
-            //connectToWifiNetwork("JohnyCL", "6144778485");
-        }
-        else     if (resultCode == RESULT_CANCELED) {
-            LOG.info("Scan failed!!");
-        }
-    }
-
     private BackgroundRecorder createBackgroundRecorder() {
         BackgroundRecorder recorder = new BackgroundRecorder(this);
         recorder.setMainThreadHandler(mainThreadHandler);
@@ -316,6 +290,7 @@ public class MainActivity extends ActionBarActivity {
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
 
         previewDisplay = new SurfaceTextureDisplay(this);
+
         previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
             @Override
             public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
@@ -349,7 +324,6 @@ public class MainActivity extends ActionBarActivity {
         layout.addView(previewDisplay);
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
-        chameleonApplication.setPreviewDisplay(previewDisplay);
         chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
 
     }
@@ -362,7 +336,7 @@ public class MainActivity extends ActionBarActivity {
      * pixel format that cannot be converted efficiently to something usable by the video
      * encoder.
      */
-    public static final int FLAG_RECORDABLE = 0x01;
+    private static final int FLAG_RECORDABLE = 0x01;
 
 
     private EGLConfig getConfig(int flags, int version, EGLDisplay mEGLDisplay) {
