@@ -15,6 +15,8 @@ import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 
 import javax.microedition.khronos.egl.EGL10;
@@ -88,7 +90,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 } else {
                     LOG.debug("Drawing direct video");
                     directVideo.draw();
-                    pullRenderIntoMemory();
+                    pullRenderIntoMemory(unused);
 
                     // Rebind default frame buffer
                     GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
@@ -138,23 +140,29 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             return fboId;
         }
 
-        private void pullRenderIntoMemory() {
+        private void pullRenderIntoMemory(GL10 gl) {
             if (cameraInfo == null) {
                 LOG.info("Camera info not available - not pulling into memory");
             } else {
                 LOG.debug("Pulling rendered FBO into main memory");
                 int w = cameraInfo.getCaptureResolution().getWidth(), h = cameraInfo.getCaptureResolution().getHeight();
-                int b[] = new int[w * h];
+                int size = w * h;
+                int b[] = new int[size];
                 IntBuffer ib = IntBuffer.wrap(b);
                 ib.position(0);
+
+                ByteBuffer buf = ByteBuffer.allocateDirect(w * h * 4);
+                buf.order(ByteOrder.nativeOrder());
 
                 // Bind rendered FBO and read pixels
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
 
                 // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
-                GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
+                GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf);
+                int data[] = new int[size];
+                buf.asIntBuffer().get(data);
                 LOG.debug("IntBuffer: {}", b);
-                cameraFrameBuffer.frameAvailable(cameraInfo, ib.array());
+                cameraFrameBuffer.frameAvailable(cameraInfo, data);
             }
         }
 

@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoStreamFrameListener implements CameraFrameAvailableListener {
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(160 * 90 * 2); // 160 x 90
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(160 * 90 * 4); // 160 x 90
     @NonNull
     private ParcelFileDescriptor.AutoCloseOutputStream outputStream;
 
@@ -31,15 +31,15 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
     public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
-        log.info("Frame available for streaming w = {}, h = {}", w, h);
+        log.info("Frame available for streaming w = {}, h = {}, array size =  {}", w, h, data.length);
         Bitmap bmp = convertToBmpMethod4(data, w, h);
         stream.reset();
-        bmp.compress(Bitmap.CompressFormat.PNG, 90, stream);
+        boolean compressSuccesful = bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
         bmp.recycle();
         try {
             byte[] byteArray = stream.toByteArray();
             outputStream.write(byteArray, 0, byteArray.length);
-            log.info("Sending preview image to local server.. bytes = " + byteArray.length);
+            log.info("Sending preview image to local server.. bytes = {}, compress success = {}", byteArray.length, compressSuccesful);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -103,6 +103,29 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
             short v = sBuffer[i];
             sBuffer[i] = (short) (((v & 0x1f) << 11) | (v & 0x7e0) | ((v & 0xf800) >> 11));
         }
+        sb.rewind();
+        bitmap.copyPixelsFromBuffer(sb);
+        return bitmap;
+    }
+
+    private Bitmap convertToBmpMethod5(final int[] data, final int width, final int height){
+        final Bitmap bitmap = Bitmap.createBitmap(width, height,
+                Bitmap.Config.RGB_565);
+        final int screenshotSize = width * height;
+        bitmap.setPixels(data, screenshotSize - width, -width,
+                0, 0, width, height);
+
+        short sBuffer[] = new short[screenshotSize];
+        ShortBuffer sb = ShortBuffer.wrap(sBuffer);
+        bitmap.copyPixelsToBuffer(sb);
+
+        // Making created bitmap (from OpenGL points) compatible with
+        // Android
+        // bitmap
+//        for (int i = 0; i < screenshotSize; ++i) {
+//            short v = sBuffer[i];
+//            sBuffer[i] = (short) (((v & 0x1f) << 11) | (v & 0x7e0) | ((v & 0xf800) >> 11));
+//        }
         sb.rewind();
         bitmap.copyPixelsFromBuffer(sb);
         return bitmap;
