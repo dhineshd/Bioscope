@@ -53,11 +53,12 @@ public class ConnectionServer {
                             InputStream inputStream = new ParcelFileDescriptor.AutoCloseInputStream(readStreamFd);
                             byte[] buffer = new byte[1024];
                             int bytesRead = 0;
+                            PreviewImage previewImage = PreviewImage.builder().bytes(buffer).build();
                             while(true){
                                 bytesRead = inputStream.read(buffer);
                                 //log.info("Read preview image of size = " + bytesRead);
+                                previewImage.setBytes(buffer);
                                 if (bytesRead != -1){
-                                    PreviewImage previewImage = PreviewImage.builder().bytes(buffer).build();
                                     serverThreadHandler.sendMessage(
                                             serverThreadHandler.obtainMessage(PREVIEW_IMAGE_AVAILABLE, previewImage));
                                 }
@@ -90,7 +91,6 @@ public class ConnectionServer {
                 Runnable r = new PreviewConsumer(serverThreadHandler);
                 previewConsumerThread = new Thread(r);
                 previewConsumerThread.start();
-                //TODO Stop previewConsumerThread
 
                 try {
                     ServerSocket serverSocket = new ServerSocket(port);

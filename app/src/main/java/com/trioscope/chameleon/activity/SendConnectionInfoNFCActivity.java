@@ -247,18 +247,6 @@ public class SendConnectionInfoNFCActivity extends ActionBarActivity implements 
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    protected void onPause() {
-        // TODO: Figure out teardown Wifi here but
-        tearDown();
-        super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-    }
-
     public void disconnect(final WifiP2pManager wifiP2pManager, final WifiP2pManager.Channel wifiP2pChannel) {
         if (wifiP2pManager != null && wifiP2pChannel != null) {
             wifiP2pManager.requestGroupInfo(wifiP2pChannel, new WifiP2pManager.GroupInfoListener() {
@@ -281,38 +269,6 @@ public class SendConnectionInfoNFCActivity extends ActionBarActivity implements 
                     }
                 }
             });
-        }
-    }
-
-    private void tearDown(){
-
-        log.info("Tearing down Wifi hotspot..");
-
-        chameleonApplication = ((ChameleonApplication)getApplication());
-
-        // Tear down Wifi p2p hotspot
-        if (chameleonApplication != null &&
-                chameleonApplication.getWifiP2pManager() != null &&
-                chameleonApplication.getWifiP2pChannel() != null){
-
-            log.info("Invoking removeGroup..");
-
-            chameleonApplication.getWifiP2pManager().removeGroup(
-
-                    chameleonApplication.getWifiP2pChannel(),
-
-                    new WifiP2pManager.ActionListener() {
-
-                        @Override
-                        public void onSuccess() {
-                            log.debug("WifiP2P removeGroup success");
-                        }
-
-                        @Override
-                        public void onFailure(int reasonCode) {
-                            log.warn("WifiP2P removeGroup. ReasonCode: {}", reasonCode);
-                        }
-                    });
         }
     }
 

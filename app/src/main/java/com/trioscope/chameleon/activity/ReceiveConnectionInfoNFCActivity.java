@@ -105,12 +105,12 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
                     if(networkInfo.getType() == ConnectivityManager.TYPE_WIFI &&
                             networkInfo.isConnected() && getLocalIpAddressForWifi() != null) {
 
-                        // Done with checking Wifi state
-                        unregisterReceiver(this);
-
                         TextView textView = (TextView) findViewById(R.id.textView_connection_status);
                         String connectedMessage = "Connected to " + connectionInfo.getSSID();
                         textView.setText(connectedMessage);
+
+                        // Done with checking Wifi state
+                        unregisterReceiver(this);
 
                         try {
                             PeerInfo peerInfo = PeerInfo.builder()
@@ -152,6 +152,7 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
         String ipAddressString;
         try {
             ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
+            log.info("Local IP address on network = {}", ipAddressString);
         } catch (UnknownHostException ex) {
             log.info("Unable to get host address.");
             ipAddressString = null;
@@ -167,6 +168,7 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
         WifiManager wifiManager = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         wifiManager.addNetwork(conf);
         int netId = wifiManager.addNetwork(conf);
+        log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
         wifiManager.setWifiEnabled(true);
         wifiManager.disconnect();
         wifiManager.enableNetwork(netId, true);

@@ -31,7 +31,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
     public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
-        log.info("Frame available for streaming w = {}, h = {}, array size =  {}", w, h, data.length);
+        //log.info("Frame available for streaming w = {}, h = {}, array size =  {}", w, h, data.length);
         Bitmap bmp = convertToBmpMethod4(data, w, h);
         stream.reset();
         boolean compressSuccesful = bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
@@ -39,7 +39,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
         try {
             byte[] byteArray = stream.toByteArray();
             outputStream.write(byteArray, 0, byteArray.length);
-            log.info("Sending preview image to local server.. bytes = {}, compress success = {}", byteArray.length, compressSuccesful);
+            //log.info("Sending preview image to local server.. bytes = {}, compress success = {}", byteArray.length, compressSuccesful);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

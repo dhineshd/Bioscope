@@ -249,4 +249,32 @@ public class ChameleonApplication extends Application {
 
         }
     }
+
+
+
+    public void tearDownWiFiHotspot(){
+
+        LOG.debug("Tearing down Wifi hotspot..");
+
+        // Tear down Wifi p2p hotspot
+        if (wifiP2pManager != null && wifiP2pChannel != null){
+
+            LOG.info("Invoking removeGroup..");
+
+            wifiP2pManager.removeGroup(
+                    wifiP2pChannel,
+                    new WifiP2pManager.ActionListener() {
+
+                        @Override
+                        public void onSuccess() {
+                            LOG.debug("WifiP2P removeGroup success");
+                        }
+
+                        @Override
+                        public void onFailure(int reasonCode) {
+                            LOG.warn("WifiP2P removeGroup. ReasonCode: {}", reasonCode);
+                        }
+                    });
+        }
+    }
 }

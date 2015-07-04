@@ -165,4 +165,20 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    protected void onPause() {
+        // TODO: Figure out when to teardown Wifi
+        log.info("onDestroy invoked");
+        chameleonApplication.tearDownWiFiHotspot();
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        // TODO: Figure out when to teardown Wifi
+        log.info("onDestroy invoked");
+        chameleonApplication.tearDownWiFiHotspot();
+        super.onDestroy();
+    }
 }
