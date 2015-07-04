@@ -88,7 +88,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 } else {
                     LOG.debug("Drawing direct video");
                     directVideo.draw();
-                    pullRenderIntoMemory(unused);
+                    pullRenderIntoMemory();
 
                     // Rebind default frame buffer
                     GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
@@ -138,7 +138,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             return fboId;
         }
 
-        private void pullRenderIntoMemory(GL10 gl) {
+        private void pullRenderIntoMemory() {
             if (cameraInfo == null) {
                 LOG.info("Camera info not available - not pulling into memory");
             } else {

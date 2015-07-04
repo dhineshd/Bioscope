@@ -1,13 +1,7 @@
 package com.trioscope.chameleon.activity;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
+import android.app.FragmentManager;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiManager;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
@@ -15,23 +9,16 @@ import android.os.Parcelable;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
-
-import java.math.BigInteger;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.nio.ByteOrder;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
-
     private Gson mGson = new Gson();
 
     @Override
@@ -89,90 +76,12 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
         final WiFiNetworkConnectionInfo connectionInfo =
-                mGson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
+                new Gson().fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-
-        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                log.info("onReceive intent = " + intent.getAction());
-
-                if (ConnectivityManager.CONNECTIVITY_ACTION.equals(intent.getAction())){
-                    NetworkInfo networkInfo =
-                            intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
-                    if(networkInfo.getType() == ConnectivityManager.TYPE_WIFI &&
-                            networkInfo.isConnected() && getLocalIpAddressForWifi() != null) {
-
-                        TextView textView = (TextView) findViewById(R.id.textView_connection_status);
-                        String connectedMessage = "Connected to " + connectionInfo.getSSID();
-                        textView.setText(connectedMessage);
-
-                        // Done with checking Wifi state
-                        unregisterReceiver(this);
-
-                        try {
-                            PeerInfo peerInfo = PeerInfo.builder()
-                                    .ipAddress(InetAddress.getByName(connectionInfo.getServerIpAddress()))
-                                    .port(connectionInfo.getServerPort())
-                                    .build();
-
-                            Intent connectionEstablishedIntent =
-                                    new Intent(context, ConnectionEstablishedActivity.class);
-                            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
-                                    new Gson().toJson(peerInfo));
-                            startActivity(connectionEstablishedIntent);
-
-                        } catch (UnknownHostException e) {
-                            throw new RuntimeException(e);
-                        }
-
-                    }
-                }
-            }
-        };
-        // Setup listener for connectivity change
-        registerReceiver(broadcastReceiver, filter);
-
-        connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
-
-    }
-
-    private String getLocalIpAddressForWifi(){
-        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
-        // Convert little-endian to big-endian if needed
-        if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
-            ipAddress = Integer.reverseBytes(ipAddress);
-        }
-
-        byte[] ipByteArray = BigInteger.valueOf(ipAddress).toByteArray();
-
-        String ipAddressString;
-        try {
-            ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
-            log.info("Local IP address on network = {}", ipAddressString);
-        } catch (UnknownHostException ex) {
-            log.info("Unable to get host address.");
-            ipAddressString = null;
-        }
-        return ipAddressString;
-    }
-
-    private void connectToWifiNetwork(final String networkSSID, final String networkPassword){
-        WifiConfiguration conf = new WifiConfiguration();
-        conf.SSID = "\"" + networkSSID + "\"";
-        conf.preSharedKey = "\""+ networkPassword +"\"";
-
-        WifiManager wifiManager = (WifiManager)getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        wifiManager.addNetwork(conf);
-        int netId = wifiManager.addNetwork(conf);
-        log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
-        wifiManager.setWifiEnabled(true);
-        wifiManager.disconnect();
-        wifiManager.enableNetwork(netId, true);
-        wifiManager.reconnect();
+        // find the fragment from previous instance of activity (if any)
+        FragmentManager fm = getFragmentManager();
+        ReceiveConnectionInfoFragment fragment = (ReceiveConnectionInfoFragment) fm.findFragmentById(R.id.fragment_receive_connection_info);
+        fragment.establishConnection(connectionInfo);
     }
 
 }

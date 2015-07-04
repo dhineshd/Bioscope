@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -19,6 +21,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoStreamFrameListener implements CameraFrameAvailableListener {
+    @Setter
+    @Getter
+    private boolean isStreamingStarted;
     private ByteArrayOutputStream stream = new ByteArrayOutputStream(160 * 90 * 4); // 160 x 90
     @NonNull
     private ParcelFileDescriptor.AutoCloseOutputStream outputStream;
@@ -32,16 +37,18 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener {
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
         //log.info("Frame available for streaming w = {}, h = {}, array size =  {}", w, h, data.length);
-        Bitmap bmp = convertToBmpMethod4(data, w, h);
-        stream.reset();
-        boolean compressSuccesful = bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
-        bmp.recycle();
-        try {
-            byte[] byteArray = stream.toByteArray();
-            outputStream.write(byteArray, 0, byteArray.length);
-            //log.info("Sending preview image to local server.. bytes = {}, compress success = {}", byteArray.length, compressSuccesful);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (isStreamingStarted){
+            Bitmap bmp = convertToBmpMethod4(data, w, h);
+            stream.reset();
+            boolean compressSuccesful = bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
+            bmp.recycle();
+            try {
+                byte[] byteArray = stream.toByteArray();
+                outputStream.write(byteArray, 0, byteArray.length);
+                //log.info("Sending preview image to local server.. bytes = {}, compress success = {}", byteArray.length, compressSuccesful);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
     private Bitmap convertToBmpMethod1(final int[] data, final int width, final int height){
