@@ -134,10 +134,6 @@ public class MainActivity extends ActionBarActivity {
 
         setContentView(R.layout.activity_main);
 
-        RelativeLayout mainLayout = (RelativeLayout) findViewById(R.id.main_layout);
-        LOG.info("Found main layout {}", mainLayout);
-        LOG.info("Layout has {} children", mainLayout.getChildCount());
-
         LOG.info("Created main activity");
         videoRecorder = createBackgroundRecorder();
 
@@ -295,7 +291,7 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
                 LOG.info("Creating shared EGLContext");
-                EGLConfig config = getConfig(FLAG_RECORDABLE, 2, display);
+                //EGLConfig config = getConfig(FLAG_RECORDABLE, 2, display);
                 int[] attrib2_list = {
                         EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
                         EGL14.EGL_NONE
@@ -320,7 +316,7 @@ public class MainActivity extends ActionBarActivity {
         previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(((ChameleonApplication) getApplication()).getRotationState()));
         //previewDisplay.setPreserveEGLContextOnPause(true);
 
-        RelativeLayout layout = (RelativeLayout) findViewById(R.id.main_layout);
+        RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
         layout.addView(previewDisplay);
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();

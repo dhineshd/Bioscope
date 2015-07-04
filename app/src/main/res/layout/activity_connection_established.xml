@@ -11,7 +11,7 @@
     tools:context="com.trioscope.chameleon.activity.ConnectionEstablishedActivity">
 
     <RelativeLayout
-        android:id="@+id/relativeLayout_preview"
+        android:id="@+id/relativeLayout_session_preview"
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"

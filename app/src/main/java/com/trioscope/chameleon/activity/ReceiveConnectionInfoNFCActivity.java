@@ -118,7 +118,8 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
                                     .port(connectionInfo.getServerPort())
                                     .build();
 
-                            Intent connectionEstablishedIntent = new Intent(context, ConnectionEstablishedActivity.class);
+                            Intent connectionEstablishedIntent =
+                                    new Intent(context, ConnectionEstablishedActivity.class);
                             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
                                     new Gson().toJson(peerInfo));
                             startActivity(connectionEstablishedIntent);
@@ -131,18 +132,11 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
                 }
             }
         };
+        // Setup listener for connectivity change
         registerReceiver(broadcastReceiver, filter);
 
         connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
 
-    }
-
-    private void sendConnectionRequestToServer(){
-        //            PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
-//            String messageToServer = "My IP : " + getLocalIpAddressForWifi() + "\n";
-//            pw.write(messageToServer);
-//            pw.close();
-//            log.info("Sent message to server : " + messageToServer);
     }
 
     private String getLocalIpAddressForWifi(){

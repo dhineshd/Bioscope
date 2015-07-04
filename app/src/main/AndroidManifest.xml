@@ -34,7 +34,8 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name=".activity.MainActivity"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -43,29 +44,29 @@
         </activity>
         <activity
             android:name=".activity.GLSurfaceViewRotation"
-            android:label="RotationActivity" />
+            android:label="RotationActivity"
+            android:noHistory="true"/>
 
         <service android:name=".service.BackgroundRecorderService" />
 
         <activity
             android:name=".activity.SendConnectionInfoNFCActivity"
-            android:label="@string/title_activity_connection_establishment_nfc" >
-        </activity>
+            android:label="SendConnectionInfoActivity"
+            android:noHistory="true"/>
         <activity
             android:name=".activity.ReceiveConnectionInfoNFCActivity"
-            android:label="@string/title_activity_connection_receive_nfc" >
+            android:label="ReceiveConnectionInfoActivity"
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-
                 <category android:name="android.intent.category.DEFAULT" />
-
                 <data android:mimeType="application/com.trioscope.chameleon.connect.wifi" />
             </intent-filter>
         </activity>
         <activity
             android:name=".activity.ConnectionEstablishedActivity"
-            android:label="@string/title_activity_connection_established" >
-        </activity>
+            android:label="ConnectionEstablishedActivity"
+            android:noHistory="true"/>
     </application>
 
 </manifest>
