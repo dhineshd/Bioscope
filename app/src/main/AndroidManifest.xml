@@ -69,6 +69,8 @@
             android:name=".activity.ConnectionEstablishedActivity"
             android:label="ConnectionEstablishedActivity"
             android:noHistory="true" />
+        <meta-data android:name="android.nfc.disable_beam_default"
+            android:value="true" />
     </application>
 
 </manifest>
