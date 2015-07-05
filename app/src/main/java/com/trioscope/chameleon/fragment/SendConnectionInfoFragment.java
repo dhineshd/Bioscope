@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -106,16 +105,15 @@ public class SendConnectionInfoFragment extends Fragment {
 
         } else {
             connectionStatusTextView.setText("Enabling WiFi..");
-            // Enable and wait for Wifi state change
-            wifiManager.setWifiEnabled(true);
 
             IntentFilter filter = new IntentFilter();
-            filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+            //filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+            filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 
             BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    log.info("onReceive intent = " + intent.getAction());
+                    log.info("onReceive intent = {}, wifi enabled = {}", intent.getAction(), wifiManager.isWifiEnabled());
                     if(wifiManager.isWifiEnabled()) {
 
                         // Done with checking Wifi state
@@ -126,8 +124,11 @@ public class SendConnectionInfoFragment extends Fragment {
                     }
                 }
             };
-            // listen for change in Wifi state
+            // register to listen for change in Wifi state
             getActivity().registerReceiver(broadcastReceiver, filter);
+
+            // Enable and wait for Wifi state change
+            wifiManager.setWifiEnabled(true);
         }
     }
 
@@ -144,32 +145,24 @@ public class SendConnectionInfoFragment extends Fragment {
 
         final WifiP2pManager.Channel wifiP2pChannel = chameleonApplication.getWifiP2pChannel();
 
-        //disconnect(wifiP2pManager, wifiP2pChannel);
+        // Remove any old P2p connections
+        wifiP2pManager.removeGroup(wifiP2pChannel, null);
 
-        // Remove any existing hotspots
-        wifiP2pManager.removeGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                log.debug("WifiP2P removeGroup success");
-
-                // Create new Wifi hotspot
-                createWifiP2PGroup(wifiP2pManager, wifiP2pChannel);
-            }
-
-            @Override
-            public void onFailure(int reasonCode) {
-                log.warn("WifiP2P removeGroup. ReasonCode: {}", reasonCode);
-                createWifiP2PGroup(wifiP2pManager, wifiP2pChannel);
-            }
-        });
+        // Create new Wifi hotspot
+        createWifiP2PGroup(wifiP2pManager, wifiP2pChannel);
 
     }
+
 
     private void createWifiP2PGroup(
             final WifiP2pManager wifiP2pManager,
             final WifiP2pManager.Channel wifiP2pChannel){
 
+        final int maxRetries = 2;
+
         wifiP2pManager.createGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+
+            int retryCount = 0;
 
             @Override
             public void onSuccess() {
@@ -187,6 +180,21 @@ public class SendConnectionInfoFragment extends Fragment {
             @Override
             public void onFailure(int reasonCode) {
                 log.warn("WifiP2P createGroup. ReasonCode: {}", reasonCode);
+                // Failure happens regularly when enabling WiFi and then creating group.
+                // Retry with some backoff (Needs at least 1 sec. Tried 500 ms and it
+                // still needed 2 retries)
+                // TODO : Is there a better way?
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+
+                if (retryCount++ < maxRetries){
+                    wifiP2pManager.createGroup(wifiP2pChannel, this);
+                } else {
+                    // TODO : What do we do if we can't create Wifi network?
+                }
+
             }
         });
     }
