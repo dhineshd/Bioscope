@@ -29,8 +29,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -90,7 +100,6 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private volatile VideoStreamFrameListener streamListener;
-    @Getter
     @Setter
     private ConnectionServer connectionServer;
     @Getter
@@ -135,9 +144,34 @@ public class ChameleonApplication extends Application {
     }
 
     public void startConnectionServerIfNotRunning(){
+        SSLContext sslContext = null; // JSSE and OpenSSL providers behave the same way
+        try {
+            sslContext = SSLContext.getInstance("SSL");
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            KeyStore ks = KeyStore.getInstance("BKS");
+            char[] password = "poiuyt".toCharArray(); // TODO: Move to build config
+            // we assume the keystore is in the app assets
+            InputStream sslKeyStore =  getApplicationContext().getResources().openRawResource(R.raw.keystore);
+            ks.load(sslKeyStore, null);
+            sslKeyStore.close();
+            kmf.init( ks, password );
+            sslContext.init( kmf.getKeyManagers(), null, new SecureRandom() );
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (UnrecoverableKeyException e) {
+            e.printStackTrace();
+        } catch (CertificateException e) {
+            e.printStackTrace();
+        } catch (KeyManagementException e) {
+            e.printStackTrace();
+        } catch (KeyStoreException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         // Setup connection server to receive connections from client
         if (connectionServer == null){
-            connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, streamListener);
+            connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, streamListener, sslContext);
             connectionServer.start();
         }
     }

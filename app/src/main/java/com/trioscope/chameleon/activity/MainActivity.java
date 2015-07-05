@@ -199,7 +199,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
-
         application.getStreamListener().setContext(this.getApplicationContext());
     }
 

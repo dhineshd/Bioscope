@@ -8,6 +8,10 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
+
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,7 +27,8 @@ public class ConnectionServer {
 
     public ConnectionServer(
             final int port,
-            final ServerEventListener serverEventListener) {
+            final ServerEventListener serverEventListener,
+            final SSLContext sslContext) {
 
         try {
             serverSocket = new ServerSocket(port);
@@ -49,9 +54,10 @@ public class ConnectionServer {
             @Override
             public void run() {
                 try {
+                    SSLServerSocket serverSocket = (SSLServerSocket)(sslContext.getServerSocketFactory()).createServerSocket(port);
                     while (!Thread.currentThread().isInterrupted()) {
-                        log.info("ServerSocket Created, awaiting connection Thread = {}", Thread.currentThread());
-                        Socket socket = serverSocket.accept();
+                        log.info("ServerSocket Created, awaiting connection");
+                        SSLSocket socket = (SSLSocket) serverSocket.accept();
                         log.info("Received new client request");
                         handler.sendMessage(handler.obtainMessage(CLIENT_CONNECTION_REQUEST_RECEIVED, socket));
                     }

@@ -23,12 +23,20 @@ import com.trioscope.chameleon.types.PeerInfo;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
-import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,6 +62,7 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         Intent intent = getIntent();
         PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
+        // Start streaming the preview
         chameleonApplication.getStreamListener().setStreamingStarted(true);
 
         connectToServerTask = new ConnectToServerTask(peerInfo.getIpAddress(), peerInfo.getPort());
@@ -121,7 +130,20 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         try {
             // Wait till we can reach the remote host. May take time to refresh ARP cache
             while (!remoteHostIp.isReachable(1000));
-            Socket socket = new Socket(remoteHostIp, port);
+            // Load the keyStore that includes self-signed cert as a "trusted" entry.
+            KeyStore trustStore = KeyStore.getInstance("BKS");
+            InputStream trustStoreInputStream =  getApplicationContext().getResources().openRawResource(R.raw.truststore);
+            trustStore.load(trustStoreInputStream, "poiuyt".toCharArray());
+            trustStoreInputStream.close();
+            TrustManagerFactory tmf =
+                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(trustStore);
+            SSLContext ctx = SSLContext.getInstance("SSLv3");
+            ctx.init(null, tmf.getTrustManagers(), null);
+            SSLSocketFactory sslFactory = ctx.getSocketFactory();
+            SSLSocket socket = (SSLSocket) sslFactory.createSocket(remoteHostIp, port);
+            //socket.setSoTimeout(5000);
+
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
             final byte[] buffer = new byte[4096 * 5];
             InputStream inputStream = socket.getInputStream();
@@ -144,6 +166,15 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         } catch (IOException e) {
             //throw new RuntimeException(e);
             log.warn("Connection to remote server closed", e);
+            //log.warn("Connection to remote server closed", e);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (KeyStoreException e) {
+            e.printStackTrace();
+        } catch (KeyManagementException e) {
+            e.printStackTrace();
+        } catch (CertificateException e) {
+            e.printStackTrace();
         }
     }
 
@@ -180,24 +211,5 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
         super.onBackPressed();
-
-//        new AlertDialog.Builder(this)
-//                .setMessage("Are you sure you want to quit session?")
-//                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int which) {
-//
-//                        chameleonApplication.setSessionStarted(false);
-//                        chameleonApplication.getStreamListener().setStreamingStarted(false);
-//
-//                        //Re-use MainActivity instance if already present. If not, create new instance.
-//                        Intent openMainActivity= new Intent(getApplicationContext(), MainActivity.class);
-//                        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-//                        startActivity(openMainActivity);
-//                        // super.onBackPressed();
-//                    }
-//                })
-//                .setNegativeButton(android.R.string.no, null) // do nothing
-//                .setIcon(android.R.drawable.ic_dialog_alert)
-//                .show();
     }
 }
