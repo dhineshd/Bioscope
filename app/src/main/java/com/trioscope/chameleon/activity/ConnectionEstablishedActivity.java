@@ -55,6 +55,8 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
         chameleonApplication.getServerEventListener().setStreamingSessionStarted(true);
 
+        chameleonApplication.getStreamListener().setStreamingStarted(true);
+
         new ConnectToServerTask(peerInfo.getIpAddress(), peerInfo.getPort())
                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
@@ -122,7 +124,7 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
             final byte[] buffer = new byte[1024];
             InputStream inputStream = socket.getInputStream();
-            while (true){
+            while (!Thread.currentThread().interrupted()){
                 // TODO More robust
                 final int bytesRead = inputStream.read(buffer);
                 if (bytesRead != -1){
@@ -168,17 +170,14 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
     @Override
     protected void onPause() {
-        // TODO: Figure out when to teardown Wifi
-        log.info("onDestroy invoked");
-        chameleonApplication.tearDownWiFiHotspot();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         // TODO: Figure out when to teardown Wifi
-        log.info("onDestroy invoked");
-        chameleonApplication.tearDownWiFiHotspot();
-        super.onDestroy();
+//        log.info("onDestroy invoked");
+//        chameleonApplication.tearDownWiFiHotspot();
+//        super.onDestroy();
     }
 }

@@ -24,7 +24,7 @@ public class ServerEventListener {
     private boolean isStreamingSessionStarted;
 
     public void onClientConnectionRequest(Socket clientSocket) {
-        log.info("onClientConnectionRequest invoked Thread = " + Thread.currentThread());
+        log.info("onClientConnectionRequest invoked isStreamingStarted = {}", isStreamingSessionStarted);
         if (context != null && !isStreamingSessionStarted){
             //TODO Don't start activity if we get second request
             Intent intent = new Intent(context, ConnectionEstablishedActivity.class);
@@ -36,7 +36,6 @@ public class ServerEventListener {
             context.startActivity(intent);
             isStreamingSessionStarted = true;
             //PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
-
         }
     }
 }

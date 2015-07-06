@@ -54,7 +54,7 @@ public class ConnectionServer {
                             byte[] buffer = new byte[1024];
                             int bytesRead = 0;
                             PreviewImage previewImage = PreviewImage.builder().bytes(buffer).build();
-                            while(true){
+                            while(!Thread.currentThread().interrupted()){
                                 bytesRead = inputStream.read(buffer);
                                 //log.info("Read preview image of size = " + bytesRead);
                                 previewImage.setBytes(buffer);
@@ -96,7 +96,7 @@ public class ConnectionServer {
                     ServerSocket serverSocket = new ServerSocket(port);
                     while (!Thread.currentThread().isInterrupted()) {
                         log.info("ServerSocket Created, awaiting connection");
-                        clientSocket = serverSocket.accept();
+                        Socket socket = serverSocket.accept();
                         log.info("Received new client request");
                         //BufferedReader br = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                         //String messageFromClient = br.readLine();
@@ -104,9 +104,11 @@ public class ConnectionServer {
                             //log.info("Received CONNECTION_REQUEST message from client {}", clientSocket.getInetAddress().getHostAddress());
                             serverEventThreadHandler.sendMessage(
                                     serverEventThreadHandler.obtainMessage(
-                                            ServerEventThreadHandler.CLIENT_CONNECTION_REQUEST_RECEIVED, clientSocket));
+                                            ServerEventThreadHandler.CLIENT_CONNECTION_REQUEST_RECEIVED, socket));
                         //}
+                        clientSocket = socket;
                     }
+                    log.info("Server thread interrupted!");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

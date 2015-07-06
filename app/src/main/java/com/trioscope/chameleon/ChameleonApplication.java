@@ -151,7 +151,10 @@ public class ChameleonApplication extends Application {
         if(wiFiDirectBroadcastReceiver!=null) {
             unregisterReceiver(wiFiDirectBroadcastReceiver);
         }
-        connectionServer.stop();
+        if (connectionServer != null){
+            connectionServer.stop();
+        }
+        tearDownWiFiHotspot();
         LOG.info("Terminating application");
         super.onTerminate();
     }
