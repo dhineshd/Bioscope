@@ -7,9 +7,12 @@ import android.os.Message;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 
+import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 
 import lombok.NonNull;
@@ -54,7 +57,16 @@ public class ConnectionServer {
             @Override
             public void run() {
                 try {
-                    SSLServerSocket serverSocket = (SSLServerSocket)(sslContext.getServerSocketFactory()).createServerSocket(port);
+                    ServerSocketFactory sslServerSocketFactory = SSLServerSocketFactory.getDefault();
+                    //SSLServerSocketFactory sslServerSocketFactory = sslContext.getServerSocketFactory();
+                    SSLServerSocket serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
+                    //SSLServerSocket serverSocket = ((SSLServerSocket)(SSLServerSocketFactory.getDefault()).createServerSocket(port));
+                    serverSocket.setEnabledProtocols(new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
+                    serverSocket.setEnableSessionCreation(true);
+                    log.info("SSL server need client auth = {}", serverSocket.getNeedClientAuth());
+                    //log.info("SSL server enabled cipher suites = {}", serverSocket.getEnabledCipherSuites());
+                    log.info("SSL server enabled protocols {}", Arrays.toString(serverSocket.getEnabledProtocols()));
+
                     while (!Thread.currentThread().isInterrupted()) {
                         log.info("ServerSocket Created, awaiting connection");
                         SSLSocket socket = (SSLSocket) serverSocket.accept();
@@ -90,5 +102,4 @@ public class ConnectionServer {
             log.warn("Error while closing serverSocket", e);
         }
     }
-
 }

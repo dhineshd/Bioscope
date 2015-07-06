@@ -146,7 +146,7 @@ public class ChameleonApplication extends Application {
     public void startConnectionServerIfNotRunning(){
         SSLContext sslContext = null; // JSSE and OpenSSL providers behave the same way
         try {
-            sslContext = SSLContext.getInstance("SSL");
+            sslContext = SSLContext.getInstance("TLSv1.2");
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             KeyStore ks = KeyStore.getInstance("BKS");
             char[] password = "poiuyt".toCharArray(); // TODO: Move to build config

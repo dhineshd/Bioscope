@@ -17,6 +17,7 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
+import com.trioscope.chameleon.stream.NoSSLv3SocketFactory;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.PeerInfo;
 
@@ -28,6 +29,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -138,10 +140,16 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             TrustManagerFactory tmf =
                     TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
-            SSLContext ctx = SSLContext.getInstance("SSLv3");
+            SSLContext ctx = SSLContext.getInstance("TLSv1.2");
             ctx.init(null, tmf.getTrustManagers(), null);
-            SSLSocketFactory sslFactory = ctx.getSocketFactory();
+            //ctx.init(null, null, null);
+            SSLSocketFactory sslFactory = new NoSSLv3SocketFactory(ctx.getSocketFactory());
             SSLSocket socket = (SSLSocket) sslFactory.createSocket(remoteHostIp, port);
+            socket.setEnabledProtocols(new String[]{"SSLv3"});
+            log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
+            log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
+            //socket.startHandshake();
+
             //socket.setSoTimeout(5000);
 
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
