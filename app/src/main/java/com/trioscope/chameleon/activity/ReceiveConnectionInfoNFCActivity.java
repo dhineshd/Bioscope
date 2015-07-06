@@ -15,16 +15,21 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
+    private final static Logger LOG = LoggerFactory.getLogger(ReceiveConnectionInfoNFCActivity.class);
     private Gson mGson = new Gson();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
+        LOG.debug("ReceiveConnectionInfoNFCActivity {}", this);
     }
 
 

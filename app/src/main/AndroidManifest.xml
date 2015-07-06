@@ -62,7 +62,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
 
-                <data android:mimeType="application/com.trioscope.chameleon.connect.wifi" />
+                <data android:mimeType="@string/mime_type_nfc_connect_wifi" />
             </intent-filter>
         </activity>
         <activity
