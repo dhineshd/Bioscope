@@ -10,6 +10,7 @@
     <string name="title_activity_receive_connection_info">ReceiveConnectionInfoActivity</string>
     <string name="connecting_message">Connecting..</string>
     <string name="connected_message">Connected</string>
+    <string name="nfc_instructions_message">Tap the other device using NFC </string>
     <string name="title_activity_connection_established">ConnectionEstablishedActivity</string>
     <string name="title_activity_main2">Main2Activity</string>
     <string name="mime_type_nfc_connect_wifi">application/com.trioscope.chameleon.connect.wifi</string>

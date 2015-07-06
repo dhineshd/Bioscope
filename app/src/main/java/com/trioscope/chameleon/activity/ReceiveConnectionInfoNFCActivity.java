@@ -9,6 +9,7 @@ import android.os.Parcelable;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.R;
@@ -21,14 +22,18 @@ import org.slf4j.LoggerFactory;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
+public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private final static Logger LOG = LoggerFactory.getLogger(ReceiveConnectionInfoNFCActivity.class);
     private Gson mGson = new Gson();
+    private TextView mTextViewConnectionStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
+
+        mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_connection_status);
+
         LOG.debug("ReceiveConnectionInfoNFCActivity {}", this);
     }
 
@@ -60,6 +65,11 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
         super.onResume();
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+
+            if(mTextViewConnectionStatus != null && mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
+                mTextViewConnectionStatus.setVisibility(TextView.VISIBLE);
+            }
+
             processIntent(getIntent());
         }
     }
@@ -81,7 +91,7 @@ public class ReceiveConnectionInfoNFCActivity extends ActionBarActivity {
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
         final WiFiNetworkConnectionInfo connectionInfo =
-                new Gson().fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
+                mGson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
 
         // find the fragment from previous instance of activity (if any)
         FragmentManager fm = getFragmentManager();

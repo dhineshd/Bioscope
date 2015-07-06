@@ -42,7 +42,7 @@ import javax.microedition.khronos.egl.EGLDisplay;
 
 import static android.view.View.OnClickListener;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
@@ -171,6 +171,16 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void onClick(View v) {
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
+                startActivity(i);
+            }
+        });
+
+        final Button receiveConnectionButton = (Button) findViewById(R.id.receiveConnection);
+
+        receiveConnectionButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MainActivity.this, ReceiveConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
         });

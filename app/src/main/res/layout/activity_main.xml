@@ -11,7 +11,8 @@
     <RelativeLayout
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent">
+    </RelativeLayout>
 
     <Button
         android:id="@+id/capture"
@@ -27,6 +28,14 @@
         android:text="Start Connection"
         android:layout_alignParentBottom="true"
         android:layout_alignEnd="@+id/capture" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Be A Crew!"
+        android:id="@+id/receiveConnection"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true" />
 
     <Button
         android:id="@+id/gl_rotate_activity"
