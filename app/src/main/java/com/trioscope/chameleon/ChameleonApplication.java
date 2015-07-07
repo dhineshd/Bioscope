@@ -139,7 +139,6 @@ public class ChameleonApplication extends Application {
         streamListener = new VideoStreamFrameListener(parcelFds[1]);
         cameraFrameBuffer.addListener(streamListener);
 
-
         // Setup connection server to receive connections from client
         serverEventListener = new ServerEventListener();
         connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, parcelFds[0], serverEventListener);

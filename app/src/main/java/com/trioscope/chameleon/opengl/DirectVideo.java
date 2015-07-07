@@ -4,6 +4,7 @@ import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 
 import com.trioscope.chameleon.state.RotationState;
+import com.trioscope.chameleon.types.Size;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,8 @@ public class DirectVideo {
                     "  gl_FragColor = texture2D( s_texture, textureCoordinate );" +
                     "}";
     private int fboId;
+    private Size fboSize;
+    private Size windowSize;
 
     private FloatBuffer vertexBuffer, textureVerticesBuffer, textureVerticesRotatedBuffer;
     private ShortBuffer drawListBuffer;
@@ -74,8 +77,8 @@ public class DirectVideo {
     @Setter
     private RotationState rotationState;
 
-    public DirectVideo(int _texture) {
-        this(_texture, 0); // Default FrameBuffer is 0
+    public DirectVideo(int textureId) {
+        this(textureId, 0); // Default FrameBuffer is 0
     }
 
     public DirectVideo(int textureId, int fboId) {
@@ -114,6 +117,10 @@ public class DirectVideo {
         GLES20.glAttachShader(mProgram, vertexShader);   // add the vertex shader to program
         GLES20.glAttachShader(mProgram, fragmentShader); // add the fragment shader to program
         GLES20.glLinkProgram(mProgram);
+        int[] viewportSize = new int[4]; // x, y, width, height
+        GLES20.glGetIntegerv(GLES20.GL_VIEWPORT, viewportSize, 0);
+        LOG.info("Viewport default size is {}", viewportSize);
+        this.fboSize = new Size(viewportSize[2], viewportSize[3]);
 
         LOG.info("Created DirectVideo programs in OpenGL context using textureId {} and fboId {}", textureId, fboId);
     }
@@ -130,8 +137,10 @@ public class DirectVideo {
     public void draw() {
         LOG.debug("Binding to fboId {} and drawing {}", fboId, Thread.currentThread());
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+        GLES20.glViewport(0, 0, fboSize.getWidth(), fboSize.getHeight());
         drawColor();
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+
     }
 
     private void drawColor() {

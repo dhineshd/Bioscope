@@ -11,7 +11,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -185,7 +184,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        final Button moveToGLRotationTest = (Button) findViewById(R.id.gl_rotate_activity);
+        final Button moveToGLRotationTest = (Button) findViewById(R.id.move_to_gl_rotate_activity);
 
         moveToGLRotationTest.setOnClickListener(new OnClickListener() {
             @Override
