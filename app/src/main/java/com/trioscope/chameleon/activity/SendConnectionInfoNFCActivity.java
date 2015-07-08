@@ -100,4 +100,16 @@ public class SendConnectionInfoNFCActivity extends EnableForegroundDispatchForNF
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
         newFragment.show(getFragmentManager(), "dialog");
     }
+
+    public void onBackPressed() {
+
+        ((ChameleonApplication)getApplication()).setSessionStarted(false);
+        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity= new Intent(this, MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
+        super.onBackPressed();
+    }
 }

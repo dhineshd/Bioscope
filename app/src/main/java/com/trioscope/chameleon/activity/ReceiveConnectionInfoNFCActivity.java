@@ -6,12 +6,12 @@ import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
@@ -32,9 +32,11 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
 
-        mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_connection_status);
+        mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_receiver_connection_status);
 
         LOG.debug("ReceiveConnectionInfoNFCActivity {}", this);
+
+        ((ChameleonApplication)getApplication()).startConnectionServerIfNotRunning();
     }
 
 
@@ -66,7 +68,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
 
-            if(mTextViewConnectionStatus != null && mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
+            if(mTextViewConnectionStatus != null
+                    && mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
                 mTextViewConnectionStatus.setVisibility(TextView.VISIBLE);
             }
 
@@ -96,7 +99,19 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         // find the fragment from previous instance of activity (if any)
         FragmentManager fm = getFragmentManager();
         ReceiveConnectionInfoFragment fragment = (ReceiveConnectionInfoFragment) fm.findFragmentById(R.id.fragment_receive_connection_info);
-        fragment.establishConnection(connectionInfo);
+        fragment.enableWifiAndEstablishConnection(connectionInfo);
+    }
+
+    @Override
+    public void onBackPressed() {
+        ((ChameleonApplication)getApplication()).setSessionStarted(false);
+        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity= new Intent(this, MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
+        super.onBackPressed();
     }
 
 }

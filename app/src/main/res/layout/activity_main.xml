@@ -15,38 +15,34 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"></RelativeLayout>
 
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+        <Button
+            android:id="@+id/capture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Record!"/>
 
-    <Button
-        android:id="@+id/capture"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="Record!" />
+        <Button
+            android:id="@+id/startSession"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Start Session" />
 
-    <Button
-        android:id="@+id/move_to_gl_rotate_activity"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/capture"
-        android:onClick="foo"
-        android:text="Move to Rotation Test" />
+        <Button
+            android:id="@+id/joinSession"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Join Session" />
 
-    <Button
-        android:id="@+id/startConnection"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignEnd="@+id/capture"
-        android:layout_alignParentBottom="true"
-        android:text="Start Connection" />
-
-    <Button
-        android:id="@+id/receiveConnection"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
-        android:text="Be A Crew!" />
-
+    </LinearLayout>
+>>>>>>> Fixing issue of director's preview not showing
 
 </RelativeLayout>
 

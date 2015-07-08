@@ -13,7 +13,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
@@ -54,10 +53,6 @@ public class SendConnectionInfoFragment extends Fragment {
 
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
         chameleonApplication.setDirector(true);
-
-        final Context context = getActivity().getApplicationContext();
-
-        chameleonApplication.getServerEventListener().setContext(context);
 
         // If connection information not present, need to create new Wifi hotspot
         if (chameleonApplication.getWiFiNetworkConnectionInfo() == null){
@@ -107,7 +102,6 @@ public class SendConnectionInfoFragment extends Fragment {
             connectionStatusTextView.setText("Enabling WiFi..");
 
             IntentFilter filter = new IntentFilter();
-            //filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
             filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 
             BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
@@ -148,6 +142,11 @@ public class SendConnectionInfoFragment extends Fragment {
         // Remove any old P2p connections
         wifiP2pManager.removeGroup(wifiP2pChannel, null);
 
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+        }
+
         // Create new Wifi hotspot
         createWifiP2PGroup(wifiP2pManager, wifiP2pChannel);
 
@@ -171,7 +170,7 @@ public class SendConnectionInfoFragment extends Fragment {
                 // in group info being null. Adding some sleep seems to work.
                 // TODO : Is there a better way?
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                 }
                 getAndPersistWifiConnectionInfo(wifiP2pManager, wifiP2pChannel);
@@ -193,6 +192,7 @@ public class SendConnectionInfoFragment extends Fragment {
                     wifiP2pManager.createGroup(wifiP2pChannel, this);
                 } else {
                     // TODO : What do we do if we can't create Wifi network?
+
                 }
 
             }
@@ -209,8 +209,6 @@ public class SendConnectionInfoFragment extends Fragment {
                 log.info("Group info = {}", group);
 
                 if (group != null) {
-                    Toast.makeText(getActivity().getApplicationContext(), "Created Wifi Network " + group.getNetworkName(),
-                            Toast.LENGTH_LONG).show();
                     log.debug("Wifi hotspot details {} ", group);
 
                     log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
