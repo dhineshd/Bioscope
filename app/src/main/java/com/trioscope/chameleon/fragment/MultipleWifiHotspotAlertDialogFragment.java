@@ -34,7 +34,7 @@ public class MultipleWifiHotspotAlertDialogFragment extends DialogFragment {
                 .setPositiveButton("Got it",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int whichButton) {
-                               // ((FragmentAlertDialog)getActivity()).doPositiveClick();
+
                             }
                         }
                 )

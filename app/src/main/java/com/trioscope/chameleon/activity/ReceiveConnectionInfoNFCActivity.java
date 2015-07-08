@@ -6,7 +6,6 @@ import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -26,6 +25,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     private final static Logger LOG = LoggerFactory.getLogger(ReceiveConnectionInfoNFCActivity.class);
     private Gson mGson = new Gson();
     private TextView mTextViewConnectionStatus;
+    private TextView mTextViewNfcInstructions;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +33,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         setContentView(R.layout.activity_receive_connection_info_nfc);
 
         mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_connection_status);
+        mTextViewNfcInstructions = (TextView) findViewById(R.id.textView_nfc_instructions);
 
         LOG.debug("ReceiveConnectionInfoNFCActivity {}", this);
     }
@@ -63,12 +64,18 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     @Override
     public void onResume() {
         super.onResume();
+
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
 
-            if(mTextViewConnectionStatus != null && mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
+            if(mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
                 mTextViewConnectionStatus.setVisibility(TextView.VISIBLE);
             }
+
+            if(mTextViewNfcInstructions.getVisibility() == TextView.VISIBLE) {
+                mTextViewNfcInstructions.setVisibility(TextView.INVISIBLE);
+            }
+
 
             processIntent(getIntent());
         }
