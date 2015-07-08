@@ -237,6 +237,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             LOG.info("Teardown initiated from MainActivity");
             ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
         }
+        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
         ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
 
         super.onPause();
@@ -248,6 +249,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             previewDisplay.onResume();
         }
         chameleonApplication.startConnectionServerIfNotRunning();
+        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
         ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
         super.onResume();
     }

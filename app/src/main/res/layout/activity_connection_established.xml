@@ -19,8 +19,8 @@
 
     <ImageView
         android:id="@+id/imageView_stream_remote"
-        android:layout_width="320px"
-        android:layout_height="180px"
+        android:layout_width="640px"
+        android:layout_height="360px"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true" />
 
