@@ -1,5 +1,7 @@
-<RelativeLayout android:id="@+id/main_layout" xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingBottom="0px"
@@ -11,39 +13,36 @@
     <RelativeLayout
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-    </RelativeLayout>
+        android:layout_height="match_parent"></RelativeLayout>
 
-    <Button
-        android:id="@+id/capture"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight = "1"
-        android:text="Record!" />
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+        <Button
+            android:id="@+id/capture"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Record!"/>
 
-    <Button
-        android:id="@+id/startConnection"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Start Connection"
-        android:layout_alignParentBottom="true"
-        android:layout_alignEnd="@+id/capture" />
+        <Button
+            android:id="@+id/startSession"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Start Session" />
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Be A Crew!"
-        android:id="@+id/receiveConnection"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true" />
+        <Button
+            android:id="@+id/joinSession"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Join Session" />
 
-    <Button
-        android:id="@+id/gl_rotate_activity"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Move to Rotation Test"
-        android:layout_below="@id/capture"
-        android:onClick="foo"/>
+    </LinearLayout>
+>>>>>>> Fixing issue of director's preview not showing
 
 </RelativeLayout>
 

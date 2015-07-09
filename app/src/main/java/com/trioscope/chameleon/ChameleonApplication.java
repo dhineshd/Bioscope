@@ -2,26 +2,22 @@ package com.trioscope.chameleon;
 
 import android.app.Application;
 import android.content.Context;
-import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Message;
-import android.os.ParcelFileDescriptor;
 import android.view.Gravity;
 import android.view.WindowManager;
 
 import com.trioscope.chameleon.activity.MainActivity;
-import com.trioscope.chameleon.broadcastreceiver.WiFiDirectBroadcastReceiver;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
-import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
@@ -92,16 +88,14 @@ public class ChameleonApplication extends Application {
     @Setter
     private PeerInfo peerInfo;
 
-    private WiFiDirectBroadcastReceiver wiFiDirectBroadcastReceiver;
-
-    private IntentFilter wifiIntentFilter;
-
     @Getter
     private VideoStreamFrameListener streamListener;
-    private ParcelFileDescriptor[] parcelFds;
+    @Getter
+    @Setter
     private ConnectionServer connectionServer;
     @Getter
-    private ServerEventListener serverEventListener;
+    @Setter
+    private boolean isSessionStarted;
 
     @Setter
     @Getter
@@ -130,31 +124,16 @@ public class ChameleonApplication extends Application {
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
 
-        try {
-            parcelFds = ParcelFileDescriptor.createPipe();
-        } catch (IOException e) {
-            LOG.error("Failed to create pipe");
-        }
-
-        streamListener = new VideoStreamFrameListener(parcelFds[1]);
+        streamListener = new VideoStreamFrameListener();
         cameraFrameBuffer.addListener(streamListener);
-
-
-        // Setup connection server to receive connections from client
-        serverEventListener = new ServerEventListener();
-        connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, parcelFds[0], serverEventListener);
-        connectionServer.start();
     }
 
-    @Override
-    public void onTerminate() {
-
-        if(wiFiDirectBroadcastReceiver!=null) {
-            unregisterReceiver(wiFiDirectBroadcastReceiver);
+    public void startConnectionServerIfNotRunning(){
+        // Setup connection server to receive connections from client
+        if (connectionServer == null){
+            connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, streamListener);
+            connectionServer.start();
         }
-        connectionServer.stop();
-        LOG.info("Terminating application");
-        super.onTerminate();
     }
 
     public void setEglContextCallback(MainActivity mainActivity) {
@@ -236,45 +215,28 @@ public class ChameleonApplication extends Application {
 
             LOG.debug("Acquiring WifiChannel");
             wifiP2pChannel = wifiP2pManager.initialize(this, getMainLooper(), null);
-
-            wiFiDirectBroadcastReceiver = new WiFiDirectBroadcastReceiver(wifiP2pManager, wifiP2pChannel);
-
-            wifiIntentFilter = new IntentFilter();
-            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
-            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
-            wifiIntentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
-
-            registerReceiver(wiFiDirectBroadcastReceiver, wifiIntentFilter);
-
         }
     }
 
+    public void tearDownNetworkComponents(){
+        LOG.info("Tearing down application resources..");
 
+        wiFiNetworkConnectionInfo = null;
 
-    public void tearDownWiFiHotspot(){
+        if (connectionServer != null){
+            connectionServer.stop();
+            connectionServer = null;
+        }
 
         LOG.debug("Tearing down Wifi hotspot..");
 
         // Tear down Wifi p2p hotspot
         if (wifiP2pManager != null && wifiP2pChannel != null){
-
             LOG.info("Invoking removeGroup..");
-
-            wifiP2pManager.removeGroup(
-                    wifiP2pChannel,
-                    new WifiP2pManager.ActionListener() {
-
-                        @Override
-                        public void onSuccess() {
-                            LOG.debug("WifiP2P removeGroup success");
-                        }
-
-                        @Override
-                        public void onFailure(int reasonCode) {
-                            LOG.warn("WifiP2P removeGroup. ReasonCode: {}", reasonCode);
-                        }
-                    });
+            wifiP2pManager.removeGroup(wifiP2pChannel, null);
         }
+        wifiP2pManager = null;
+        wifiP2pChannel = null;
+
     }
 }

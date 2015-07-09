@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConnectionEstablishedActivity extends ActionBarActivity {
     public static final String PEER_INFO = "PEER_INFO";
     private ChameleonApplication chameleonApplication;
+    private ConnectToServerTask connectToServerTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,10 +54,10 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         Intent intent = getIntent();
         PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
-        chameleonApplication.getServerEventListener().setStreamingSessionStarted(true);
+        chameleonApplication.getStreamListener().setStreamingStarted(true);
 
-        new ConnectToServerTask(peerInfo.getIpAddress(), peerInfo.getPort())
-                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        connectToServerTask = new ConnectToServerTask(peerInfo.getIpAddress(), peerInfo.getPort());
+        connectToServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private SurfaceTextureDisplay generatePreviewDisplay(){
@@ -116,14 +117,16 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
     }
 
     private void connectToRemoteHost(final InetAddress remoteHostIp, final int port){
-        log.info("Connect to remote host invoked");
+        log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
         try {
             Socket socket = new Socket(remoteHostIp, port);
+            socket.setSoTimeout(5000);
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
-            final byte[] buffer = new byte[1024];
+            final byte[] buffer = new byte[4096];
             InputStream inputStream = socket.getInputStream();
             while (true){
                 // TODO More robust
+                log.info("Before read..");
                 final int bytesRead = inputStream.read(buffer);
                 if (bytesRead != -1){
                     log.info("Received preview image from remote server bytes = " + bytesRead);
@@ -136,11 +139,13 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
                             }
                         }
                     });
+                } else {
+                    log.info("No data received from server..");
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
-            //log.warn("Connection to remote server closed", e);
+            //throw new RuntimeException(e);
+            log.warn("Connection to remote server closed", e);
         }
     }
 
@@ -167,18 +172,34 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
     }
 
     @Override
-    protected void onPause() {
-        // TODO: Figure out when to teardown Wifi
-        log.info("onDestroy invoked");
-        chameleonApplication.tearDownWiFiHotspot();
-        super.onPause();
-    }
+    public void onBackPressed() {
 
-    @Override
-    protected void onDestroy() {
-        // TODO: Figure out when to teardown Wifi
-        log.info("onDestroy invoked");
-        chameleonApplication.tearDownWiFiHotspot();
-        super.onDestroy();
+        chameleonApplication.setSessionStarted(false);
+        chameleonApplication.getStreamListener().setStreamingStarted(false);
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity= new Intent(getApplicationContext(), MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
+        super.onBackPressed();
+
+//        new AlertDialog.Builder(this)
+//                .setMessage("Are you sure you want to quit session?")
+//                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+//                    public void onClick(DialogInterface dialog, int which) {
+//
+//                        chameleonApplication.setSessionStarted(false);
+//                        chameleonApplication.getStreamListener().setStreamingStarted(false);
+//
+//                        //Re-use MainActivity instance if already present. If not, create new instance.
+//                        Intent openMainActivity= new Intent(getApplicationContext(), MainActivity.class);
+//                        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+//                        startActivity(openMainActivity);
+//                        // super.onBackPressed();
+//                    }
+//                })
+//                .setNegativeButton(android.R.string.no, null) // do nothing
+//                .setIcon(android.R.drawable.ic_dialog_alert)
+//                .show();
     }
 }

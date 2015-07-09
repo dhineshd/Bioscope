@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
-import android.graphics.SurfaceTexture;
 import android.net.Uri;
 import android.opengl.EGL14;
 import android.opengl.EGLExt;
@@ -56,6 +55,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     public ThreadLoggingHandler logHandler;
     public MainThreadHandler mainThreadHandler;
     private SurfaceTextureDisplay previewDisplay;
+
+    private ChameleonApplication chameleonApplication;
 
 
     /**
@@ -127,6 +128,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        chameleonApplication = (ChameleonApplication) getApplication();
+
         ((ChameleonApplication) getApplication()).updateOrientation();
 
         mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
@@ -164,57 +167,41 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        final Button startConnectionButton = (Button) findViewById(R.id.startConnection);
+        chameleonApplication.startConnectionServerIfNotRunning();
 
-        startConnectionButton.setOnClickListener(new OnClickListener() {
+        final Button startSessionButton = (Button) findViewById(R.id.startSession);
+
+        startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+                chameleonApplication.setSessionStarted(true);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
         });
 
-        final Button receiveConnectionButton = (Button) findViewById(R.id.receiveConnection);
+        final Button joinSessionButton = (Button) findViewById(R.id.joinSession);
 
-        receiveConnectionButton.setOnClickListener(new OnClickListener() {
+        joinSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+                chameleonApplication.setSessionStarted(true);
                 Intent i = new Intent(MainActivity.this, ReceiveConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
         });
 
-        final Button moveToGLRotationTest = (Button) findViewById(R.id.gl_rotate_activity);
-
-        moveToGLRotationTest.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                LOG.info("Broadcasting intent to change activities");
-                Intent k = new Intent(MainActivity.this, GLSurfaceViewRotation.class);
-                startActivity(k);
-            }
-        });
-
-        LOG.info("Set the click listener to {}", moveToGLRotationTest);
-
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
 
-        application.getServerEventListener().setContext(this.getApplicationContext());
+        application.getStreamListener().setContext(this.getApplicationContext());
     }
 
     private BackgroundRecorder createBackgroundRecorder() {
         BackgroundRecorder recorder = new BackgroundRecorder(this);
         recorder.setMainThreadHandler(mainThreadHandler);
-
         return recorder;
-    }
-
-    public void startCameraPreview(SurfaceTexture texture) {
-        videoRecorder.setOutputFile(getOutputMediaFile(MEDIA_TYPE_VIDEO));
-        videoRecorder.startRecording();
-        LOG.info("Starting camera preview");
     }
 
     @Override
@@ -242,14 +229,28 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onPause() {
         LOG.info("onPause: Activity is no longer in foreground");
-        if (previewDisplay != null)
+        if (previewDisplay != null) {
             previewDisplay.onPause();
+        }
+        // If we are not streaming, we can release relevant resources
+        if (!chameleonApplication.isSessionStarted()){
+            LOG.info("Teardown initiated from MainActivity");
+            ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
+        }
+        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
+        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+
         super.onPause();
     }
 
-    public void onResume() {
-        if (previewDisplay != null)
+    @Override
+    protected void onResume() {
+        if (previewDisplay != null) {
             previewDisplay.onResume();
+        }
+        chameleonApplication.startConnectionServerIfNotRunning();
+        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
+        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
         super.onResume();
     }
 
@@ -257,6 +258,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     protected void onDestroy() {
         LOG.info("onDestroy: Activity is no longer used by user");
         videoRecorder.stopRecording();
+        ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
         super.onDestroy();
     }
 
@@ -264,6 +266,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     protected void onStop() {
         LOG.info("onStop: Activity is no longer visible to user");
         super.onStop();
+    }
+
+    @Override
+    public void onBackPressed() {
+        // TODO : Kill all threads if not recording and use onPause()
+        finish();
+        //moveTaskToBack(true);
     }
 
     private boolean prepareVideoRecorder() {

@@ -108,6 +108,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             int fboId = ids[0];
             LOG.info("Creating frame buffer id {}", fboId);
 
+            GLES20.glViewport(0, 0, cameraInfo.getCaptureResolution().getWidth(), cameraInfo.getCaptureResolution().getHeight());
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
             GLES20.glGenRenderbuffers(1, ids, 0);
             int colorBufferId = ids[0];
@@ -157,8 +158,6 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
 
                 // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
                 GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
-                //int data[] = new int[size];
-                //buf.asIntBuffer().get(data);
                 LOG.debug("IntBuffer: {}", b);
                 cameraFrameBuffer.frameAvailable(cameraInfo, ib.array());
             }
