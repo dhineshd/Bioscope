@@ -119,17 +119,17 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
     private void connectToRemoteHost(final InetAddress remoteHostIp, final int port){
         log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
         try {
+            // Wait till we can reach the remote host. May take time to refresh ARP cache
+            while (!remoteHostIp.isReachable(1000));
             Socket socket = new Socket(remoteHostIp, port);
-            socket.setSoTimeout(5000);
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
-            final byte[] buffer = new byte[4096];
+            final byte[] buffer = new byte[4096 * 4];
             InputStream inputStream = socket.getInputStream();
-            while (true){
+            while (!Thread.currentThread().isInterrupted()){
                 // TODO More robust
-                log.info("Before read..");
                 final int bytesRead = inputStream.read(buffer);
                 if (bytesRead != -1){
-                    log.info("Received preview image from remote server bytes = " + bytesRead);
+                    //log.info("Received preview image from remote server bytes = " + bytesRead);
                     final Bitmap bmp = BitmapFactory.decodeByteArray(buffer, 0, bytesRead);
                     runOnUiThread(new Runnable() {
                         @Override
@@ -139,8 +139,6 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
                             }
                         }
                     });
-                } else {
-                    log.info("No data received from server..");
                 }
             }
         } catch (IOException e) {

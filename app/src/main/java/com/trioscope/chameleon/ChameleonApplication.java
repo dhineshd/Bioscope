@@ -89,13 +89,13 @@ public class ChameleonApplication extends Application {
     private PeerInfo peerInfo;
 
     @Getter
-    private VideoStreamFrameListener streamListener;
+    private volatile VideoStreamFrameListener streamListener;
     @Getter
     @Setter
     private ConnectionServer connectionServer;
     @Getter
     @Setter
-    private boolean isSessionStarted;
+    private volatile boolean isSessionStarted;
 
     @Setter
     @Getter
@@ -126,6 +126,12 @@ public class ChameleonApplication extends Application {
 
         streamListener = new VideoStreamFrameListener();
         cameraFrameBuffer.addListener(streamListener);
+    }
+
+    @Override
+    public void onTerminate() {
+        LOG.info("Terminating chameleon..");
+        super.onTerminate();
     }
 
     public void startConnectionServerIfNotRunning(){
