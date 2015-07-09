@@ -107,7 +107,8 @@ public class SendConnectionInfoFragment extends Fragment {
             BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    log.info("onReceive intent = {}, wifi enabled = {}", intent.getAction(), wifiManager.isWifiEnabled());
+                    log.info("onReceive intent = {}, wifi enabled = {}",
+                            intent.getAction(), wifiManager.isWifiEnabled());
                     if(wifiManager.isWifiEnabled()) {
 
                         // Done with checking Wifi state

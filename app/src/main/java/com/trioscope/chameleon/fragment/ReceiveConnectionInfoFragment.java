@@ -88,7 +88,6 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         } else {
             connectionStatusTextView.setText("Enabling WiFi..");
             IntentFilter filter = new IntentFilter();
-            //filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
             filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 
             enableWifiBroadcastReceiver = new BroadcastReceiver() {
@@ -131,14 +130,16 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                             intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
                     log.info("Network info : connected = {}, type = {}", networkInfo.isConnected(), networkInfo.getType());
                     if(networkInfo.getType() == ConnectivityManager.TYPE_WIFI &&
-                            networkInfo.isConnected() && getLocalIpAddressForWifi() != null) {
+                            networkInfo.isConnected() &&
+                            getLocalIpAddressForWifi() != null) {
 
                         // Done with checking connectivity
                         getActivity().unregisterReceiver(this);
 
                         try {
+                            InetAddress remoteIp = InetAddress.getByName(connectionInfo.getServerIpAddress());
                             PeerInfo peerInfo = PeerInfo.builder()
-                                    .ipAddress(InetAddress.getByName(connectionInfo.getServerIpAddress()))
+                                    .ipAddress(remoteIp)
                                     .port(connectionInfo.getServerPort())
                                     .build();
 
@@ -161,7 +162,6 @@ public class ReceiveConnectionInfoFragment extends Fragment {
 
         connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
     }
-
 
     private String getLocalIpAddressForWifi(){
         WifiManager wifiManager = (WifiManager) getActivity().getSystemService(Context.WIFI_SERVICE);
@@ -187,16 +187,14 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     private void connectToWifiNetwork(final String networkSSID, final String networkPassword){
         WifiConfiguration conf = new WifiConfiguration();
         conf.SSID = "\"" + networkSSID + "\"";
-        conf.preSharedKey = "\""+ networkPassword +"\"";
+        conf.preSharedKey = "\"" + networkPassword + "\"";
 
-        WifiManager wifiManager = (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        final WifiManager wifiManager = (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         wifiManager.addNetwork(conf);
-        int netId = wifiManager.addNetwork(conf);
+        final int netId = wifiManager.addNetwork(conf);
         log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
-        wifiManager.setWifiEnabled(true);
-        wifiManager.disconnect();
+        // Enable only our network and disable others
         wifiManager.enableNetwork(netId, true);
-        wifiManager.reconnect();
     }
 
     @Override
