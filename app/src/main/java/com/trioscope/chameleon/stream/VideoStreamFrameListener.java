@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int TARGET_STREAMING_FRAME_RATE_PER_SEC = 3;
+    private static final int TARGET_STREAMING_FRAME_RATE_PER_SEC = 5;
 
     @Setter
     private volatile boolean isStreamingStarted;
@@ -33,7 +33,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile Context context;
 
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(4096 * 4);
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(4096 * 5);
     private Gson gson = new Gson();
 
     private long previousFrameSendTime = 0;
@@ -44,14 +44,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int h = cameraInfos.getCaptureResolution().getHeight();
 
 
-        if (shouldStreamCurrentFrame()){
+        if (shouldStreamCurrentFrame()) {
             stream.reset();
-            Bitmap bmp = convertToBmpMethod(data, w, h);
-            bmp.compress(Bitmap.CompressFormat.JPEG, 10, stream);
+            Bitmap bmp = convertToBmp(data, w, h);
+            bmp.compress(Bitmap.CompressFormat.JPEG, 20, stream);
             bmp.recycle();
             byte[] byteArray = stream.toByteArray();
 
-            if (destOutputStream != null){
+            if (destOutputStream != null) {
                 try {
                     destOutputStream.write(byteArray, 0, byteArray.length);
                     previousFrameSendTime = System.currentTimeMillis();
@@ -69,13 +69,23 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 (1000 / TARGET_STREAMING_FRAME_RATE_PER_SEC));
     }
 
-
-    private Bitmap convertToBmpMethod(final int[] data, final int width, final int height) {
+    private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
         int screenshotSize = width * height;
+        for (int i = 0; i < screenshotSize; ++i) {
+            // The alpha and green channels' positions are preserved while the red and blue are swapped
+            // since the received frame is in RGB but Bitmap expects BGR. May need to revisit the
+            // efficiency of this approach and see if we can get the frame directly in BGR.
+            // Refer: https://www.khronos.org/registry/gles/extensions/EXT/EXT_read_format_bgra.txt
+            pixelsBuffer[i] =
+                    ((pixelsBuffer[i] & 0xff00ff00))
+                    | ((pixelsBuffer[i] & 0x000000ff) << 16)
+                    | ((pixelsBuffer[i] & 0x00ff0000) >> 16);
+        }
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bmp.setPixels(data, screenshotSize - width, -width, 0, 0, width, height);
+        bmp.setPixels(pixelsBuffer, screenshotSize - width, -width, 0, 0, width, height);
         return bmp;
     }
+
 
     @Override
     public void onClientConnectionRequest(Socket clientSocket) {

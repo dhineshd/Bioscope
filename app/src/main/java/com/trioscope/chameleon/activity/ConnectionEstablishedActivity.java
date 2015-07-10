@@ -123,7 +123,7 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             while (!remoteHostIp.isReachable(1000));
             Socket socket = new Socket(remoteHostIp, port);
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
-            final byte[] buffer = new byte[4096 * 4];
+            final byte[] buffer = new byte[4096 * 5];
             InputStream inputStream = socket.getInputStream();
             while (!Thread.currentThread().isInterrupted()){
                 // TODO More robust
