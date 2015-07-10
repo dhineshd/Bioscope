@@ -146,15 +146,15 @@ public class ChameleonApplication extends Application {
     public void startConnectionServerIfNotRunning(){
         SSLContext sslContext = null; // JSSE and OpenSSL providers behave the same way
         try {
-            sslContext = SSLContext.getInstance("TLSv1.2");
+            sslContext = SSLContext.getInstance("TLS");
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             KeyStore ks = KeyStore.getInstance("BKS");
             char[] password = "poiuyt".toCharArray(); // TODO: Move to build config
             // we assume the keystore is in the app assets
-            InputStream sslKeyStore =  getApplicationContext().getResources().openRawResource(R.raw.keystore);
+            InputStream sslKeyStore =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
             ks.load(sslKeyStore, null);
             sslKeyStore.close();
-            kmf.init( ks, password );
+            kmf.init(ks, password);
             sslContext.init( kmf.getKeyManagers(), null, new SecureRandom() );
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
@@ -171,7 +171,8 @@ public class ChameleonApplication extends Application {
         }
         // Setup connection server to receive connections from client
         if (connectionServer == null){
-            connectionServer = new ConnectionServer(ChameleonApplication.SERVER_PORT, streamListener, sslContext);
+            connectionServer = new ConnectionServer(
+                    ChameleonApplication.SERVER_PORT, streamListener, sslContext);
             connectionServer.start();
         }
     }

@@ -5,11 +5,9 @@ import android.os.Looper;
 import android.os.Message;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
 
-import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
@@ -26,18 +24,12 @@ public class ConnectionServer {
     @NonNull
     private Thread serverThread;
     @NonNull
-    private ServerSocket serverSocket;
+    private SSLServerSocket serverSocket;
 
     public ConnectionServer(
             final int port,
             final ServerEventListener serverEventListener,
             final SSLContext sslContext) {
-
-        try {
-            serverSocket = new ServerSocket(port);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to create server socket", e);
-        }
 
         final int CLIENT_CONNECTION_REQUEST_RECEIVED = 1;
         final Handler handler = new Handler(Looper.getMainLooper()){
@@ -57,9 +49,9 @@ public class ConnectionServer {
             @Override
             public void run() {
                 try {
-                    ServerSocketFactory sslServerSocketFactory = SSLServerSocketFactory.getDefault();
-                    //SSLServerSocketFactory sslServerSocketFactory = sslContext.getServerSocketFactory();
-                    SSLServerSocket serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
+                    //ServerSocketFactory sslServerSocketFactory = SSLServerSocketFactory.getDefault();
+                    SSLServerSocketFactory sslServerSocketFactory = sslContext.getServerSocketFactory();
+                    serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
                     //SSLServerSocket serverSocket = ((SSLServerSocket)(SSLServerSocketFactory.getDefault()).createServerSocket(port));
                     serverSocket.setEnabledProtocols(new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
                     serverSocket.setEnableSessionCreation(true);
@@ -71,7 +63,8 @@ public class ConnectionServer {
                         log.info("ServerSocket Created, awaiting connection");
                         SSLSocket socket = (SSLSocket) serverSocket.accept();
                         log.info("Received new client request");
-                        handler.sendMessage(handler.obtainMessage(CLIENT_CONNECTION_REQUEST_RECEIVED, socket));
+                        serverEventListener.onClientConnectionRequest(socket);
+                        //handler.sendMessage(handler.obtainMessage(CLIENT_CONNECTION_REQUEST_RECEIVED, socket));
                     }
                 } catch (IOException e) {
                     // Calling serverSocket.close to terminate the thread wil throw exception
