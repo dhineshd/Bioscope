@@ -32,6 +32,14 @@
         android:text="Move to Rotation Test" />
 
     <Button
+        android:id="@+id/move_to_ffmpeg_activity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/move_to_gl_rotate_activity"
+        android:onClick="foo"
+        android:text="Move to FFMPEG Test" />
+
+    <Button
         android:id="@+id/startConnection"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

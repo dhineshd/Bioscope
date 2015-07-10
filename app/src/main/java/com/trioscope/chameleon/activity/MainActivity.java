@@ -195,6 +195,15 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        ((Button) findViewById(R.id.move_to_ffmpeg_activity)).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Broadcasting intent to change activities");
+                Intent k = new Intent(MainActivity.this, FfmpegTest.class);
+                startActivity(k);
+            }
+        });
+
         LOG.info("Set the click listener to {}", moveToGLRotationTest);
 
         // Tell the application we're ready to show preview whenever
