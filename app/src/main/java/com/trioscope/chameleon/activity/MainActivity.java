@@ -1,5 +1,6 @@
 package com.trioscope.chameleon.activity;
 
+import android.app.DialogFragment;
 import android.content.Intent;
 import android.net.Uri;
 import android.opengl.EGL14;
@@ -23,6 +24,8 @@ import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
+import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
+import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 
@@ -191,6 +194,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+
+
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
@@ -251,7 +256,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         chameleonApplication.startConnectionServerIfNotRunning();
         ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
         ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+
         super.onResume();
+
+        if(!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
+
+            DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
+            newFragment.show(getFragmentManager(), "dialog");
+        }
     }
 
     @Override
