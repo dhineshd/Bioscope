@@ -134,7 +134,7 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             while (!remoteHostIp.isReachable(1000));
             // Load the keyStore that includes self-signed cert as a "trusted" entry.
             KeyStore trustStore = KeyStore.getInstance("BKS");
-            InputStream trustStoreInputStream =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
+            InputStream trustStoreInputStream =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_truststore);
             trustStore.load(trustStoreInputStream, "poiuyt".toCharArray());
             trustStoreInputStream.close();
             TrustManagerFactory tmf =
