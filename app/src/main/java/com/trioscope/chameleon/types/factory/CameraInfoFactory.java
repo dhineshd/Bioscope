@@ -10,8 +10,8 @@ import com.trioscope.chameleon.types.Size;
  */
 public class CameraInfoFactory {
 
-    private static final int CAP_WIDTH = 160;
-    private static final int CAP_HEIGHT = 90;
+    private static final int CAP_WIDTH = 640;
+    private static final int CAP_HEIGHT = 360;
 
     public static CameraInfo createCameraInfo(Camera.Parameters params) {
 

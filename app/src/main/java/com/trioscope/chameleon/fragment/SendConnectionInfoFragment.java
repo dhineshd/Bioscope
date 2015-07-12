@@ -16,6 +16,7 @@ import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
@@ -55,9 +56,9 @@ public class SendConnectionInfoFragment extends Fragment {
         chameleonApplication.setDirector(true);
 
         // If connection information not present, need to create new Wifi hotspot
-        if (chameleonApplication.getWiFiNetworkConnectionInfo() == null){
+        //if (chameleonApplication.getWiFiNetworkConnectionInfo() == null){
             enableWifiAndCreateHotspot();
-        }
+        //}
     }
 
     @Override
@@ -127,7 +128,7 @@ public class SendConnectionInfoFragment extends Fragment {
         }
     }
 
-    private void createWifiHotspot(){
+    private void createWifiHotspot() {
 
         connectionStatusTextView.setText("Creating WiFi network..");
 
@@ -224,7 +225,8 @@ public class SendConnectionInfoFragment extends Fragment {
                                     .build();
 
                     // Connection info will be used in other components of the app
-                    chameleonApplication.setWiFiNetworkConnectionInfo(nci);
+                    //chameleonApplication.setWiFiNetworkConnectionInfo(nci);
+                    ((WifiConnectionInfoListener) getActivity()).onWifiNetworkCreated(nci);
 
                     connectionStatusTextView.setText("Ready to send connection info..");
 

@@ -3,9 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.app.DialogFragment;
 import android.content.Intent;
 import android.net.Uri;
-import android.opengl.EGL14;
-import android.opengl.EGLExt;
-import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -25,9 +22,9 @@ import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.SessionStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
-import javax.microedition.khronos.egl.EGL10;
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.egl.EGLContext;
-import javax.microedition.khronos.egl.EGLDisplay;
 
 import static android.view.View.OnClickListener;
 
@@ -177,7 +169,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                chameleonApplication.setSessionStarted(true);
+                chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
@@ -188,7 +180,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         joinSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                chameleonApplication.setSessionStarted(true);
+                chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, ReceiveConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
@@ -236,8 +228,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         if (previewDisplay != null) {
             previewDisplay.onPause();
         }
-        // If we are not streaming, we can release relevant resources
-        if (!chameleonApplication.isSessionStarted()){
+        // If we are not connected, we can release network resources
+        if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())){
             LOG.info("Teardown initiated from MainActivity");
             ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
         }
@@ -256,13 +248,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
         ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
 
-        super.onResume();
-
         if(!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
 
             DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
             newFragment.show(getFragmentManager(), "dialog");
         }
+
+        super.onResume();
     }
 
     @Override
@@ -314,88 +306,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
 
-        previewDisplay = new SurfaceTextureDisplay(this);
-
-        previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
-            @Override
-            public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
-                LOG.info("Creating shared EGLContext");
-                //EGLConfig config = getConfig(FLAG_RECORDABLE, 2, display);
-                int[] attrib2_list = {
-                        EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
-                        EGL14.EGL_NONE
-                };
-
-                EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(display, eglConfig, contextMessage.getEglContext(), attrib2_list);
-
-                LOG.info("Created a shared EGL context: {}", newContext);
-                return newContext;
-            }
-
-            @Override
-            public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
-                LOG.info("EGLContext is being destroyed");
-                egl.eglDestroyContext(display, context);
-            }
-        });
-
-        previewDisplay.setTextureId(contextMessage.getGlTextureId());
-        previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
-        //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(((ChameleonApplication) getApplication()).getRotationState()));
-        //previewDisplay.setPreserveEGLContextOnPause(true);
+        ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
 
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
+        previewDisplay = chameleonApplication.generatePreviewDisplay(contextMessage);
         layout.addView(previewDisplay);
 
-        ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
         chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
 
-    }
-
-    // See https://github.com/google/grafika/blob/master/src/com/android/grafika/gles/EglCore.java
-    // Android-specific extension.
-    private static final int EGL_RECORDABLE_ANDROID = 0x3142;
-    /**
-     * Constructor flag: surface must be recordable.  This discourages EGL from using a
-     * pixel format that cannot be converted efficiently to something usable by the video
-     * encoder.
-     */
-    private static final int FLAG_RECORDABLE = 0x01;
-
-
-    private EGLConfig getConfig(int flags, int version, EGLDisplay mEGLDisplay) {
-        int renderableType = EGL14.EGL_OPENGL_ES2_BIT;
-        if (version >= 3) {
-            renderableType |= EGLExt.EGL_OPENGL_ES3_BIT_KHR;
-        }
-
-        // The actual surface is generally RGBA or RGBX, so situationally omitting alpha
-        // doesn't really help.  It can also lead to a huge performance hit on glReadPixels()
-        // when reading into a GL_RGBA buffer.
-        int[] attribList = {
-                EGL14.EGL_RED_SIZE, 8,
-                EGL14.EGL_GREEN_SIZE, 8,
-                EGL14.EGL_BLUE_SIZE, 8,
-                EGL14.EGL_ALPHA_SIZE, 8,
-                //EGL14.EGL_DEPTH_SIZE, 16,
-                //EGL14.EGL_STENCIL_SIZE, 8,
-                EGL14.EGL_RENDERABLE_TYPE, renderableType,
-                EGL14.EGL_NONE, 0,      // placeholder for recordable [@-3]
-                EGL14.EGL_NONE
-        };
-        if ((flags & FLAG_RECORDABLE) != 0) {
-            attribList[attribList.length - 3] = EGL_RECORDABLE_ANDROID;
-            attribList[attribList.length - 2] = 1;
-        }
-        EGLConfig[] configs = new EGLConfig[1];
-        int[] numConfigs = new int[1];
-        if (!((EGL10) EGLContext.getEGL()).eglChooseConfig(mEGLDisplay, attribList, configs, 0,
-                numConfigs)) {
-            LOG.warn("unable to find RGB8888 / " + version + " EGLConfig");
-            return null;
-        }
-        return configs[0];
     }
 
     public void eglContextAvailable(EGLContextAvailableMessage eglContextMsg) {

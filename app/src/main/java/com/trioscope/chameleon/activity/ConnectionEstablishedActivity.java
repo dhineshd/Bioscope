@@ -3,8 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.EGL14;
-import android.opengl.GLSurfaceView;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
@@ -16,10 +14,9 @@ import android.widget.RelativeLayout;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.stream.NoSSLv3SocketFactory;
-import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.SessionStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,10 +28,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 
-import javax.microedition.khronos.egl.EGL10;
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.egl.EGLContext;
-import javax.microedition.khronos.egl.EGLDisplay;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -57,7 +50,8 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
         // Display camera preview
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_session_preview);
-        layout.addView(generatePreviewDisplay());
+        layout.addView(chameleonApplication.generatePreviewDisplay(
+                chameleonApplication.getGlobalEglContextInfo()));
 
         // Retrieve peer info to start streaming
         Gson gson = new Gson();
@@ -65,42 +59,11 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
         // Start streaming the preview
+        chameleonApplication.setSessionStatus(SessionStatus.CONNECTED);
         chameleonApplication.getStreamListener().setStreamingStarted(true);
 
         connectToServerTask = new ConnectToServerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         connectToServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-    }
-
-    private SurfaceTextureDisplay generatePreviewDisplay(){
-        final EGLContextAvailableMessage eglContextAvailableMessage = chameleonApplication.getGlobalEglContextInfo();
-        SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(this);
-        previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
-            @Override
-            public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
-                log.info("Creating shared EGLContext");
-                int[] attrib2_list = {
-                        EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
-                        EGL14.EGL_NONE
-                };
-
-                EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(
-                        display, eglConfig, eglContextAvailableMessage.getEglContext(), attrib2_list);
-                log.info("Created a shared EGL context: {}", newContext);
-                return newContext;
-            }
-
-            @Override
-            public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
-                log.info("EGLContext is being destroyed");
-                egl.eglDestroyContext(display, context);
-            }
-        });
-
-        previewDisplay.setTextureId(eglContextAvailableMessage.getGlTextureId());
-        previewDisplay.setToDisplay(eglContextAvailableMessage.getSurfaceTexture());
-        //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(((ChameleonApplication) getApplication()).getRotationState()));
-        return previewDisplay;
     }
 
     class ConnectToServerTask extends AsyncTask<Void, Void, Void>{
@@ -153,7 +116,7 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             //socket.setSoTimeout(5000);
 
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
-            final byte[] buffer = new byte[4096 * 5];
+            final byte[] buffer = new byte[1024 * 80];
             InputStream inputStream = socket.getInputStream();
             while (!Thread.currentThread().isInterrupted()){
                 // TODO More robust
@@ -211,8 +174,10 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
     @Override
     public void onBackPressed() {
 
-        chameleonApplication.setSessionStarted(false);
-        chameleonApplication.getStreamListener().setStreamingStarted(false);
+        if (connectToServerTask != null){
+            connectToServerTask.tearDown();
+        }
+        chameleonApplication.tearDownNetworkComponents();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(getApplicationContext(), MainActivity.class);

@@ -33,7 +33,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile Context context;
 
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(4096 * 5);
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024 * 80);
     private Gson gson = new Gson();
 
     private long previousFrameSendTime = 0;
@@ -47,7 +47,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         if (shouldStreamCurrentFrame()) {
             stream.reset();
             Bitmap bmp = convertToBmp(data, w, h);
-            bmp.compress(Bitmap.CompressFormat.JPEG, 20, stream);
+            bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);
             bmp.recycle();
             byte[] byteArray = stream.toByteArray();
 
@@ -55,7 +55,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 try {
                     destOutputStream.write(byteArray, 0, byteArray.length);
                     previousFrameSendTime = System.currentTimeMillis();
-                    //log.info("Sending preview image to remote client.. bytes = {}", byteArray.length);
+                    log.info("Sending preview image to remote client.. bytes = {}", byteArray.length);
                 } catch (IOException e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;

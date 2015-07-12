@@ -111,8 +111,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
     @Override
     public void onBackPressed() {
-        ((ChameleonApplication)getApplication()).setSessionStarted(false);
-        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+        ((ChameleonApplication)getApplication()).tearDownNetworkComponents();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(this, MainActivity.class);

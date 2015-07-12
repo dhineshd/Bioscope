@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.opengl.EGL14;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Message;
@@ -22,7 +23,7 @@ import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.PeerInfo;
-import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 
 import org.slf4j.Logger;
@@ -38,7 +39,10 @@ import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
+import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.egl.EGLContext;
+import javax.microedition.khronos.egl.EGLDisplay;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
@@ -92,10 +96,6 @@ public class ChameleonApplication extends Application {
 
     @Getter
     @Setter
-    private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
-
-    @Getter
-    @Setter
     private PeerInfo peerInfo;
 
     @Getter
@@ -104,7 +104,7 @@ public class ChameleonApplication extends Application {
     private ConnectionServer connectionServer;
     @Getter
     @Setter
-    private volatile boolean isSessionStarted;
+    private volatile SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 
     @Setter
     @Getter
@@ -259,11 +259,43 @@ public class ChameleonApplication extends Application {
         }
     }
 
+    public SurfaceTextureDisplay generatePreviewDisplay(final EGLContextAvailableMessage contextMessage){
+        SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(this);
+        previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
+            @Override
+            public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
+                LOG.info("Creating shared EGLContext");
+                int[] attrib2_list = {
+                        EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
+                        EGL14.EGL_NONE
+                };
+
+                EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(
+                        display, eglConfig, contextMessage.getEglContext(), attrib2_list);
+                LOG.info("Created a shared EGL context: {}", newContext);
+                return newContext;
+            }
+
+            @Override
+            public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
+                LOG.info("EGLContext is being destroyed");
+                egl.eglDestroyContext(display, context);
+            }
+        });
+
+        previewDisplay.setTextureId(contextMessage.getGlTextureId());
+        previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
+        //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(rotationState));
+        return previewDisplay;
+    }
+
     public void tearDownNetworkComponents(){
         LOG.info("Tearing down application resources..");
 
-        wiFiNetworkConnectionInfo = null;
+        // TODO : Any particular order in which we need to do the following?
 
+        //  Tear down server
         if (connectionServer != null){
             connectionServer.stop();
             connectionServer = null;
@@ -279,5 +311,8 @@ public class ChameleonApplication extends Application {
         wifiP2pManager = null;
         wifiP2pChannel = null;
 
+        // Reset session flags
+        sessionStatus = SessionStatus.DISCONNECTED;
+        streamListener.setStreamingStarted(false);
     }
 }

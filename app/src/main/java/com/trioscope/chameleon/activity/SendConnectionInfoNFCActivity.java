@@ -15,6 +15,7 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
+import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 import static android.nfc.NdefRecord.createMime;
 
 @Slf4j
-public class SendConnectionInfoNFCActivity extends EnableForegroundDispatchForNFCMessageActivity implements NfcAdapter.CreateNdefMessageCallback {
+public class SendConnectionInfoNFCActivity
+        extends EnableForegroundDispatchForNFCMessageActivity
+        implements NfcAdapter.CreateNdefMessageCallback, WifiConnectionInfoListener {
+    private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
     private Gson mGson = new Gson();
 
     @Override
@@ -58,11 +62,6 @@ public class SendConnectionInfoNFCActivity extends EnableForegroundDispatchForNF
 
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
-
-        //TODO: Ensure that wiFiNetworkConnectionInfo in ChameleonApplication is initialized before user can send via NFC.
-        WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo =
-                ((ChameleonApplication) getApplication()).getWiFiNetworkConnectionInfo();
-
         if (wiFiNetworkConnectionInfo != null){
             String text = mGson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
             NdefMessage msg = new NdefMessage(
@@ -101,10 +100,14 @@ public class SendConnectionInfoNFCActivity extends EnableForegroundDispatchForNF
         newFragment.show(getFragmentManager(), "dialog");
     }
 
+    @Override
+    public void onWifiNetworkCreated(WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo) {
+        this.wiFiNetworkConnectionInfo = wiFiNetworkConnectionInfo;
+    }
+
     public void onBackPressed() {
 
-        ((ChameleonApplication)getApplication()).setSessionStarted(false);
-        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
+        ((ChameleonApplication)getApplication()).tearDownNetworkComponents();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(this, MainActivity.class);
