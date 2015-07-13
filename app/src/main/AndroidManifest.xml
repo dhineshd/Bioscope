@@ -47,7 +47,7 @@
             android:label="RotationActivity"
             android:noHistory="true" />
         <activity
-            android:name=".activity.FfmpegTest"
+            android:name=".activity.MergeVideosActivity"
             android:label="FfmpegActivity"
             android:noHistory="true" />
 

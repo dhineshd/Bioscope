@@ -199,7 +199,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             @Override
             public void onClick(View v) {
                 LOG.info("Broadcasting intent to change activities");
-                Intent k = new Intent(MainActivity.this, FfmpegTest.class);
+                Intent k = new Intent(MainActivity.this, MergeVideosActivity.class);
                 startActivity(k);
             }
         });

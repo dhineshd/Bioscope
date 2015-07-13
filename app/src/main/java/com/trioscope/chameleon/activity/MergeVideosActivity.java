@@ -4,12 +4,15 @@ package com.trioscope.chameleon.activity;
 import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.ProgressBar;
 
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
@@ -23,9 +26,11 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Created by phand on 6/19/15.
  */
-public class FfmpegTest extends AppCompatActivity implements ProgressUpdatable {
-    private static final Logger LOG = LoggerFactory.getLogger(FfmpegTest.class);
+public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable {
+    private static final Logger LOG = LoggerFactory.getLogger(MergeVideosActivity.class);
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
+    private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
+    private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
     private FfmpegTaskFragment taskFragment;
 
     @Override
@@ -75,12 +80,31 @@ public class FfmpegTest extends AppCompatActivity implements ProgressUpdatable {
         bar.setProgress(progressPerc);
 
         LOG.info("Now {}% done", String.format("%.2f", progress / outOf * 100.0));
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        Notification n = new Notification.Builder(this)
+                .setContentTitle("Chameleon Video Merge")
+                .setContentText("Chameleon video merge is in progress")
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setOngoing(true)
+                .setProgress(100, progressPerc, false)
+                .build();
+        notificationManager.notify(MERGING_NOTIFICATION_ID, n);
     }
 
     @Override
     public void onCompleted() {
-
         LOG.info("FFMPEG Completed!");
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.cancel(MERGING_NOTIFICATION_ID);
+        Notification n = new Notification.Builder(this)
+                .setContentTitle("Chameleon Merge Complete")
+                .setContentText("Chameleon video merge has completed")
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setProgress(100, 100, false)
+                .build();
+        notificationManager.notify(COMPLETED_NOTIFICATION_ID, n);
     }
 
     @Slf4j
@@ -117,6 +141,17 @@ public class FfmpegTest extends AppCompatActivity implements ProgressUpdatable {
             videoMerger.setProgressUpdatable((ProgressUpdatable) currentContext);
             videoMerger.prepare();
             videoMerger.mergeVideos(vid1, vid2, output);
+
+
+            NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(NOTIFICATION_SERVICE);
+            Notification n = new Notification.Builder(currentContext)
+                    .setContentTitle("Chameleon Video Merge")
+                    .setContentText("Chameleon video merge is in progress")
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setOngoing(true)
+                    .setProgress(100, 0, false)
+                    .build();
+            notificationManager.notify(MERGING_NOTIFICATION_ID, n);
         }
 
         /**
