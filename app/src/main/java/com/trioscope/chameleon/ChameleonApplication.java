@@ -11,6 +11,8 @@ import android.os.Message;
 import android.view.Gravity;
 import android.view.WindowManager;
 
+import com.google.android.gms.analytics.GoogleAnalytics;
+import com.google.android.gms.analytics.Tracker;
 import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -51,6 +53,7 @@ import lombok.Setter;
 public class ChameleonApplication extends Application {
     private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
     public final static int SERVER_PORT = 7080;
+    public static final int DISPATCH_PERIOD_IN_SECONDS = 1800;
     private VideoRecorder videoRecorder;
 
     @Getter
@@ -110,10 +113,18 @@ public class ChameleonApplication extends Application {
     @Getter
     private boolean isDirector;
 
+    public static final String GOOGLE_ANALYTICS_CHAMELEON_TRACKING_ID = "UA-65062909-1";
+
+    @Getter
+    private static Tracker metricsTracker;
+
     @Override
     public void onCreate() {
         super.onCreate();
         LOG.info("Starting application");
+
+        setupMetrics();
+
 
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
@@ -136,6 +147,8 @@ public class ChameleonApplication extends Application {
         streamListener = new VideoStreamFrameListener();
         cameraFrameBuffer.addListener(streamListener);
     }
+
+
 
     @Override
     public void onTerminate() {
@@ -279,5 +292,22 @@ public class ChameleonApplication extends Application {
         wifiP2pManager = null;
         wifiP2pChannel = null;
 
+    }
+
+    private void setupMetrics() {
+        GoogleAnalytics analytics = GoogleAnalytics.getInstance(this);
+        analytics.setLocalDispatchPeriod(DISPATCH_PERIOD_IN_SECONDS);
+
+        metricsTracker = analytics.newTracker(GOOGLE_ANALYTICS_CHAMELEON_TRACKING_ID);
+
+        // Provide unhandled exceptions reports. Do that first after creating the tracker
+        metricsTracker.enableExceptionReporting(true);
+
+        // Enable Remarketing, Demographics & Interests reports
+        // https://developers.google.com/analytics/devguides/collection/android/display-features
+        metricsTracker.enableAdvertisingIdCollection(true);
+
+        // Enable automatic activity tracking for your app
+        metricsTracker.enableAutoActivityTracking(true);
     }
 }

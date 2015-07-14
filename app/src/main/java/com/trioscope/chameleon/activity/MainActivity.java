@@ -95,7 +95,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
         // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled.
+        // between applications and persist after your app has been uninstalled
 
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
@@ -320,6 +320,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             @Override
             public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
                 LOG.info("Creating shared EGLContext");
+
                 //EGLConfig config = getConfig(FLAG_RECORDABLE, 2, display);
                 int[] attrib2_list = {
                         EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
