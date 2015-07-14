@@ -14,9 +14,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.google.android.gms.analytics.HitBuilders;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
+import com.trioscope.chameleon.types.MetricNames;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
@@ -105,12 +107,18 @@ public class SendConnectionInfoFragment extends Fragment {
             IntentFilter filter = new IntentFilter();
             filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 
+            final long startTime = System.currentTimeMillis();
+
             BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     log.info("onReceive intent = {}, wifi enabled = {}",
                             intent.getAction(), wifiManager.isWifiEnabled());
                     if(wifiManager.isWifiEnabled()) {
+
+                        //Publish time for wifi to be enabled
+                        sendTimeMetrics(MetricNames.Category.WIFI.getName(),
+                        MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
 
                         // Done with checking Wifi state
                         getActivity().unregisterReceiver(this);
@@ -125,10 +133,22 @@ public class SendConnectionInfoFragment extends Fragment {
 
             // Enable and wait for Wifi state change
             wifiManager.setWifiEnabled(true);
+            log.info("SetWifiEnabled to true");
         }
     }
 
-    private void createWifiHotspot() {
+    private void sendTimeMetrics(String category, String label, long timeInMillis) {
+
+        ChameleonApplication.getMetricsTracker().send(new HitBuilders.TimingBuilder()
+                .setCategory(category)
+                .setLabel(label)
+                .setValue(timeInMillis)
+                .build()
+        );
+
+    }
+
+    private void createWifiHotspot(){
 
         connectionStatusTextView.setText("Creating WiFi network..");
 

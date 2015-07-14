@@ -87,7 +87,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
         // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled.
+        // between applications and persist after your app has been uninstalled
 
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
@@ -307,7 +307,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
-
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
         previewDisplay = chameleonApplication.generatePreviewDisplay(contextMessage);
         layout.addView(previewDisplay);
