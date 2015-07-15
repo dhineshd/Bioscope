@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,6 +52,8 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         if (taskFragment == null) {
             taskFragment = new FfmpegTaskFragment();
             fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
+        } else {
+            LOG.info("Task fragment exists - reusing (device rotated)");
         }
     }
 
@@ -74,50 +77,32 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
     @Override
     public void onProgress(double progress, double outOf) {
-
         int progressPerc = (int) Math.ceil(100.0 * progress / outOf);
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setProgress(progressPerc);
 
         LOG.info("Now {}% done", String.format("%.2f", progress / outOf * 100.0));
 
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-
-        Notification n = new Notification.Builder(this)
-                .setContentTitle("Chameleon Video Merge")
-                .setContentText("Chameleon video merge is in progress")
-                .setSmallIcon(R.drawable.ic_launcher)
-                .setOngoing(true)
-                .setProgress(100, progressPerc, false)
-                .build();
-        notificationManager.notify(MERGING_NOTIFICATION_ID, n);
     }
 
     @Override
     public void onCompleted() {
         LOG.info("FFMPEG Completed!");
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.cancel(MERGING_NOTIFICATION_ID);
-        Notification n = new Notification.Builder(this)
-                .setContentTitle("Chameleon Merge Complete")
-                .setContentText("Chameleon video merge has completed")
-                .setSmallIcon(R.drawable.ic_launcher)
-                .setProgress(100, 100, false)
-                .build();
-        notificationManager.notify(COMPLETED_NOTIFICATION_ID, n);
     }
 
     @Slf4j
-    public static class FfmpegTaskFragment extends Fragment {
+    public static class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         private Context currentContext;
         private FfmpegVideoMerger videoMerger;
+        private long startTime;
+        private Notification.Builder notificationBuilder;
 
         @Override
         public void onAttach(Activity activity) {
             super.onAttach(activity);
             log.info("Activity is attached to ffmpeg task");
             if (videoMerger != null)
-                videoMerger.setProgressUpdatable((ProgressUpdatable) activity);
+                videoMerger.setProgressUpdatable(this);
             currentContext = activity;
         }
 
@@ -138,29 +123,76 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             File vid2 = new File("/storage/emulated/0/DCIM/Camera/VID_20150709_175945.mp4");
             File output = new File("/storage/emulated/0/DCIM/Camera/Merged.mp4");
             videoMerger.setContext(currentContext);
-            videoMerger.setProgressUpdatable((ProgressUpdatable) currentContext);
+            videoMerger.setProgressUpdatable(this);
             videoMerger.prepare();
             videoMerger.mergeVideos(vid1, vid2, output);
+            startTime = System.currentTimeMillis();
 
 
             NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(NOTIFICATION_SERVICE);
-            Notification n = new Notification.Builder(currentContext)
+            notificationBuilder = new Notification.Builder(currentContext)
                     .setContentTitle("Chameleon Video Merge")
                     .setContentText("Chameleon video merge is in progress")
                     .setSmallIcon(R.drawable.ic_launcher)
                     .setOngoing(true)
-                    .setProgress(100, 0, false)
-                    .build();
-            notificationManager.notify(MERGING_NOTIFICATION_ID, n);
+                    .setProgress(100, 0, false);
+            notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
         }
 
-        /**
-         * Set the callback to null so we don't accidentally leak the
-         * Activity instance.
-         */
         @Override
         public void onDetach() {
+            currentContext = null;
             super.onDetach();
+        }
+
+        @Override
+        public void onProgress(double progress, double outOf) {
+            if (currentContext != null)
+                ((ProgressUpdatable) currentContext).onProgress(progress, outOf);
+
+            int progressPerc = (int) Math.ceil(100.0 * progress / outOf);
+            int remaining = 100 - progressPerc;
+            long elapsed = System.currentTimeMillis() - startTime;
+            Double timeRemainingMilli;
+            if (remaining == 100)
+                timeRemainingMilli = (double) TimeUnit.MINUTES.convert(2, TimeUnit.MILLISECONDS);
+            else
+                timeRemainingMilli = (100 * elapsed) / (100.0 - remaining);
+
+            NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(NOTIFICATION_SERVICE);
+            notificationBuilder.setProgress(100, progressPerc, false);
+            String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
+            notificationBuilder.setContentText("Chameleon video merge is in progress (" + String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
+            notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
+        }
+
+        private String getMinutesAndSeconds(double time) {
+            int timeSec = (int) Math.round(time);
+            String res = "";
+            if (timeSec >= 60) {
+                res += (int) Math.floor(timeSec / 60) + ":";
+            }
+            res += String.format("%02d", timeSec % 60);
+
+            if (timeSec < 60)
+                res += "s";
+
+            return res;
+        }
+
+        @Override
+        public void onCompleted() {
+            if (currentContext != null)
+                ((ProgressUpdatable) currentContext).onCompleted();
+
+            NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(NOTIFICATION_SERVICE);
+            notificationManager.cancel(MERGING_NOTIFICATION_ID);
+            Notification n = new Notification.Builder(currentContext)
+                    .setContentTitle("Chameleon Merge Complete")
+                    .setContentText("Chameleon video merge has completed")
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .build();
+            notificationManager.notify(COMPLETED_NOTIFICATION_ID, n);
         }
     }
 }

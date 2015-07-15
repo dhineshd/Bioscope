@@ -129,18 +129,18 @@ public class FfmpegVideoMerger implements VideoMerger {
                 BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
                 while ((line = in.readLine()) != null) {
                     line = line.trim();
-                    log.info("Output: {}", line);
+                    log.debug("Output: {}", line);
 
                     Matcher m = INPUT_DURATION_PATTERN.matcher(line);
                     if (m.find()) {
                         double sec = getSecondsFromTimeFormat(m);
-                        log.info("Found a duration input of {}s", sec);
+                        log.debug("Found a duration input of {}s", sec);
                         maxInputTime = Math.max(sec, maxInputTime);
                     } else {
                         m = STATUS_DURATION_PATTERN.matcher(line);
                         if (m.find()) {
                             double sec = getSecondsFromTimeFormat(m);
-                            log.info("Found a status update of {}s", sec);
+                            log.debug("Found a status update of {}s", sec);
                             publishProgress(sec, maxInputTime);
                         }
                     }
