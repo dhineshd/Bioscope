@@ -10,6 +10,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 
@@ -21,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.net.Socket;
 
@@ -42,7 +44,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private volatile ChameleonApplication chameleonApplication;
     @Setter
     private volatile boolean isStreamingStarted;
-    @Setter
     private volatile OutputStream destOutputStream;
     @Setter
     private volatile RecordingEventListener recordingEventListener;
@@ -113,7 +114,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             startRecording();
         } else if (PeerMessage.Type.STOP_RECORDING.equals(messageFromClient.getType())){
             stopRecording();
-        } else if (PeerMessage.Type.REQUEST_RECORDED_VIDEO.equals(messageFromClient.getType())){
+        } else if (PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST.equals(messageFromClient.getType())){
             requestRecordedVideo(clientSocket);
         }
     }
@@ -157,16 +158,25 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         log.info("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         if (videoFile != null){
-            log.info("Sending video file size = {} bytes", videoFile.length());
             OutputStream outputStream = null;
             InputStream inputStream = null;
             try {
+                PrintWriter pw  = new PrintWriter(clientSocket.getOutputStream());
+                SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
+                        .fileSizeBytes(videoFile.length()).build();
+                PeerMessage responseMsg = PeerMessage.builder()
+                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
+                        .contents(gson.toJson(response)).build();
+                log.info("Sending file size msg = {}", gson.toJson(responseMsg));
+                pw.println(gson.toJson(responseMsg));
+                pw.close();
+
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
                 inputStream = new BufferedInputStream(new FileInputStream(videoFile));
                 byte[] buffer = new byte[65536];
                 int bytesRead = 0;
                 while ((bytesRead = inputStream.read(buffer)) != -1){
-                    log.info("Sending recorded file..");
+                    log.info("Sending recorded file.. bytes = {}", bytesRead);
                     outputStream.write(buffer, 0, bytesRead);
                 }
                 log.info("Successfully sent recorded file!");
@@ -180,6 +190,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     if (inputStream != null) {
                         inputStream.close();
                     }
+                    clientSocket.close();
                 } catch (IOException e) {
                     log.warn("Failed to close streams when sending recorded video", e);
                 }

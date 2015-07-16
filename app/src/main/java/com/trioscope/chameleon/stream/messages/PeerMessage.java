@@ -14,7 +14,8 @@ public class PeerMessage {
         CONNECTION_HANDSHAKE,
         START_RECORDING,
         STOP_RECORDING,
-        REQUEST_RECORDED_VIDEO
+        SEND_RECORDED_VIDEO_REQUEST,
+        SEND_RECORDED_VIDEO_RESPONSE
     }
 
     @NonNull

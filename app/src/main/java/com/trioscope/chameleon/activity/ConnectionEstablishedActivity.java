@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -26,15 +27,18 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.camera.VideoRecorder;
 import com.trioscope.chameleon.stream.messages.HandshakeMessage;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
@@ -51,6 +55,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -63,12 +68,15 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection_established);
-        
+
+        progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
+
         sslSocketFactory = getInitializedSSLSocketFactory();
 
         chameleonApplication = (ChameleonApplication) getApplication();
@@ -199,13 +207,19 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         return sslSocketFactory;
     }
 
-    private void showRetakeOrMergeVideoDialog(final PeerInfo peerInfo){
+    private void showRetakeOrMergeVideoDialog(final PeerInfo peerInfo) {
+        final File peerVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
+
         new AlertDialog.Builder(this)
                 .setPositiveButton("Merge videos",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int whichButton) {
 
-                                new ReceiveVideoFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort())
+                                new ReceiveVideoFromPeerTask(
+                                        chameleonApplication.getVideoFile(),
+                                        peerVideoFile,
+                                        peerInfo.getIpAddress(),
+                                        peerInfo.getPort())
                                         .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                             }
                         }
@@ -261,89 +275,112 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
         }
     }
 
-    class ReceiveVideoFromPeerTask extends AsyncTask<Void, Void, Void>{
-        private Thread mThread;
+    @AllArgsConstructor
+    class ReceiveVideoFromPeerTask extends AsyncTask<Void, Integer, Void>{
+        private File localVideoFile;
+        private File peerVideoFile;
+        private InetAddress peerIp;
+        private int port;
 
-        public ReceiveVideoFromPeerTask(
-                final InetAddress peerIp,
-                final int port){
-
-            mThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    InputStream inputStream = null;
-                    OutputStream outputStream = null;
-                    try {
-
-                        // Wait till we can reach the remote host. May take time to refresh ARP cache
-                        waitUntilIPBecomesReachable(peerIp);
-
-                        SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-                        log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
-                        log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
-
-                        PeerMessage peerMsg = PeerMessage.builder()
-                                .type(PeerMessage.Type.REQUEST_RECORDED_VIDEO)
-                                .build();
-
-                        PrintWriter pw  = new PrintWriter(socket.getOutputStream());
-                        log.info("Sending msg = {}", gson.toJson(peerMsg));
-                        pw.println(gson.toJson(peerMsg));
-                        pw.close();
-
-                        // TODO Generate filename based on sessionId
-                        File peerVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
-                        if (peerVideoFile.exists()){
-                            peerVideoFile.delete();
-                        }
-                        if (peerVideoFile.createNewFile()){
-                            outputStream = new BufferedOutputStream(new FileOutputStream(peerVideoFile));
-
-                            final byte[] buffer = new byte[65536];
-                            inputStream = new BufferedInputStream(socket.getInputStream());
-                            int bytesRead = 0;
-                            while ((bytesRead = inputStream.read(buffer, 0, buffer.length)) != -1){
-                                log.info("Receiving recorded file from peer..");
-                                outputStream.write(buffer, 0, bytesRead);
-                            }
-                            log.info("Successfully received recorded video!");
-                        }
-                    } catch (IOException e) {
-                        log.error("Failed to receive recorded video..", e);
-                    } finally {
-                        try {
-                            if (inputStream != null){
-                                inputStream.close();
-                            }
-                            if (outputStream != null){
-                                outputStream.close();
-                            }
-                        } catch (IOException e){
-                            log.error("Failed to close stream when receiving recorded video..", e);
-                        }
-                    }
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getApplicationContext(),
-                                    "Video transfer completed!", Toast.LENGTH_LONG);
-                        }
-                    });
-                }
-            });
+        @Override
+        protected void onPreExecute() {
+            progressBar.setVisibility(View.VISIBLE);
+            super.onPreExecute();
         }
 
         @Override
         protected Void doInBackground(Void... params) {
-            mThread.start();
+            InputStream inputStream = null;
+            OutputStream outputStream = null;
+            try {
+
+                // Wait till we can reach the remote host. May take time to refresh ARP cache
+                waitUntilIPBecomesReachable(peerIp);
+
+                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                socket.setReceiveBufferSize(65536);
+                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
+                log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
+
+                // Request recorded file from peer
+                PeerMessage peerMsg = PeerMessage.builder()
+                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST)
+                        .build();
+
+                PrintWriter pw  = new PrintWriter(socket.getOutputStream());
+                log.info("Sending msg = {}", gson.toJson(peerMsg));
+                pw.println(gson.toJson(peerMsg));
+                pw.close();
+
+                // Receive recorded file size from peer
+                long fileSizeBytes = -1;
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                String recvMsg = bufferedReader.readLine();
+                if (recvMsg != null){
+                    log.info("Message received = {}", recvMsg);
+                    PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
+                    if (PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE.equals(message.getType())){
+                        SendRecordedVideoResponse response =
+                                gson.fromJson(message.getContents(), SendRecordedVideoResponse.class);
+                        if (response != null){
+                            fileSizeBytes = response.getFileSizeBytes();
+                        }
+                    }
+                }
+
+                int totalBytesReceived = 0;
+
+                // TODO Generate filename based on sessionId
+                if (peerVideoFile.exists()){
+                    peerVideoFile.delete();
+                }
+                if (peerVideoFile.createNewFile()){
+                    outputStream = new BufferedOutputStream(new FileOutputStream(peerVideoFile));
+
+                    final byte[] buffer = new byte[65536];
+                    inputStream = new BufferedInputStream(socket.getInputStream());
+                    int bytesRead = 0;
+                    while ((bytesRead = inputStream.read(buffer)) != -1){
+                        log.info("Receiving recorded file from peer.. bytes = {}", bytesRead);
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalBytesReceived += bytesRead;
+                        publishProgress((int) (100 * totalBytesReceived / fileSizeBytes));
+                    }
+                    log.info("Successfully received recorded video!");
+                }
+            } catch (IOException e) {
+                log.error("Failed to receive recorded video..", e);
+            } finally {
+                try {
+                    if (inputStream != null){
+                        inputStream.close();
+                    }
+                    if (outputStream != null){
+                        outputStream.close();
+                    }
+                } catch (IOException e){
+                    log.error("Failed to close stream when receiving recorded video..", e);
+                }
+            }
             return null;
         }
 
-        public void tearDown(){
-            mThread.interrupt();
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            progressBar.setProgress(values[0]);
+            super.onProgressUpdate(values);
         }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            progressBar.setVisibility(View.INVISIBLE);
+            Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
+            intent.putExtra(PreviewMergeActivity.LOCAL_RECORDING_FILENAME_KEY, localVideoFile.getAbsolutePath());
+            intent.putExtra(PreviewMergeActivity.REMOTE_RECORDING_FILENAME_KEY, peerVideoFile.getAbsolutePath());
+            startActivity(intent);
+        }
+
     }
 
     class StreamFromPeerTask extends AsyncTask<Void, Void, Void>{

@@ -129,7 +129,7 @@ public class SendConnectionInfoFragment extends Fragment {
             final WifiP2pManager wifiP2pManager,
             final WifiP2pManager.Channel wifiP2pChannel) {
 
-        final int maxRetries = 10;
+        final int maxRetries = 50;
 
         wifiP2pManager.createGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
 

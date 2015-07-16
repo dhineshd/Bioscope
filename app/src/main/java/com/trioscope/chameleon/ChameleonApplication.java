@@ -341,7 +341,6 @@ public class ChameleonApplication extends Application {
         // Reset session flags
         sessionStatus = SessionStatus.DISCONNECTED;
         streamListener.setStreamingStarted(false);
-        streamListener.setDestOutputStream(null);
 
         // Tear down Wifi hotspot
         tearDownWifiHotspot();
