@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int STREAMING_FRAMES_PER_SEC = 8;
+    private static final int STREAMING_FRAMES_PER_SEC = 20;
     private static final int STREAMING_COMPRESSION_QUALITY = 20; // 1 - 100
 
     @NonNull
@@ -47,27 +47,31 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile RecordingEventListener recordingEventListener;
 
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
+    private ByteArrayOutputStream stream =
+            new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
     private Gson gson = new Gson();
 
-    private long previousFrameSendTime = 0;
+    private long previousFrameSendTimeMs = 0;
 
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
+        long frameProcessingStartTime = System.currentTimeMillis();
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
 
-        if (shouldStreamCurrentFrame()) {
-            stream.reset();
-            new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
-                    .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-            byte[] byteArray = stream.toByteArray();
+        if (destOutputStream != null) {
 
-            if (destOutputStream != null) {
+            if (shouldStreamCurrentFrame()) {
+                stream.reset();
+                new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
+                        .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
+                byte[] byteArray = stream.toByteArray();
+
                 try {
                     destOutputStream.write(byteArray, 0, byteArray.length);
-                    previousFrameSendTime = System.currentTimeMillis();
-                    //log.info("Sending preview image to remote client.. bytes = {}", byteArray.length);
+                    previousFrameSendTimeMs = System.currentTimeMillis();
+                    //log.info("Sending image to remote client.. bytes = {}, process latency = {}",
+                    //        byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
                 } catch (IOException e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
@@ -77,7 +81,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     }
 
     private boolean shouldStreamCurrentFrame() {
-        return ((System.currentTimeMillis() - previousFrameSendTime) >=
+        return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
     }
 

@@ -156,7 +156,7 @@ public class SendConnectionInfoFragment extends Fragment {
                 // still needed 2 retries)
                 // TODO : Is there a better way?
                 try {
-                    Thread.sleep(100 * (retryCount + 1));
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                 }
 
@@ -194,11 +194,9 @@ public class SendConnectionInfoFragment extends Fragment {
                                     .build();
 
                     // Connection info will be used in other components of the app
-                    //chameleonApplication.setWiFiNetworkConnectionInfo(nci);
                     ((WifiConnectionInfoListener) getActivity()).onWifiNetworkCreated(nci);
 
                     connectionStatusTextView.setText("Ready to send connection info..");
-
                 }
             }
         });
