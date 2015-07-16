@@ -21,6 +21,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.WeakReference;
 import java.net.Socket;
 
 import lombok.NonNull;
@@ -46,7 +47,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile RecordingEventListener recordingEventListener;
 
-    private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024 * 80);
+    private ByteArrayOutputStream stream = new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
     private Gson gson = new Gson();
 
     private long previousFrameSendTime = 0;
@@ -58,9 +59,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
         if (shouldStreamCurrentFrame()) {
             stream.reset();
-            Bitmap bmp = convertToBmp(data, w, h);
-            bmp.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-            bmp.recycle();
+            new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
+                    .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
             byte[] byteArray = stream.toByteArray();
 
             if (destOutputStream != null) {

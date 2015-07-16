@@ -71,6 +71,8 @@ public class ChameleonApplication extends Application {
     public static final int MEDIA_TYPE_AUDIO = 3;
     public static final String START_RECORDING_ACTION = "START_RECORDING";
     public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
+    public static final int STREAM_IMAGE_BUFFER_SIZE = 1024 * 20;
+
     public static final int SERVER_PORT = 7080;
 
     @Getter

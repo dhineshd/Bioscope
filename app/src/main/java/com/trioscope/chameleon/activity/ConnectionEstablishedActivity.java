@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
@@ -388,19 +389,19 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             log.info("Sending msg = {}", gson.toJson(peerMsg));
             pw.println(gson.toJson(peerMsg));
             pw.close();
-            final byte[] buffer = new byte[1024 * 80];
+            final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE];
             InputStream inputStream = socket.getInputStream();
             while (!Thread.currentThread().isInterrupted()){
                 // TODO More robust
                 final int bytesRead = inputStream.read(buffer);
                 if (bytesRead != -1){
                     //log.info("Received preview image from remote server bytes = " + bytesRead);
-                    final Bitmap bmp = BitmapFactory.decodeByteArray(buffer, 0, bytesRead);
+                    final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            if (imageView != null) {
-                                imageView.setImageBitmap(bmp);
+                            if (imageView != null && bmpRef.get() != null) {
+                                imageView.setImageBitmap(bmpRef.get());
                             }
                         }
                     });

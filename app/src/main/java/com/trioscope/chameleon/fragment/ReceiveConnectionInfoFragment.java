@@ -193,19 +193,23 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         return ipAddressString;
     }
 
-    private void connectToWifiNetwork(final String networkSSID, final String networkPassword){
-        WifiConfiguration conf = new WifiConfiguration();
-        conf.SSID = "\"" + networkSSID + "\"";
-        conf.preSharedKey = "\"" + networkPassword + "\"";
+    private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
 
-        final WifiManager wifiManager =
-                (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        wifiManager.addNetwork(conf);
-        final int netId = wifiManager.addNetwork(conf);
-        log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
-        // Enable only our network and disable others
-        wifiManager.disconnect();
-        wifiManager.enableNetwork(netId, true);
+        // Connect only if not already connected
+        if (!networkSSID.equalsIgnoreCase(getCurrentSSID())) {
+            WifiConfiguration conf = new WifiConfiguration();
+            conf.SSID = "\"" + networkSSID + "\"";
+            conf.preSharedKey = "\"" + networkPassword + "\"";
+
+            final WifiManager wifiManager =
+                    (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            wifiManager.addNetwork(conf);
+            final int netId = wifiManager.addNetwork(conf);
+            log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
+            // Enable only our network and disable others
+            //wifiManager.disconnect();
+            wifiManager.enableNetwork(netId, true);
+        }
     }
 
     @Override
