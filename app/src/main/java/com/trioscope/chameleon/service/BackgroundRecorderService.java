@@ -8,7 +8,6 @@ import android.media.MediaRecorder;
 import android.os.IBinder;
 
 import com.trioscope.chameleon.SystemOverlayGLSurface;
-import com.trioscope.chameleon.activity.MainActivity;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +32,6 @@ public class BackgroundRecorderService extends Service {
 
     @Setter
     private File outputFile;
-
-    @Setter
-    private MainActivity.MainThreadHandler mainThreadHandler;
 
     @Override
     public IBinder onBind(Intent intent) {

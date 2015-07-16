@@ -12,7 +12,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.google.gson.Gson;
-import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
@@ -106,8 +105,6 @@ public class SendConnectionInfoNFCActivity
     }
 
     public void onBackPressed() {
-
-        ((ChameleonApplication)getApplication()).tearDownNetworkComponents();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(this, MainActivity.class);

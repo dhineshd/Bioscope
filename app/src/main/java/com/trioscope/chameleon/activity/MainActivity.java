@@ -2,9 +2,7 @@ package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -13,117 +11,32 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
-import android.widget.Toast;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
-import com.trioscope.chameleon.camera.BackgroundRecorder;
-import com.trioscope.chameleon.camera.ForwardedCameraPreview;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.service.ThreadLoggingHandler;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 import static android.view.View.OnClickListener;
 
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
-    public static final int MEDIA_TYPE_AUDIO = 3;
     private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
-    //private Camera camera;
-    //private CameraPreview cameraPreview;
-    private boolean isRecording = false;
-    private File videoFile;
-    private BackgroundRecorder videoRecorder;
-    private ForwardedCameraPreview cameraPreview;
-
-    public ThreadLoggingHandler logHandler;
     public MainThreadHandler mainThreadHandler;
     private SurfaceTextureDisplay previewDisplay;
-
     private ChameleonApplication chameleonApplication;
-
-
-    /**
-     * Create a file Uri for saving an image or video
-     */
-    private Uri getOutputMediaFileUri(int type) {
-        return Uri.fromFile(getOutputMediaFile(type));
-    }
-
-    private boolean isExternalStorageWritable() {
-        String state = Environment.getExternalStorageState();
-        if (Environment.MEDIA_MOUNTED.equals(state)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Create a File for saving an image or video
-     */
-    private File getOutputMediaFile(int type) {
-        // To be safe, you should check that the SDCard is mounted
-        // using Environment.getExternalStorageState() before doing this.
-
-        LOG.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM));
-
-        if (!isExternalStorageWritable()) {
-            LOG.error("External Storage is not mounted for Read-Write");
-            return null;
-        }
-
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
-        // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled
-
-        // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                LOG.error("failed to create directory");
-                return null;
-            }
-        }
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_" + timeStamp + ".jpg");
-        } else if (type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "CHAMELEON_" + timeStamp + ".mp4");
-        } else if (type == MEDIA_TYPE_AUDIO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "AUD_" + timeStamp + ".3gp");
-        } else {
-            return null;
-        }
-
-        if (mediaFile != null) {
-            LOG.info("File name is {}", mediaFile.getAbsolutePath());
-        }
-        return mediaFile;
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         chameleonApplication = (ChameleonApplication) getApplication();
+
 
         ((ChameleonApplication) getApplication()).updateOrientation();
 
@@ -132,39 +45,20 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         setContentView(R.layout.activity_main);
 
         LOG.info("Created main activity");
-        videoRecorder = createBackgroundRecorder();
 
-        final Button button = (Button) findViewById(R.id.capture);
+        final Button button = (Button) findViewById(R.id.button_main_start_solo_recording);
 
         button.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("Capture video button clicked");
-                if (isRecording) {
-                    finishVideoRecording();
-
-                    isRecording = false;
-                    LOG.info("isRecording is {}", isRecording);
-                    button.setText("Record!");
-                } else {
-                    // initialize video camera
-                    if (prepareVideoRecorder()) {
-                        videoRecorder.startRecording();
-                        button.setText("Done!");
-                        isRecording = true;
-                        LOG.info("isRecording is {}", isRecording);
-                    } else {
-                        // inform user
-                        Toast.makeText(getApplicationContext(), "Could Not Record Video :(", Toast.LENGTH_LONG).show();
-                        LOG.error("Failed to initialize media recorder");
-                    }
-                }
+                Intent i = new Intent(MainActivity.this, SoloRecordingActivity.class);
+                startActivity(i);
             }
         });
 
         chameleonApplication.startConnectionServerIfNotRunning();
 
-        final Button startSessionButton = (Button) findViewById(R.id.startSession);
+        final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -175,7 +69,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        final Button joinSessionButton = (Button) findViewById(R.id.joinSession);
+        final Button joinSessionButton = (Button) findViewById(R.id.button_main_join_session);
 
         joinSessionButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -186,19 +80,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-
-
         // Tell the application we're ready to show preview whenever
         ChameleonApplication application = (ChameleonApplication) getApplication();
         application.setEglContextCallback(this);
         application.getStreamListener().setContext(this.getApplicationContext());
+
     }
 
-    private BackgroundRecorder createBackgroundRecorder() {
-        BackgroundRecorder recorder = new BackgroundRecorder(this);
-        recorder.setMainThreadHandler(mainThreadHandler);
-        return recorder;
-    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -250,7 +139,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         if(!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
 
-            DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
+            DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(
+                    mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
             newFragment.show(getFragmentManager(), "dialog");
         }
 
@@ -260,8 +150,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onDestroy() {
         LOG.info("onDestroy: Activity is no longer used by user");
-        videoRecorder.stopRecording();
         ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
+
         super.onDestroy();
     }
 
@@ -276,31 +166,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         // TODO : Kill all threads if not recording and use onPause()
         finish();
         //moveTaskToBack(true);
-    }
-
-    private boolean prepareVideoRecorder() {
-        //Create a file for storing the recorded video
-        videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
-        videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCamera(((ChameleonApplication) getApplication()).getCamera());
-        return true;
-    }
-
-    private void finishVideoRecording() {
-        videoRecorder.stopRecording();
-        //camera.lock();         // take camera access back from video recorder
-
-        if (videoFile != null) {
-            //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
-            Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-            addVideoIntent.setData(Uri.fromFile(videoFile));
-
-            sendBroadcast(addVideoIntent);
-        }
-
-        //Video file is successfully saved and a broadcast has been sent to add it to the Gallery Apps
-        // We can now remove reference to it
-        videoFile = null;
+        super.onBackPressed();
+        System.exit(0);
     }
 
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
@@ -310,7 +177,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
         previewDisplay = chameleonApplication.generatePreviewDisplay(contextMessage);
         layout.addView(previewDisplay);
-
         chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
 
     }

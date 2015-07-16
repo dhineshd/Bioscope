@@ -16,14 +16,10 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    private final static Logger LOG = LoggerFactory.getLogger(ReceiveConnectionInfoNFCActivity.class);
     private Gson mGson = new Gson();
     private TextView mTextViewConnectionStatus;
     private TextView mTextViewNfcInstructions;
@@ -33,10 +29,14 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
 
+        // Tear down Wifi hotspot since we are going to join
+        // the peer's hotspot.
+        ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
+
         mTextViewNfcInstructions = (TextView) findViewById(R.id.textView_nfc_instructions);
         mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_receiver_connection_status);
 
-        LOG.debug("ReceiveConnectionInfoNFCActivity {}", this);
+        log.debug("ReceiveConnectionInfoNFCActivity {}", this);
 
         ((ChameleonApplication)getApplication()).startConnectionServerIfNotRunning();
     }
@@ -111,7 +111,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
     @Override
     public void onBackPressed() {
-        ((ChameleonApplication)getApplication()).tearDownNetworkComponents();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(this, MainActivity.class);

@@ -8,7 +8,6 @@ import android.hardware.Camera;
 import android.media.MediaRecorder;
 import android.os.IBinder;
 
-import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
 
@@ -38,9 +37,6 @@ public class BackgroundRecorder implements VideoRecorder {
     @Setter
     private Camera camera;
 
-    @Setter
-    private MainActivity.MainThreadHandler mainThreadHandler;
-
 
     /* Background recording */
     private volatile BackgroundRecorderService backgroundRecorderService;
@@ -48,12 +44,11 @@ public class BackgroundRecorder implements VideoRecorder {
     private ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-            LOG.info("Service {} is bound from BackgroundRecorder, with mainThreadHandler {}", name, mainThreadHandler);
+            LOG.info("Service {} is bound from BackgroundRecorder ", name);
             serviceBound = true;
             backgroundRecorderService = ((BackgroundRecorderBinder<BackgroundRecorderService>) service).getService();
             backgroundRecorderService.setOutputFile(outputFile);
             backgroundRecorderService.setCamera(camera);
-            backgroundRecorderService.setMainThreadHandler(mainThreadHandler);
             backgroundRecorderService.startRecording();
         }
 

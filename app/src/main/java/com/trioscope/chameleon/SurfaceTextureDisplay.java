@@ -29,8 +29,6 @@ import lombok.Setter;
 public class SurfaceTextureDisplay extends GLSurfaceView implements SurfaceHolder.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(SurfaceTextureDisplay.class);
 
-    private SurfaceTextureRenderer renderer;
-
     @Setter
     private SurfaceTexture toDisplay;
 

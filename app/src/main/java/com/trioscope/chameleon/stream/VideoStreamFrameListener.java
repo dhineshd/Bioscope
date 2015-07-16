@@ -3,19 +3,28 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
+import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,15 +32,21 @@ import lombok.extern.slf4j.Slf4j;
  * Created by dhinesh.dharman on 6/28/15.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int TARGET_STREAMING_FRAME_RATE_PER_SEC = 5;
+    private static final int STREAMING_FRAMES_PER_SEC = 8;
+    private static final int STREAMING_COMPRESSION_QUALITY = 20; // 1 - 100
 
+    @NonNull
+    private volatile ChameleonApplication chameleonApplication;
     @Setter
     private volatile boolean isStreamingStarted;
     @Setter
     private volatile OutputStream destOutputStream;
     @Setter
     private volatile Context context;
+    @Setter
+    private volatile RecordingEventListener recordingEventListener;
 
     private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024 * 80);
     private Gson gson = new Gson();
@@ -43,11 +58,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
 
-
         if (shouldStreamCurrentFrame()) {
             stream.reset();
             Bitmap bmp = convertToBmp(data, w, h);
-            bmp.compress(Bitmap.CompressFormat.JPEG, 30, stream);
+            bmp.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
             bmp.recycle();
             byte[] byteArray = stream.toByteArray();
 
@@ -55,7 +69,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 try {
                     destOutputStream.write(byteArray, 0, byteArray.length);
                     previousFrameSendTime = System.currentTimeMillis();
-                    log.info("Sending preview image to remote client.. bytes = {}", byteArray.length);
+                    //log.info("Sending preview image to remote client.. bytes = {}", byteArray.length);
                 } catch (IOException e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
@@ -66,7 +80,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTime) >=
-                (1000 / TARGET_STREAMING_FRAME_RATE_PER_SEC));
+                (1000 / STREAMING_FRAMES_PER_SEC));
     }
 
     private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
@@ -88,9 +102,21 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
 
     @Override
-    public void onClientConnectionRequest(Socket clientSocket) {
-        log.info("onClientConnectionRequest invoked for client = {}, isStreamingStarted = {}",
+    public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
+        log.info("onClientRequest invoked for client = {}, isStreamingStarted = {}",
                 clientSocket.getInetAddress().getHostAddress(), isStreamingStarted);
+        if (PeerMessage.Type.CONNECTION_HANDSHAKE.equals(messageFromClient.getType())){
+            startStreaming(clientSocket);
+        } else if (PeerMessage.Type.START_RECORDING.equals(messageFromClient.getType())){
+            startRecording();
+        } else if (PeerMessage.Type.STOP_RECORDING.equals(messageFromClient.getType())){
+            stopRecording();
+        } else if (PeerMessage.Type.REQUEST_RECORDED_VIDEO.equals(messageFromClient.getType())){
+            requestRecordedVideo(clientSocket);
+        }
+    }
+
+    private void startStreaming(final Socket clientSocket){
         try {
             destOutputStream = clientSocket.getOutputStream();
             log.info("Destination output stream set in Thread = {}", Thread.currentThread());
@@ -103,22 +129,57 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PeerInfo peerInfo = PeerInfo.builder()
                     .ipAddress(clientSocket.getInetAddress())
-                    .port(ChameleonApplication.SERVER_PORT).build();
+                    .port(ChameleonApplication.SERVER_PORT)
+                    .role(PeerInfo.Role.CREW_MEMBER)
+                    .build();
             intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
             context.startActivity(intent);
             isStreamingStarted = true;
         }
     }
 
-    @Override
-    public void onClientConnectionTerminated() {
-        if (destOutputStream != null) {
+    private void startRecording() {
+        log.info("Received message to start recording!");
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(context);
+        manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
+    }
+
+    private void stopRecording() {
+        log.info("Received message to stop recording!");
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(context);
+        manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
+    }
+
+    private void requestRecordedVideo(final Socket clientSocket) {
+        log.info("Received message to send recorded video!");
+        File videoFile = chameleonApplication.getVideoFile();
+        if (videoFile != null){
+            log.info("Sending video file size = {} bytes", videoFile.length());
+            OutputStream outputStream = null;
+            InputStream inputStream = null;
             try {
-                destOutputStream.close();
-                destOutputStream = null;
-                isStreamingStarted = false;
+                outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+                inputStream = new BufferedInputStream(new FileInputStream(videoFile));
+                byte[] buffer = new byte[65536];
+                int bytesRead = 0;
+                while ((bytesRead = inputStream.read(buffer)) != -1){
+                    log.info("Sending recorded file..");
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+                log.info("Successfully sent recorded file!");
             } catch (IOException e) {
-                log.warn("Failed to close client outputstream", e);
+                log.error("Failed to send recorded video file", e);
+            } finally {
+                try {
+                    if (outputStream != null) {
+                        outputStream.close();
+                    }
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                } catch (IOException e) {
+                    log.warn("Failed to close streams when sending recorded video", e);
+                }
             }
         }
     }

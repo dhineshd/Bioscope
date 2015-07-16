@@ -1,29 +1,35 @@
 package com.trioscope.chameleon;
 
 import android.app.Application;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.opengl.EGL14;
 import android.opengl.GLSurfaceView;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.view.Gravity;
 import android.view.WindowManager;
 
-import com.google.android.gms.analytics.GoogleAnalytics;
-import com.google.android.gms.analytics.Tracker;
 import com.trioscope.chameleon.activity.MainActivity;
-import com.trioscope.chameleon.camera.VideoRecorder;
+import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
+import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
+import com.trioscope.chameleon.types.MetricNames;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.types.factory.CameraInfoFactory;
@@ -31,6 +37,7 @@ import com.trioscope.chameleon.types.factory.CameraInfoFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
@@ -40,6 +47,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -47,6 +56,7 @@ import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -56,10 +66,15 @@ import lombok.Setter;
  */
 public class ChameleonApplication extends Application {
     private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
-    public final static int SERVER_PORT = 7080;
-    public static final int DISPATCH_PERIOD_IN_SECONDS = 1800;
-    private VideoRecorder videoRecorder;
+    public static final int MEDIA_TYPE_IMAGE = 1;
+    public static final int MEDIA_TYPE_VIDEO = 2;
+    public static final int MEDIA_TYPE_AUDIO = 3;
+    public static final String START_RECORDING_ACTION = "START_RECORDING";
+    public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
+    public static final int SERVER_PORT = 7080;
 
+    @Getter
+    private BackgroundRecorder videoRecorder;
     @Getter
     private RotationState rotationState = new RotationState();
 
@@ -72,6 +87,9 @@ public class ChameleonApplication extends Application {
 
     private MainActivity eglCallback;
     private final Object eglCallbackLock = new Object();
+    @Getter
+    @Setter
+    private volatile File videoFile;
 
     // For background image recording
     private WindowManager windowManager;
@@ -109,22 +127,29 @@ public class ChameleonApplication extends Application {
     @Setter
     private volatile SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 
-    @Setter
     @Getter
-    private boolean isDirector;
+    private static MetricsHelper metrics;
 
-    public static final String GOOGLE_ANALYTICS_CHAMELEON_TRACKING_ID = "UA-65062909-1";
+    private BroadcastReceiver enableWifiBroadcastReceiver;
 
-    @Getter
-    private static Tracker metricsTracker;
+    private boolean isWifiEnabledInitially;
 
     @Override
     public void onCreate() {
         super.onCreate();
         LOG.info("Starting application");
 
-        setupMetrics();
+        metrics = new MetricsHelper(this);
 
+        isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
+
+        LOG.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
+
+        // Enable Wifi to save time later and to avoid constantly turning on/off
+        // which affects battery performance
+        if (!isWifiEnabledInitially) {
+            enableWifiAndPerformActionWhenEnabled(null);
+        }
 
         // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
         windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
@@ -144,50 +169,49 @@ public class ChameleonApplication extends Application {
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
 
-        streamListener = new VideoStreamFrameListener();
+        streamListener = new VideoStreamFrameListener(this);
         cameraFrameBuffer.addListener(streamListener);
     }
 
 
-
-    @Override
-    public void onTerminate() {
-        LOG.info("Terminating chameleon..");
-        super.onTerminate();
+    public void createBackgroundRecorder() {
+        videoRecorder = new BackgroundRecorder(this);
     }
 
     public void startConnectionServerIfNotRunning(){
-        SSLContext sslContext = null; // JSSE and OpenSSL providers behave the same way
-        try {
-            sslContext = SSLContext.getInstance("TLS");
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            KeyStore ks = KeyStore.getInstance("BKS");
-            char[] password = "poiuyt".toCharArray(); // TODO: Move to build config
-            // we assume the keystore is in the app assets
-            InputStream sslKeyStore =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
-            ks.load(sslKeyStore, null);
-            sslKeyStore.close();
-            kmf.init(ks, password);
-            sslContext.init( kmf.getKeyManagers(), null, new SecureRandom() );
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (UnrecoverableKeyException e) {
-            e.printStackTrace();
-        } catch (CertificateException e) {
-            e.printStackTrace();
-        } catch (KeyManagementException e) {
-            e.printStackTrace();
-        } catch (KeyStoreException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         // Setup connection server to receive connections from client
         if (connectionServer == null){
             connectionServer = new ConnectionServer(
-                    ChameleonApplication.SERVER_PORT, streamListener, sslContext);
+                    ChameleonApplication.SERVER_PORT,
+                    streamListener,
+                    getInitializedSSLServerSocketFactory());
             connectionServer.start();
         }
+    }
+
+    private SSLServerSocketFactory getInitializedSSLServerSocketFactory(){
+        SSLServerSocketFactory sslServerSocketFactory = null;
+        try {
+            // Load the keyStore that includes self-signed cert as a "trusted" entry.
+            KeyStore keyStore = KeyStore.getInstance("BKS");
+            InputStream keyStoreInputStream =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
+            char[] password = "poiuyt".toCharArray();
+            keyStore.load(keyStoreInputStream, password);
+            keyStoreInputStream.close();
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            kmf.init(keyStore, password);
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(kmf.getKeyManagers(), null, new SecureRandom());
+            sslServerSocketFactory = sslContext.getServerSocketFactory();
+        } catch (IOException |
+                NoSuchAlgorithmException |
+                KeyStoreException |
+                KeyManagementException |
+                CertificateException |
+                UnrecoverableKeyException e) {
+            LOG.error("Failed to initialize SSL server socket factory", e);
+        }
+        return sslServerSocketFactory;
     }
 
     public void setEglContextCallback(MainActivity mainActivity) {
@@ -303,7 +327,7 @@ public class ChameleonApplication extends Application {
         return previewDisplay;
     }
 
-    public void tearDownNetworkComponents(){
+    public void tearDownNetworkComponents() {
         LOG.info("Tearing down application resources..");
 
         // TODO : Any particular order in which we need to do the following?
@@ -314,7 +338,16 @@ public class ChameleonApplication extends Application {
             connectionServer = null;
         }
 
-        LOG.debug("Tearing down Wifi hotspot..");
+        // Reset session flags
+        sessionStatus = SessionStatus.DISCONNECTED;
+        streamListener.setStreamingStarted(false);
+
+        tearDownWifiComponents();
+    }
+
+    public void tearDownWifiHotspot() {
+
+        LOG.debug("Tearing down Wifi components..");
 
         // Tear down Wifi p2p hotspot
         if (wifiP2pManager != null && wifiP2pChannel != null){
@@ -323,26 +356,165 @@ public class ChameleonApplication extends Application {
         }
         wifiP2pManager = null;
         wifiP2pChannel = null;
-
-        // Reset session flags
-        sessionStatus = SessionStatus.DISCONNECTED;
-        streamListener.setStreamingStarted(false);
     }
 
-    private void setupMetrics() {
-        GoogleAnalytics analytics = GoogleAnalytics.getInstance(this);
-        analytics.setLocalDispatchPeriod(DISPATCH_PERIOD_IN_SECONDS);
+    public void tearDownWifiComponents() {
 
-        metricsTracker = analytics.newTracker(GOOGLE_ANALYTICS_CHAMELEON_TRACKING_ID);
+        LOG.debug("Tearing down Wifi components..");
 
-        // Provide unhandled exceptions reports. Do that first after creating the tracker
-        metricsTracker.enableExceptionReporting(true);
+        tearDownWifiHotspot();
 
-        // Enable Remarketing, Demographics & Interests reports
-        // https://developers.google.com/analytics/devguides/collection/android/display-features
-        metricsTracker.enableAdvertisingIdCollection(true);
+        // Tear down Wifi receivers
+        unregisterReceiverSafely(enableWifiBroadcastReceiver);
+        enableWifiBroadcastReceiver = null;
 
-        // Enable automatic activity tracking for your app
-        metricsTracker.enableAutoActivityTracking(true);
+        // Put Wifi back in original state
+
+        final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        wifiManager.setWifiEnabled(isWifiEnabledInitially);
+        isWifiEnabledInitially = false;
     }
+
+    /**
+     * Create a File for saving an image or video
+     */
+    public File getOutputMediaFile(int type) {
+        // To be safe, you should check that the SDCard is mounted
+        // using Environment.getExternalStorageState() before doing this.
+
+        LOG.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM));
+
+        if (!isExternalStorageWritable()) {
+            LOG.error("External Storage is not mounted for Read-Write");
+            return null;
+        }
+
+        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
+        // This location works best if you want the created images to be shared
+        // between applications and persist after your app has been uninstalled.
+
+        // Create the storage directory if it does not exist
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                LOG.error("failed to create directory");
+                return null;
+            }
+        }
+
+        // Create a media file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File mediaFile;
+        if (type == MEDIA_TYPE_IMAGE) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "IMG_" + timeStamp + ".jpg");
+        } else if (type == MEDIA_TYPE_VIDEO) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "CHAMELEON_" + timeStamp + ".mp4");
+        } else if (type == MEDIA_TYPE_AUDIO) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "AUD_" + timeStamp + ".3gp");
+        } else {
+            return null;
+        }
+
+        if (mediaFile != null) {
+            LOG.info("File name is {}", mediaFile.getAbsolutePath());
+        }
+        return mediaFile;
+    }
+
+    /**
+     * Create a file Uri for saving an image or video
+     */
+    private Uri getOutputMediaFileUri(int type) {
+        return Uri.fromFile(getOutputMediaFile(type));
+    }
+
+    private boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean prepareVideoRecorder() {
+        //Create a file for storing the recorded video
+        videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
+        LOG.info("Setting video file = {}", videoFile.getAbsolutePath());
+        videoRecorder.setOutputFile(videoFile);
+        videoRecorder.setCamera(camera);
+        return true;
+    }
+
+    public void finishVideoRecording() {
+        videoRecorder.stopRecording();
+        //camera.lock();         // take camera access back from video recorder
+
+        if (videoFile != null) {
+            //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
+            Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+            addVideoIntent.setData(Uri.fromFile(videoFile));
+
+            sendBroadcast(addVideoIntent);
+        }
+    }
+
+    /**
+     * Enable wifi and optionally perform some action on wifi enabled (asynchronous).
+     *
+     * @param runnable (null if no action required)
+     */
+    public void enableWifiAndPerformActionWhenEnabled(final Runnable runnable){
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+
+        final long startTime = System.currentTimeMillis();
+
+        final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+        enableWifiBroadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                LOG.info("onReceive intent = {}, wifi enabled = {}",
+                        intent.getAction(), wifiManager.isWifiEnabled());
+
+                if(wifiManager.isWifiEnabled()) {
+
+                    //Publish time for wifi to be enabled
+                    metrics.sendTime(MetricNames.Category.WIFI.getName(),
+                            MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
+
+                    // Done with checking Wifi state
+                    unregisterReceiverSafely(this);
+                    LOG.info("Wifi enabled!!");
+
+                    // Perform action
+                    if (runnable != null){
+                        runnable.run();
+                    }
+
+                }
+            }
+        };
+        // register to listen for change in Wifi state
+        registerReceiver(enableWifiBroadcastReceiver, filter);
+
+        // Enable and wait for Wifi state change
+        wifiManager.setWifiEnabled(true);
+        LOG.info("SetWifiEnabled to true");
+    }
+
+    public void unregisterReceiverSafely(final BroadcastReceiver receiver){
+        if (receiver != null) {
+            try{
+                unregisterReceiver(receiver);
+            } catch (IllegalArgumentException e) {
+                // ignoring this since this can happen due to some race conditions
+            }
+        }
+    }
+
 }

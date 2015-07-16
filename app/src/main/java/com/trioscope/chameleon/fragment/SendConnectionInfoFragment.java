@@ -55,12 +55,8 @@ public class SendConnectionInfoFragment extends Fragment {
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_sender_connection_status);
 
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
-        chameleonApplication.setDirector(true);
 
-        // If connection information not present, need to create new Wifi hotspot
-        //if (chameleonApplication.getWiFiNetworkConnectionInfo() == null){
-            enableWifiAndCreateHotspot();
-        //}
+        enableWifiAndCreateHotspot();
     }
 
     @Override
@@ -96,59 +92,21 @@ public class SendConnectionInfoFragment extends Fragment {
         // Turn on Wifi device (if not already on)
         final WifiManager wifiManager = (WifiManager) getActivity().getSystemService(Context.WIFI_SERVICE);
 
-        if (wifiManager.isWifiEnabled()){
-
+        if (wifiManager.isWifiEnabled()) {
             log.info("Wifi already enabled..");
             createWifiHotspot();
-
         } else {
-            connectionStatusTextView.setText("Enabling WiFi..");
-
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-
-            final long startTime = System.currentTimeMillis();
-
-            BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+            connectionStatusTextView.setText("Enabling Wifi..");
+            chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
                 @Override
-                public void onReceive(Context context, Intent intent) {
-                    log.info("onReceive intent = {}, wifi enabled = {}",
-                            intent.getAction(), wifiManager.isWifiEnabled());
-                    if(wifiManager.isWifiEnabled()) {
-
-                        //Publish time for wifi to be enabled
-                        sendTimeMetrics(MetricNames.Category.WIFI.getName(),
-                        MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
-
-                        // Done with checking Wifi state
-                        getActivity().unregisterReceiver(this);
-                        log.info("Wifi enabled!!");
-
-                        createWifiHotspot();
-                    }
+                public void run() {
+                    createWifiHotspot();
                 }
-            };
-            // register to listen for change in Wifi state
-            getActivity().registerReceiver(broadcastReceiver, filter);
-
-            // Enable and wait for Wifi state change
-            wifiManager.setWifiEnabled(true);
-            log.info("SetWifiEnabled to true");
+            });
         }
     }
 
-    private void sendTimeMetrics(String category, String label, long timeInMillis) {
-
-        ChameleonApplication.getMetricsTracker().send(new HitBuilders.TimingBuilder()
-                .setCategory(category)
-                .setLabel(label)
-                .setValue(timeInMillis)
-                .build()
-        );
-
-    }
-
-    private void createWifiHotspot(){
+    private void createWifiHotspot() {
 
         connectionStatusTextView.setText("Creating WiFi network..");
 
@@ -156,9 +114,7 @@ public class SendConnectionInfoFragment extends Fragment {
 
         //Initialize wifiManager and wifiChannel
         chameleonApplication.initializeWifi();
-
         final WifiP2pManager wifiP2pManager = chameleonApplication.getWifiP2pManager();
-
         final WifiP2pManager.Channel wifiP2pChannel = chameleonApplication.getWifiP2pChannel();
 
         // Remove any old P2p connections
@@ -174,12 +130,11 @@ public class SendConnectionInfoFragment extends Fragment {
 
     }
 
-
     private void createWifiP2PGroup(
             final WifiP2pManager wifiP2pManager,
-            final WifiP2pManager.Channel wifiP2pChannel){
+            final WifiP2pManager.Channel wifiP2pChannel) {
 
-        final int maxRetries = 2;
+        final int maxRetries = 10;
 
         wifiP2pManager.createGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
 
@@ -206,17 +161,16 @@ public class SendConnectionInfoFragment extends Fragment {
                 // still needed 2 retries)
                 // TODO : Is there a better way?
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(1000 * (retryCount + 1));
                 } catch (InterruptedException e) {
                 }
 
-                if (retryCount++ < maxRetries){
+                if (retryCount++ < maxRetries) {
                     wifiP2pManager.createGroup(wifiP2pChannel, this);
                 } else {
                     // TODO : What do we do if we can't create Wifi network?
 
                 }
-
             }
         });
     }
@@ -257,6 +211,7 @@ public class SendConnectionInfoFragment extends Fragment {
 
 
     private InetAddress getIpAddressForInterface(final String networkInterfaceName){
+        log.info("Retrieving IP address for interface = {}", networkInterfaceName);
         try {
             for (Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
                  networkInterfaces.hasMoreElements();){
@@ -273,7 +228,7 @@ public class SendConnectionInfoFragment extends Fragment {
                 }
             }
         } catch (SocketException e) {
-            throw new RuntimeException(e);
+            log.error("Failed to get IP address for interface = {}", networkInterfaceName);
         }
         return null;
     }

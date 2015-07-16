@@ -1,14 +1,12 @@
 package com.trioscope.chameleon.stream;
 
-import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
+import com.google.gson.Gson;
+import com.trioscope.chameleon.stream.messages.PeerMessage;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.Socket;
-import java.util.Arrays;
+import java.io.InputStreamReader;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
@@ -29,48 +27,35 @@ public class ConnectionServer {
     public ConnectionServer(
             final int port,
             final ServerEventListener serverEventListener,
-            final SSLContext sslContext) {
+            final SSLServerSocketFactory sslServerSocketFactory) {
 
-        final int CLIENT_CONNECTION_REQUEST_RECEIVED = 1;
-        final Handler handler = new Handler(Looper.getMainLooper()){
-            @Override
-            public void handleMessage(Message msg) {
-                if (CLIENT_CONNECTION_REQUEST_RECEIVED == msg.what){
-                    Socket socket = (Socket) msg.obj;
-                    log.info("Received connection request from " + socket.getInetAddress().getHostAddress());
-                    serverEventListener.onClientConnectionRequest(socket);
-                } else {
-                    super.handleMessage(msg);
-                }
-            }
-        };
 
         serverThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    //ServerSocketFactory sslServerSocketFactory = SSLServerSocketFactory.getDefault();
-                    SSLServerSocketFactory sslServerSocketFactory = sslContext.getServerSocketFactory();
                     serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
-                    //SSLServerSocket serverSocket = ((SSLServerSocket)(SSLServerSocketFactory.getDefault()).createServerSocket(port));
-                    serverSocket.setEnabledProtocols(new String[]{"TLSv1", "TLSv1.1", "TLSv1.2"});
-                    serverSocket.setEnableSessionCreation(true);
-                    log.info("SSL server need client auth = {}", serverSocket.getNeedClientAuth());
-                    //log.info("SSL server enabled cipher suites = {}", serverSocket.getEnabledCipherSuites());
-                    log.info("SSL server enabled protocols {}", Arrays.toString(serverSocket.getEnabledProtocols()));
-
+                    serverSocket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                    Gson gson = new Gson();
                     while (!Thread.currentThread().isInterrupted()) {
                         log.info("ServerSocket Created, awaiting connection");
                         SSLSocket socket = (SSLSocket) serverSocket.accept();
                         log.info("Received new client request");
-                        serverEventListener.onClientConnectionRequest(socket);
-                        //handler.sendMessage(handler.obtainMessage(CLIENT_CONNECTION_REQUEST_RECEIVED, socket));
+                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        String recvMsg = bufferedReader.readLine();
+                        if (recvMsg != null){
+                            log.info("Message received = {}", recvMsg);
+                            PeerMessage messageFromClient = gson.fromJson(recvMsg, PeerMessage.class);
+                            serverEventListener.onClientRequest(socket, messageFromClient);
+                        }
                     }
                 } catch (IOException e) {
                     // Calling serverSocket.close to terminate the thread wil throw exception
                     // which is expected. Ignore that.
-                    if (!serverSocket.isClosed()){
-                        throw new RuntimeException(e);
+                    if (serverSocket.isClosed()){
+                        log.warn("ConnectionServer terminated due to server socket being closed", e);
+                    } else {
+                        log.error("ConnectionServer terminated unexpectedly", e);
                     }
                 }
                 log.info("ServerThread ending now..");
