@@ -236,16 +236,14 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
                         SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
                         socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-                        log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
-                        log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
-                        
+
                         PrintWriter pw  = new PrintWriter(socket.getOutputStream());
                         log.info("Sending msg = {}", gson.toJson(peerMsg));
                         pw.println(gson.toJson(peerMsg));
                         pw.close();
 
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        log.error("Failed to send message = " + peerMsg + " to peer", e);
                     }
                 }
             });
@@ -378,9 +376,6 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
             
             SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(remoteHostIp, port);
             socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-            log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
-            log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
-
 
             final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 
@@ -449,26 +444,28 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
 
     @Override
     protected void onDestroy() {
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        log.info("Unregistering record event receiver");
-        manager.unregisterReceiver(this.recordEventReceiver);
-        if (connectToServerTask != null){
-            connectToServerTask.tearDown();
-        }
+        cleanup();
         super.onDestroy();
     }
 
     @Override
     public void onBackPressed() {
-
-        if (connectToServerTask != null){
-            connectToServerTask.tearDown();
-        }
+        cleanup();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
         super.onBackPressed();
+    }
+
+    private void cleanup(){
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
+        log.info("Unregistering record event receiver");
+        manager.unregisterReceiver(this.recordEventReceiver);
+
+        if (connectToServerTask != null){
+            connectToServerTask.tearDown();
+        }
     }
 }

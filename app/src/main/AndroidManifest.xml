@@ -92,10 +92,6 @@
             android:name="com.google.android.gms.analytics.globalConfigResource"
             android:resource="@xml/analytics_global_tracker" />
 
-        <activity
-            android:name=".activity.SoloRecordingActivity"
-            android:label="@string/title_activity_solo_recording" >
-        </activity>
     </application>
 
 </manifest>

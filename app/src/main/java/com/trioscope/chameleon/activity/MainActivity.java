@@ -45,16 +45,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         LOG.info("Created main activity");
 
-        final Button button = (Button) findViewById(R.id.button_main_start_solo_recording);
-
-        button.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent i = new Intent(MainActivity.this, SoloRecordingActivity.class);
-                startActivity(i);
-            }
-        });
-
         chameleonApplication.startConnectionServerIfNotRunning();
 
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);

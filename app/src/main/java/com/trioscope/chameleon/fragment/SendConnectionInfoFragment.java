@@ -1,9 +1,6 @@
 package com.trioscope.chameleon.fragment;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -14,11 +11,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.google.android.gms.analytics.HitBuilders;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
-import com.trioscope.chameleon.types.MetricNames;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
@@ -161,7 +156,7 @@ public class SendConnectionInfoFragment extends Fragment {
                 // still needed 2 retries)
                 // TODO : Is there a better way?
                 try {
-                    Thread.sleep(1000 * (retryCount + 1));
+                    Thread.sleep(100 * (retryCount + 1));
                 } catch (InterruptedException e) {
                 }
 
