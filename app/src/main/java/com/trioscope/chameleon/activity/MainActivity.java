@@ -37,8 +37,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-
-        ((ChameleonApplication) getApplication()).updateOrientation();
+        chameleonApplication.updateOrientation();
 
         mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
 
@@ -81,10 +80,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         });
 
         // Tell the application we're ready to show preview whenever
-        ChameleonApplication application = (ChameleonApplication) getApplication();
-        application.setEglContextCallback(this);
-        application.getStreamListener().setContext(this.getApplicationContext());
-
+        chameleonApplication.setEglContextCallback(this);
     }
 
 
@@ -120,10 +116,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())){
             LOG.info("Teardown initiated from MainActivity");
-            ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
+            ((ChameleonApplication) getApplication()).cleanup();
         }
-        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
-        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
 
         super.onPause();
     }
@@ -134,8 +128,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             previewDisplay.onResume();
         }
         chameleonApplication.startConnectionServerIfNotRunning();
-        ((ChameleonApplication)getApplication()).getStreamListener().setDestOutputStream(null);
-        ((ChameleonApplication)getApplication()).getStreamListener().setStreamingStarted(false);
 
         if(!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
 
@@ -148,14 +140,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     }
 
     @Override
-    protected void onDestroy() {
-        LOG.info("onDestroy: Activity is no longer used by user");
-        ((ChameleonApplication) getApplication()).tearDownNetworkComponents();
-
-        super.onDestroy();
-    }
-
-    @Override
     protected void onStop() {
         LOG.info("onStop: Activity is no longer visible to user");
         super.onStop();
@@ -163,8 +147,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     public void onBackPressed() {
-        // TODO : Kill all threads if not recording and use onPause()
-        finish();
+        // Not putting this in onDestroy since it does not seem to be called every time
+        ((ChameleonApplication) getApplication()).cleanup();
+        LOG.info("onBackPressed!");
         //moveTaskToBack(true);
         super.onBackPressed();
         System.exit(0);

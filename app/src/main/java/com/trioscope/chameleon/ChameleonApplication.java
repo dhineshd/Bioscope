@@ -327,10 +327,8 @@ public class ChameleonApplication extends Application {
         return previewDisplay;
     }
 
-    public void tearDownNetworkComponents() {
+    public void cleanup(){
         LOG.info("Tearing down application resources..");
-
-        // TODO : Any particular order in which we need to do the following?
 
         //  Tear down server
         if (connectionServer != null){
@@ -341,8 +339,13 @@ public class ChameleonApplication extends Application {
         // Reset session flags
         sessionStatus = SessionStatus.DISCONNECTED;
         streamListener.setStreamingStarted(false);
+        streamListener.setDestOutputStream(null);
 
-        tearDownWifiComponents();
+        // Tear down Wifi hotspot
+        tearDownWifiHotspot();
+
+        // Tear down wifi if necessary
+        tearDownWifiIfNecessary();
     }
 
     public void tearDownWifiHotspot() {
@@ -358,7 +361,7 @@ public class ChameleonApplication extends Application {
         wifiP2pChannel = null;
     }
 
-    public void tearDownWifiComponents() {
+    private void tearDownWifiIfNecessary() {
 
         LOG.debug("Tearing down Wifi components..");
 
@@ -370,6 +373,7 @@ public class ChameleonApplication extends Application {
 
         // Put Wifi back in original state
 
+        LOG.info("Setting Wifi back to {}", isWifiEnabledInitially);
         final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         wifiManager.setWifiEnabled(isWifiEnabledInitially);
         isWifiEnabledInitially = false;

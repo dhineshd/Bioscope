@@ -44,8 +44,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile OutputStream destOutputStream;
     @Setter
-    private volatile Context context;
-    @Setter
     private volatile RecordingEventListener recordingEventListener;
 
     private ByteArrayOutputStream stream = new ByteArrayOutputStream(1024 * 80);
@@ -124,6 +122,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             throw new RuntimeException(e);
         }
 
+        Context context = chameleonApplication.getApplicationContext();
         if (context != null && !isStreamingStarted){
             Intent intent = new Intent(context, ConnectionEstablishedActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -140,13 +139,13 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     private void startRecording() {
         log.info("Received message to start recording!");
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(context);
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
         manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
     }
 
     private void stopRecording() {
         log.info("Received message to stop recording!");
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(context);
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
         manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
     }
 
