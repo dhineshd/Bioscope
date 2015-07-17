@@ -8,6 +8,7 @@ import android.media.MediaRecorder;
 import android.os.IBinder;
 
 import com.trioscope.chameleon.SystemOverlayGLSurface;
+import com.trioscope.chameleon.stream.RecordingEventListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,8 @@ public class BackgroundRecorderService extends Service {
 
     @Setter
     private File outputFile;
+    @Setter
+    private RecordingEventListener recordingEventListener;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -60,17 +63,19 @@ public class BackgroundRecorderService extends Service {
 
         mediaRecorder = new MediaRecorder();
 
-        // Step 1: Unlock and set camera to MediaRecorder
+        // Unlock and set camera to MediaRecorder
         camera.unlock();
         mediaRecorder.setCamera(camera);
 
-        // Step 2: Set sources
+        // Set sources
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
-        mediaRecorder.setOrientationHint(90);
 
-        // Step 4: Set output file
+        // Set recording settings
+        mediaRecorder.setOrientationHint(90); // portrait
+
+        // Set output file
         LOG.info("Setting outputh path = {}", outputFile.getPath());
         mediaRecorder.setOutputFile(outputFile.getPath());
 
@@ -88,6 +93,11 @@ public class BackgroundRecorderService extends Service {
         }
 
         mediaRecorder.start();
+
+        // Started recording
+        if (recordingEventListener != null) {
+            recordingEventListener.onStartRecording();
+        }
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
     }

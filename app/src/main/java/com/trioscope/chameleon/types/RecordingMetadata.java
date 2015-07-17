@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.stream.messages;
+package com.trioscope.chameleon.types;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -9,9 +9,9 @@ import lombok.NonNull;
  */
 @Builder
 @Getter
-public class SendRecordedVideoResponse {
+public class RecordingMetadata {
     @NonNull
-    private Long fileSizeBytes;
+    private String absoluteFilePath;
     @NonNull
-    private Long recordingStartTimeMillis;
+    private Long startTimeMillis;
 }

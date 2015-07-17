@@ -26,6 +26,7 @@ import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
+import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
@@ -92,6 +93,9 @@ public class ChameleonApplication extends Application {
     @Getter
     @Setter
     private volatile File videoFile;
+    @Getter
+    @Setter
+    private volatile Long recordingStartTimeMillis;
 
     // For background image recording
     private WindowManager windowManager;
@@ -176,8 +180,8 @@ public class ChameleonApplication extends Application {
     }
 
 
-    public void createBackgroundRecorder() {
-        videoRecorder = new BackgroundRecorder(this);
+    public void createBackgroundRecorder(final RecordingEventListener recordingEventListener) {
+        videoRecorder = new BackgroundRecorder(this, recordingEventListener);
     }
 
     public void startConnectionServerIfNotRunning(){

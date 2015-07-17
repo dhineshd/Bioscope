@@ -24,10 +24,12 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.camera.VideoRecorder;
+import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.messages.HandshakeMessage;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import java.io.BufferedInputStream;
@@ -54,7 +56,8 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-import lombok.AllArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -68,6 +71,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
+    private Long recordingStartTimeMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,7 +84,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        chameleonApplication.createBackgroundRecorder();
+        chameleonApplication.createBackgroundRecorder(new RecordingEventListener() {
+            @Override
+            public void onStartRecording() {
+                chameleonApplication.setRecordingStartTimeMillis(System.currentTimeMillis());
+            }
+
+            @Override
+            public void onStopRecording() {
+                // Nothing for now
+            }
+        });
 
         recordEventReceiver = new BroadcastReceiver() {
             @Override
@@ -274,12 +288,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         }
     }
 
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     class ReceiveVideoFromPeerTask extends AsyncTask<Void, Integer, Void>{
+        @NonNull
         private File localVideoFile;
-        private File peerVideoFile;
+        @NonNull
+        private File remoteVideoFile;
+        @NonNull
         private InetAddress peerIp;
-        private int port;
+        @NonNull
+        private Integer port;
+        private Long remoteRecordingStartTimeMillis;
 
         @Override
         protected void onPreExecute() {
@@ -323,6 +342,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                                 gson.fromJson(message.getContents(), SendRecordedVideoResponse.class);
                         if (response != null){
                             fileSizeBytes = response.getFileSizeBytes();
+                            remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
                         }
                     }
                 }
@@ -330,11 +350,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 int totalBytesReceived = 0;
 
                 // TODO Generate filename based on sessionId
-                if (peerVideoFile.exists()){
-                    peerVideoFile.delete();
+                if (remoteVideoFile.exists()){
+                    remoteVideoFile.delete();
                 }
-                if (peerVideoFile.createNewFile()){
-                    outputStream = new BufferedOutputStream(new FileOutputStream(peerVideoFile));
+                if (remoteVideoFile.createNewFile()){
+                    outputStream = new BufferedOutputStream(new FileOutputStream(remoteVideoFile));
 
                     final byte[] buffer = new byte[65536];
                     inputStream = new BufferedInputStream(socket.getInputStream());
@@ -374,8 +394,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         protected void onPostExecute(Void aVoid) {
             progressBar.setVisibility(View.INVISIBLE);
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
-            intent.putExtra(PreviewMergeActivity.LOCAL_RECORDING_FILENAME_KEY, localVideoFile.getAbsolutePath());
-            intent.putExtra(PreviewMergeActivity.REMOTE_RECORDING_FILENAME_KEY, peerVideoFile.getAbsolutePath());
+            RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
+                    .absoluteFilePath(localVideoFile.getAbsolutePath())
+                    .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
+                    .build();
+            RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
+                    .absoluteFilePath(remoteVideoFile.getAbsolutePath())
+                    .startTimeMillis(remoteRecordingStartTimeMillis)
+                    .build();
+            Gson gson = new Gson();
+            intent.putExtra(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+            intent.putExtra(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
         }
 

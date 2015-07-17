@@ -45,8 +45,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Setter
     private volatile boolean isStreamingStarted;
     private volatile OutputStream destOutputStream;
-    @Setter
-    private volatile RecordingEventListener recordingEventListener;
 
     private ByteArrayOutputStream stream =
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
@@ -157,13 +155,15 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private void requestRecordedVideo(final Socket clientSocket) {
         log.info("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
+        Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
         if (videoFile != null){
             OutputStream outputStream = null;
             InputStream inputStream = null;
             try {
                 PrintWriter pw  = new PrintWriter(clientSocket.getOutputStream());
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
-                        .fileSizeBytes(videoFile.length()).build();
+                        .fileSizeBytes(videoFile.length())
+                        .recordingStartTimeMillis(recordingStartTimeMillis).build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                         .contents(gson.toJson(response)).build();

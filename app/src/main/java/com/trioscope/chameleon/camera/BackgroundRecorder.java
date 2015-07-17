@@ -10,6 +10,7 @@ import android.os.IBinder;
 
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
+import com.trioscope.chameleon.stream.RecordingEventListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,8 @@ public class BackgroundRecorder implements VideoRecorder {
 
     @Setter
     private File outputFile;
+    @Setter
+    private RecordingEventListener recordingEventListener;
 
     @Setter
     private Camera camera;
@@ -49,6 +52,7 @@ public class BackgroundRecorder implements VideoRecorder {
             backgroundRecorderService = ((BackgroundRecorderBinder<BackgroundRecorderService>) service).getService();
             backgroundRecorderService.setOutputFile(outputFile);
             backgroundRecorderService.setCamera(camera);
+            backgroundRecorderService.setRecordingEventListener(recordingEventListener);
             backgroundRecorderService.startRecording();
         }
 
@@ -60,8 +64,9 @@ public class BackgroundRecorder implements VideoRecorder {
         }
     };
 
-    public BackgroundRecorder(Context context) {
+    public BackgroundRecorder(Context context, RecordingEventListener recordingEventListener) {
         this.context = context;
+        this.recordingEventListener = recordingEventListener;
     }
 
     @Override
