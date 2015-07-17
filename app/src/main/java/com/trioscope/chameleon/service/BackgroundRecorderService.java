@@ -68,6 +68,7 @@ public class BackgroundRecorderService extends Service {
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
         mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         mediaRecorder.setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH));
+        mediaRecorder.setOrientationHint(90);
 
         // Step 4: Set output file
         LOG.info("Setting outputh path = {}", outputFile.getPath());

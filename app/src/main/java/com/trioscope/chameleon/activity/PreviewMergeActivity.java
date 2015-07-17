@@ -3,7 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.VideoView;
@@ -12,7 +11,7 @@ import com.trioscope.chameleon.R;
 
 import java.io.File;
 
-public class PreviewMergeActivity extends ActionBarActivity {
+public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String LOCAL_RECORDING_FILENAME_KEY = "LOCAL_RECORDING";
     public static final String REMOTE_RECORDING_FILENAME_KEY = "REMOTE_RECORDING";
 
@@ -37,12 +36,22 @@ public class PreviewMergeActivity extends ActionBarActivity {
         final VideoView remoteRecordingVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
         remoteRecordingVideoView.setVideoPath(remoteRecording.getAbsolutePath());
         remoteRecordingVideoView.setMediaController(null);
+        remoteRecordingVideoView.setZOrderMediaOverlay(true);
         remoteRecordingVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
+                mediaPlayer.setVolume(0f, 0f);
                 remoteRecordingVideoView.start();
             }
         });
+
+//        Button startMergeButton = (Button) findViewById(R.id.button_start_merge);
+//        startMergeButton.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                // TODO : Start merge activity
+//            }
+//        });
     }
 
     @Override

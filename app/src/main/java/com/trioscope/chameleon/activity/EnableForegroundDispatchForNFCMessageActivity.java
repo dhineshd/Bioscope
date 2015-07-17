@@ -6,19 +6,19 @@ import android.content.IntentFilter;
 import android.nfc.NfcAdapter;
 import android.nfc.tech.Ndef;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 
 import com.trioscope.chameleon.R;
 
 /**
  * Created by rohitraghunathan on 7/6/15.
  */
-public abstract class EnableForegroundDispatchForNFCMessageActivity extends ActionBarActivity {
+public abstract class EnableForegroundDispatchForNFCMessageActivity extends AppCompatActivity {
 
     protected NfcAdapter mNfcAdapter;
     private PendingIntent pendingIntent;
     private IntentFilter[] intentFiltersArray;
-    String[][] techListsArray;
+    private String[][] techListsArray;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

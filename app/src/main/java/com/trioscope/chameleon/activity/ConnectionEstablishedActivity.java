@@ -11,7 +11,6 @@ import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -59,7 +58,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ConnectionEstablishedActivity extends ActionBarActivity {
+public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
@@ -298,7 +297,6 @@ public class ConnectionEstablishedActivity extends ActionBarActivity {
                 waitUntilIPBecomesReachable(peerIp);
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                socket.setReceiveBufferSize(65536);
                 socket.setEnabledProtocols(new String[]{"TLSv1.2"});
                 log.info("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
                 log.info("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));

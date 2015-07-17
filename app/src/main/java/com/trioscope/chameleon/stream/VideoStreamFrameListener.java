@@ -171,6 +171,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
 
+                clientSocket.setSendBufferSize(65536);
+                clientSocket.setReceiveBufferSize(65536);
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
                 inputStream = new BufferedInputStream(new FileInputStream(videoFile));
                 byte[] buffer = new byte[65536];

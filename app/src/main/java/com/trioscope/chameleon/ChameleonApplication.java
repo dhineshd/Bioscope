@@ -134,7 +134,7 @@ public class ChameleonApplication extends Application {
 
     private BroadcastReceiver enableWifiBroadcastReceiver;
 
-    private boolean isWifiEnabledInitially;
+    private Boolean isWifiEnabledInitially;
 
     @Override
     public void onCreate() {
@@ -374,10 +374,12 @@ public class ChameleonApplication extends Application {
 
         // Put Wifi back in original state
 
-        LOG.info("Setting Wifi back to {}", isWifiEnabledInitially);
-        final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        wifiManager.setWifiEnabled(isWifiEnabledInitially);
-        isWifiEnabledInitially = false;
+        if (isWifiEnabledInitially != null){
+            LOG.info("Setting Wifi back to {}", isWifiEnabledInitially);
+            final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            wifiManager.setWifiEnabled(isWifiEnabledInitially);
+            isWifiEnabledInitially = null;
+        }
     }
 
     /**
