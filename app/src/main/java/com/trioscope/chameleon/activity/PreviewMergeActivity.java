@@ -43,7 +43,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     log.info("remote started before local by {} ms", offset);
                     mediaPlayer.seekTo(offset);
                 }
-                localRecordingVideoView.start();
             }
         });
         final VideoView remoteRecordingVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
@@ -62,6 +61,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     log.info("local started before remote by {} ms", offset);
                     mediaPlayer.seekTo(offset);
                 }
+                localRecordingVideoView.start();
                 remoteRecordingVideoView.start();
             }
         });
