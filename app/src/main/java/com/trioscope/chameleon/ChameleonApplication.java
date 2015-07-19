@@ -48,8 +48,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -387,9 +385,50 @@ public class ChameleonApplication extends Application {
     }
 
     /**
-     * Create a File for saving an image or video
+     * Create a File using given file name.
      */
-    public File getOutputMediaFile(int type) {
+    /**
+     * Create a File using given file name.
+     * @param filename
+     * @return created file
+     */
+    public File getOutputMediaFile(final String filename) {
+        return new File(getMediaStorageDir().getPath() + File.separator + filename);
+    }
+
+    /**
+     * Create a file for saving given media type.
+     * @param type
+     * @return created file
+     */
+    public File getOutputMediaFile(final int type) {
+
+        File mediaStorageDir = getMediaStorageDir();
+
+        // Create a media file name
+        //String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String timeStamp = String.valueOf(System.currentTimeMillis());
+        File mediaFile;
+        if (type == MEDIA_TYPE_IMAGE) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "IMG_" + timeStamp + ".jpg");
+        } else if (type == MEDIA_TYPE_VIDEO) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "CHAMELEON_" + timeStamp + ".mp4");
+        } else if (type == MEDIA_TYPE_AUDIO) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                    "AUD_" + timeStamp + ".3gp");
+        } else {
+            return null;
+        }
+
+        if (mediaFile != null) {
+            LOG.info("File name is {}", mediaFile.getAbsolutePath());
+        }
+        return mediaFile;
+    }
+
+    private File getMediaStorageDir(){
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
@@ -413,27 +452,7 @@ public class ChameleonApplication extends Application {
                 return null;
             }
         }
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_" + timeStamp + ".jpg");
-        } else if (type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "CHAMELEON_" + timeStamp + ".mp4");
-        } else if (type == MEDIA_TYPE_AUDIO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "AUD_" + timeStamp + ".3gp");
-        } else {
-            return null;
-        }
-
-        if (mediaFile != null) {
-            LOG.info("File name is {}", mediaFile.getAbsolutePath());
-        }
-        return mediaFile;
+        return mediaStorageDir;
     }
 
     /**

@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
@@ -28,6 +29,7 @@ import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.messages.HandshakeMessage;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
+import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SessionStatus;
@@ -71,7 +73,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
-    private Long recordingStartTimeMillis;
+    private long networkCommunicationLatencyMs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,8 +88,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         chameleonApplication.createBackgroundRecorder(new RecordingEventListener() {
             @Override
-            public void onStartRecording() {
-                chameleonApplication.setRecordingStartTimeMillis(System.currentTimeMillis());
+            public void onStartRecording(final long recordingStartTimeMillis) {
+                chameleonApplication.setRecordingStartTimeMillis(recordingStartTimeMillis);
             }
 
             @Override
@@ -163,7 +165,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     showRetakeOrMergeVideoDialog(peerInfo);
 
                 } else {
-                    // Sending message to peer to start recording
+
+                    // Sending message to peer to start remote recording
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.START_RECORDING)
                             .build();
@@ -172,6 +175,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                     // Starting local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
+
                     recordSessionButton.setText("Stop");
                     isRecording = true;
                 }
@@ -265,10 +269,28 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
                         socket.setEnabledProtocols(new String[]{"TLSv1.2"});
 
+                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                         PrintWriter pw  = new PrintWriter(socket.getOutputStream());
-                        log.info("Sending msg = {}", gson.toJson(peerMsg));
-                        pw.println(gson.toJson(peerMsg));
+                        String serializedMsgToSend = gson.toJson(peerMsg);
+                        log.info("Sending msg = {}", serializedMsgToSend);
+                        long localCurrentTimeMsBeforeSendingRequest = System.currentTimeMillis();
+                        pw.println(serializedMsgToSend);
                         pw.close();
+                        if (PeerMessage.Type.START_RECORDING.equals(peerMsg.getType())){
+                            String recvMsg = bufferedReader.readLine();
+                            long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
+                            if (recvMsg != null) {
+                                PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
+                                StartRecordingResponse response =
+                                        gson.fromJson(message.getContents(), StartRecordingResponse.class);
+                                log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
+                                log.info("Remote current time = {}", response.getCurrentTimeMillis());
+                                log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
+                                networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
+                                        localCurrentTimeMsBeforeSendingRequest) / 2;
+                                log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
+                            }
+                        }
 
                     } catch (IOException e) {
                         log.error("Failed to send message = " + peerMsg + " to peer", e);
@@ -299,6 +321,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @NonNull
         private Integer port;
         private Long remoteRecordingStartTimeMillis;
+        private long remoteClockAheadOfLocalClockMillis = 0L;
 
         @Override
         protected void onPreExecute() {
@@ -325,15 +348,18 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST)
                         .build();
 
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter pw  = new PrintWriter(socket.getOutputStream());
-                log.info("Sending msg = {}", gson.toJson(peerMsg));
-                pw.println(gson.toJson(peerMsg));
+                String serializedMessageToSend = gson.toJson(peerMsg);
+                log.info("Sending msg = {}", serializedMessageToSend);
+                long localCurrentTimeMsBeforeSendingRequest = System.currentTimeMillis();
+                pw.println(serializedMessageToSend);
                 pw.close();
 
                 // Receive recorded file size from peer
                 long fileSizeBytes = -1;
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 String recvMsg = bufferedReader.readLine();
+                long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
                 if (recvMsg != null){
                     log.info("Message received = {}", recvMsg);
                     PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
@@ -343,6 +369,15 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         if (response != null){
                             fileSizeBytes = response.getFileSizeBytes();
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
+                            log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
+                            log.info("Remote current time = {}", response.getCurrentTimeMillis());
+                            log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
+//                            long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
+//                                    localCurrentTimeMsBeforeSendingRequest) / 2;
+                            // log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
+                            remoteClockAheadOfLocalClockMillis = response.getCurrentTimeMillis() -
+                                    localCurrentTimeMsAfterReceivingResponse +
+                                    networkCommunicationLatencyMs;
                         }
                     }
                 }
@@ -392,8 +427,14 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPostExecute(Void aVoid) {
-            progressBar.setVisibility(View.INVISIBLE);
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
+            // Adjust recording start time for remote recording to account for
+            // clock difference between two devices
+            remoteRecordingStartTimeMillis -= remoteClockAheadOfLocalClockMillis;
+
+            log.info("Adjusting remote recording start time millis by {} ms", remoteClockAheadOfLocalClockMillis);
+            log.info("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
+            log.info("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(localVideoFile.getAbsolutePath())
                     .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
@@ -402,6 +443,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
                     .build();
+
+            MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+            metadataRetriever.setDataSource(localVideoFile.getAbsolutePath());
+            log.info("Local recording create time metadata = {}",
+                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+            metadataRetriever.setDataSource(remoteVideoFile.getAbsolutePath());
+            log.info("Remote recording create time metadata = {}",
+                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+            log.info("Local filename = {}", localVideoFile.getName());
+            log.info("Remote filename = {}", remoteVideoFile.getName());
+
             Gson gson = new Gson();
             intent.putExtra(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
@@ -460,7 +512,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 final int bytesRead = inputStream.read(buffer);
                 if (bytesRead != -1){
                     //log.info("Received preview image from remote server bytes = " + bytesRead);
-                    final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                    final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                            BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {

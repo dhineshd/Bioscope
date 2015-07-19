@@ -95,9 +95,8 @@ public class BackgroundRecorderService extends Service {
         mediaRecorder.start();
 
         // Started recording
-        if (recordingEventListener != null) {
-            recordingEventListener.onStartRecording();
-        }
+        recordingEventListener.onStartRecording(System.currentTimeMillis());
+
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
     }

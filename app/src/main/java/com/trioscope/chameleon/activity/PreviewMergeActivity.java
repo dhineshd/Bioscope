@@ -5,6 +5,8 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.VideoView;
 
 import com.google.gson.Gson;
@@ -30,21 +32,30 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         final RecordingMetadata remoteRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
 
+        final int absDifferenceBetweenLocalAndRemoteStartTimes = (int) Math.abs(localRecordingMetadata.getStartTimeMillis()
+                - remoteRecordingMetadata.getStartTimeMillis());
         final VideoView localRecordingVideoView = (VideoView) findViewById(R.id.videoView_local_video);
         localRecordingVideoView.setMediaController(null);
         localRecordingVideoView.setVideoPath(localRecordingMetadata.getAbsoluteFilePath());
         localRecordingVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
-                if (localRecordingMetadata.getStartTimeMillis() > remoteRecordingMetadata.getStartTimeMillis()){
-                    // Adjust playback if remote video started before the local video
-                    int offset = (int)(localRecordingMetadata.getStartTimeMillis()
-                            - remoteRecordingMetadata.getStartTimeMillis());
-                    log.info("remote started before local by {} ms", offset);
-                    mediaPlayer.seekTo(offset);
+                log.info("Local video prepared");
+                if (localRecordingMetadata.getStartTimeMillis() < remoteRecordingMetadata.getStartTimeMillis()) {
+                    // Adjust playback if local video started before the remote video
+
+                    log.info("local started before remote by {} ms", absDifferenceBetweenLocalAndRemoteStartTimes);
+                    mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                        @Override
+                        public void onSeekComplete(MediaPlayer mediaPlayer) {
+                            log.info("local video onSeek complete");
+                        }
+                    });
+                    mediaPlayer.seekTo(absDifferenceBetweenLocalAndRemoteStartTimes);
                 }
             }
         });
+
         final VideoView remoteRecordingVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
         remoteRecordingVideoView.setVideoPath(remoteRecordingMetadata.getAbsoluteFilePath());
         remoteRecordingVideoView.setMediaController(null);
@@ -52,27 +63,37 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         remoteRecordingVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
+                log.info("Remote video prepared");
+
                 // Disable sound for remote video playback
-                mediaPlayer.setVolume(0f, 0f);
-                if (localRecordingMetadata.getStartTimeMillis() < remoteRecordingMetadata.getStartTimeMillis()){
-                    // Adjust playback if local video started before the remote video
-                    int offset = (int)(remoteRecordingMetadata.getStartTimeMillis()
-                            - localRecordingMetadata.getStartTimeMillis());
-                    log.info("local started before remote by {} ms", offset);
-                    mediaPlayer.seekTo(offset);
+                //mediaPlayer.setVolume(0f, 0f);
+                if (localRecordingMetadata.getStartTimeMillis() > remoteRecordingMetadata.getStartTimeMillis()) {
+                    // Adjust playback if remote video started before the local video
+                    log.info("remote started before local by {} ms", absDifferenceBetweenLocalAndRemoteStartTimes);
+                    mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                        @Override
+                        public void onSeekComplete(MediaPlayer mediaPlayer) {
+                            log.info("remote video onSeek complete : current position = {}", mediaPlayer.getCurrentPosition());
+                            localRecordingVideoView.start();
+                            mediaPlayer.start();
+                            log.info("remote video : current position = {}", mediaPlayer.getCurrentPosition());
+                        }
+                    });
+                    mediaPlayer.seekTo(absDifferenceBetweenLocalAndRemoteStartTimes);
                 }
-                localRecordingVideoView.start();
-                remoteRecordingVideoView.start();
             }
         });
 
-//        Button startMergeButton = (Button) findViewById(R.id.button_start_merge);
-//        startMergeButton.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                // TODO : Start merge activity
-//            }
-//        });
+        Button startMergeButton = (Button) findViewById(R.id.button_preview_and_merge);
+        startMergeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                // Wait and start preview since mediaPlayer seek takes time
+                // and there is no OnSeekCompletedListener.
+                //localRecordingVideoView.start();
+                //remoteRecordingVideoView.start();
+            }
+        });
     }
 
     @Override

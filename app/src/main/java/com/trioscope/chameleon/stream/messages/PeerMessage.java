@@ -13,6 +13,7 @@ public class PeerMessage {
     public enum Type{
         CONNECTION_HANDSHAKE,
         START_RECORDING,
+        START_RECORDING_RESPONSE,
         STOP_RECORDING,
         SEND_RECORDED_VIDEO_REQUEST,
         SEND_RECORDED_VIDEO_RESPONSE

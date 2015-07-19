@@ -3,6 +3,7 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.gson.Gson;
@@ -11,6 +12,7 @@ import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
+import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 
@@ -110,7 +112,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         if (PeerMessage.Type.CONNECTION_HANDSHAKE.equals(messageFromClient.getType())){
             startStreaming(clientSocket);
         } else if (PeerMessage.Type.START_RECORDING.equals(messageFromClient.getType())){
-            startRecording();
+            startRecording(clientSocket);
         } else if (PeerMessage.Type.STOP_RECORDING.equals(messageFromClient.getType())){
             stopRecording();
         } else if (PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST.equals(messageFromClient.getType())){
@@ -141,8 +143,21 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private void startRecording() {
+    private void startRecording(final Socket clientSocket) {
         log.info("Received message to start recording!");
+        try {
+            PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
+            StartRecordingResponse response = StartRecordingResponse.builder()
+                    .currentTimeMillis(System.currentTimeMillis()).build();
+            PeerMessage responseMsg = PeerMessage.builder()
+                    .type(PeerMessage.Type.START_RECORDING_RESPONSE)
+                    .contents(gson.toJson(response)).build();
+            log.info("Sending file size msg = {}", gson.toJson(responseMsg));
+            pw.println(gson.toJson(responseMsg));
+            pw.close();
+        } catch (IOException e){
+            log.error("Failed to send START_RECORDING_RESPONSE", e);
+        }
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
         manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
     }
@@ -157,14 +172,15 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         log.info("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
-        if (videoFile != null){
+        if (videoFile != null && recordingStartTimeMillis != null){
             OutputStream outputStream = null;
             InputStream inputStream = null;
             try {
                 PrintWriter pw  = new PrintWriter(clientSocket.getOutputStream());
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
                         .fileSizeBytes(videoFile.length())
-                        .recordingStartTimeMillis(recordingStartTimeMillis).build();
+                        .recordingStartTimeMillis(recordingStartTimeMillis)
+                        .currentTimeMillis(System.currentTimeMillis()).build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                         .contents(gson.toJson(response)).build();
@@ -172,6 +188,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
 
+                // Get recording time
+                MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+                metadataRetriever.setDataSource(videoFile.getAbsolutePath());
+                log.info("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
                 clientSocket.setSendBufferSize(65536);
                 clientSocket.setReceiveBufferSize(65536);
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
