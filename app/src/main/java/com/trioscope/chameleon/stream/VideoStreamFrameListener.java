@@ -74,6 +74,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 } catch (IOException e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
+                    isStreamingStarted = false;
                 }
             }
         }
