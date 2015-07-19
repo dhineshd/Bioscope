@@ -88,10 +88,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         startMergeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // Wait and start preview since mediaPlayer seek takes time
-                // and there is no OnSeekCompletedListener.
-                //localRecordingVideoView.start();
-                //remoteRecordingVideoView.start();
+                Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
+                intent.putExtra(LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+                intent.putExtra(REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+                startActivity(intent);
             }
         });
     }
