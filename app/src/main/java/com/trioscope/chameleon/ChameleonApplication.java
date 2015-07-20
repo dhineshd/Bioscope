@@ -30,7 +30,7 @@ import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
-import com.trioscope.chameleon.types.MetricNames;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.types.factory.CameraInfoFactory;

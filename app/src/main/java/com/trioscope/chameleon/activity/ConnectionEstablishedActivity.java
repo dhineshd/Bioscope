@@ -65,7 +65,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String PEER_INFO = "PEER_INFO";
-    private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
+    private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 20000; // 20 secs
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask connectToServerTask;
     private Gson gson = new Gson();

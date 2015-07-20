@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.types;
+package com.trioscope.chameleon.metrics;
 
 import lombok.Getter;
 
