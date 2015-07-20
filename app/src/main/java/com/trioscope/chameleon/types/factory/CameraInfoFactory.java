@@ -12,7 +12,7 @@ import java.math.BigInteger;
  */
 public class CameraInfoFactory {
 
-    private static final int TARGET_PIXEL_COUNT_FOR_CAMERA_CAPTURE = 129600;
+    private static final int TARGET_PIXEL_COUNT_FOR_CAMERA_CAPTURE = 129600; // 480 x 270 for 16:9
     public static CameraInfo createCameraInfo(Camera.Parameters params) {
 
         Camera.Size previewSize = params.getPreviewSize();
@@ -34,7 +34,8 @@ public class CameraInfoFactory {
         int heightReductionFactor = previewSize.height / gcd;
         for (;(w * h) > TARGET_PIXEL_COUNT_FOR_CAMERA_CAPTURE;
              w -= widthReductionFactor, h-= heightReductionFactor);
-        return new Size(w, h);
+        // Changing width and height since preview will be rotated to look like portrait mode
+        return new Size(h, w);
     }
 
     private static int getGcd(final int a, final int b){

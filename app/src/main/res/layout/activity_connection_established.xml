@@ -10,16 +10,22 @@
     android:paddingTop="0px"
     tools:context="com.trioscope.chameleon.activity.ConnectionEstablishedActivity">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:orientation="vertical">
+        android:layout_height="fill_parent">
 
         <RelativeLayout
             android:id="@+id/relativeLayout_session_preview"
             android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:layout_weight="1"/>
+            android:layout_height="fill_parent" />
+
+
+        <!-- TODO : Adjust Imageview size to be  proportional to screen size -->
+        <ImageView
+            android:id="@+id/imageView_stream_remote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|right"/>
 
         <ProgressBar
             android:id="@+id/progressBar_file_transfer"
@@ -30,12 +36,6 @@
             android:max="100"
             style="@android:style/Widget.ProgressBar.Horizontal"/>
 
-        <ImageView
-            android:id="@+id/imageView_stream_remote"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:layout_weight="1"/>
-
         <Button
             android:id="@+id/button_record_session"
             android:text="Record"
@@ -44,6 +44,6 @@
             android:layout_gravity="bottom|center"
             android:visibility="invisible"/>
 
-    </LinearLayout>
+    </FrameLayout>
 
 </RelativeLayout>
