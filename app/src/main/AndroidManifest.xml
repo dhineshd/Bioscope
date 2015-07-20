@@ -78,8 +78,7 @@
         <activity
             android:name=".activity.ConnectionEstablishedActivity"
             android:label="ConnectionEstablishedActivity"
-            android:screenOrientation="portrait"
-            android:noHistory="true" />
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".activity.PreviewMergeActivity"

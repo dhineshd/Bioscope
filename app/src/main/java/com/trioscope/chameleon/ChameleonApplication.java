@@ -289,7 +289,7 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public void initializeWifi() {
+    public void initializeWifiP2p() {
 
         if(wifiP2pManager == null) {
             LOG.debug("Acquiring WifiP2pManager");
@@ -354,6 +354,10 @@ public class ChameleonApplication extends Application {
     public void tearDownWifiHotspot() {
 
         LOG.debug("Tearing down Wifi components..");
+
+        // Initializing wifi p2p so that we can tear down hotspot hanging around
+        // from previous sessions
+        initializeWifiP2p();
 
         // Tear down Wifi p2p hotspot
         if (wifiP2pManager != null && wifiP2pChannel != null){

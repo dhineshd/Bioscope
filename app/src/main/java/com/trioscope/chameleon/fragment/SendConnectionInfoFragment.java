@@ -108,7 +108,7 @@ public class SendConnectionInfoFragment extends Fragment {
         log.info("Creating Wifi hotspot");
 
         //Initialize wifiManager and wifiChannel
-        chameleonApplication.initializeWifi();
+        chameleonApplication.initializeWifiP2p();
         final WifiP2pManager wifiP2pManager = chameleonApplication.getWifiP2pManager();
         final WifiP2pManager.Channel wifiP2pChannel = chameleonApplication.getWifiP2pChannel();
 
