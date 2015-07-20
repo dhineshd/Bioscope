@@ -326,6 +326,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPreExecute() {
             progressBar.setVisibility(View.VISIBLE);
+            progressBar.setProgress(0);
             super.onPreExecute();
         }
 
@@ -427,6 +428,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPostExecute(Void aVoid) {
+            progressBar.setVisibility(View.INVISIBLE);
+
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
