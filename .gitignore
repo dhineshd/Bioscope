@@ -8,3 +8,7 @@ app/app.iml
 .DS_Store
 /build
 chameleon.iml
+
+**/ffmpeg/**/include
+**/ffmpeg/**/share
+**/ffmpeg/**/lib
