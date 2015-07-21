@@ -15,6 +15,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.telephony.TelephonyManager;
 import android.view.Gravity;
 import android.view.WindowManager;
 
@@ -171,6 +172,14 @@ public class ChameleonApplication extends Application {
 
         streamListener = new VideoStreamFrameListener(this);
         cameraFrameBuffer.addListener(streamListener);
+
+        //Code for phone
+        IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
+        phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+
+        IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
+        registerReceiver(incomingPhoneCallBroadcastReceiver,phoneStateChangedIntentFilter);
+        LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
     }
 
 
