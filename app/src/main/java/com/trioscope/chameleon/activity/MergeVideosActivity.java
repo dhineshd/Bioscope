@@ -7,8 +7,12 @@ import android.app.FragmentManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.widget.ProgressBar;
 
 import com.trioscope.chameleon.R;
@@ -20,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -27,18 +32,31 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Created by phand on 6/19/15.
  */
-public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable {
+public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable, SurfaceHolder.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(MergeVideosActivity.class);
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
     private FfmpegTaskFragment taskFragment;
+    private MediaPlayer outerMediaPlayer, innerMediaPlayer;
+
+    private static final String vid1 = "/storage/emulated/0/DCIM/Camera/20150716_154709.mp4";
+    private static final String vid2 = "/storage/emulated/0/DCIM/Camera/20150716_154740.mp4";
+    private SurfaceHolder outerVideoHolder, innerVideoHolder;
+    private SurfaceView innerSurfaceView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //Remove title bar
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.ffmpeg_test);
+        setContentView(R.layout.activity_merge);
+
+        if (getSupportActionBar() != null) {
+            LOG.info("Removing actionbar");
+            getSupportActionBar().hide();
+        }
+
         LOG.info("Activity is created");
 
         printArchInfo();
@@ -55,6 +73,16 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         } else {
             LOG.info("Task fragment exists - reusing (device rotated)");
         }
+
+
+        outerMediaPlayer = new MediaPlayer();
+        SurfaceView surfaceView = (SurfaceView) findViewById(R.id.outerVideoMerge);
+        outerVideoHolder = surfaceView.getHolder();
+        outerVideoHolder.addCallback(this);
+        innerMediaPlayer = new MediaPlayer();
+        innerSurfaceView = (SurfaceView) findViewById(R.id.innerVideoMerge);
+        innerVideoHolder = innerSurfaceView.getHolder();
+        innerVideoHolder.addCallback(this);
     }
 
     private void printArchInfo() {
@@ -90,6 +118,71 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         LOG.info("FFMPEG Completed!");
     }
 
+
+    int created = 0;
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+
+        if (holder == outerVideoHolder) {
+            if (outerMediaPlayer.isPlaying()) {
+                outerMediaPlayer.reset();
+            }
+
+            outerMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            outerMediaPlayer.setDisplay(outerVideoHolder);
+
+            try {
+                outerMediaPlayer.setDataSource(vid1);
+                outerMediaPlayer.prepare();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            outerMediaPlayer.start();
+            innerSurfaceView.setZOrderOnTop(true);
+        }
+
+
+        if (holder == innerVideoHolder) {
+            innerSurfaceView.setZOrderOnTop(true);
+            LOG.info("Starting inner video holder");
+            if (innerMediaPlayer.isPlaying()) {
+                innerMediaPlayer.reset();
+            }
+
+            innerMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            innerMediaPlayer.setDisplay(innerVideoHolder);
+
+            try {
+                innerMediaPlayer.setDataSource(vid1);
+                innerMediaPlayer.prepare();
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
+            } catch (IllegalStateException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            innerMediaPlayer.start();
+        }
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+
+    }
+
     @Slf4j
     public static class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         private Context currentContext;
@@ -119,8 +212,8 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             setRetainInstance(true);
 
             videoMerger = new FfmpegVideoMerger();
-            File vid1 = new File("/storage/emulated/0/DCIM/Camera/VID_20150709_175834.mp4");
-            File vid2 = new File("/storage/emulated/0/DCIM/Camera/VID_20150709_175945.mp4");
+            File vid1 = new File(MergeVideosActivity.vid1);
+            File vid2 = new File(MergeVideosActivity.vid2);
             File output = new File("/storage/emulated/0/DCIM/Camera/Merged.mp4");
             videoMerger.setContext(currentContext);
             videoMerger.setProgressUpdatable(this);

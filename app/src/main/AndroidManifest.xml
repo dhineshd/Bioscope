@@ -32,6 +32,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme">
+
         <activity
             android:name=".activity.MainActivity"
             android:label="@string/app_name"
@@ -49,7 +50,8 @@
         <activity
             android:name=".activity.MergeVideosActivity"
             android:label="FfmpegActivity"
-            android:noHistory="true" />
+            android:screenOrientation="landscape"
+            android:theme="@style/FullscreenTheme" />
 
         <service android:name=".service.BackgroundRecorderService" />
 
