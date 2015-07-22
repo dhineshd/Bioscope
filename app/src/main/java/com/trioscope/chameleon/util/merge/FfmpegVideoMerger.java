@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -67,17 +68,26 @@ public class FfmpegVideoMerger implements VideoMerger {
     }
 
     @Override
-    public void mergeVideos(File video1, File video2, File outputFile) {
+    public void mergeVideos(File video1, File video2, File outputFile, MergeConfiguration configuration) {
         if (!prepared)
             prepare();
 
-        AsyncTask<File, Double, Boolean> task = new AsyncVideoMergeTask().execute(video1, video2, outputFile);
+        VideoMergeTaskParams params = new VideoMergeTaskParams();
+        params.setConfiguration(configuration);
+        params.setFile1(video1);
+        params.setFile2(video2);
+        params.setOutputFile(outputFile);
+        AsyncTask<VideoMergeTaskParams, Double, Boolean> task = new AsyncVideoMergeTask().execute(params);
     }
 
-    private List<String> constructPIPArguments(String majorVidPath, String minorVidPath, String outputPath) {
+    private List<String> constructPIPArguments(String majorVidPath, String minorVidPath, String outputPath, MergeConfiguration configuration) {
         List<String> params = new LinkedList<>();
         params.add("-i");
         params.add(majorVidPath);
+        if (configuration.getVideoStartOffsetMilli() != null) {
+            params.add("-itsoffset");
+            params.add(String.format("%.3f", configuration.getVideoStartOffsetMilli() / 1000.0));
+        }
         params.add("-i");
         params.add(minorVidPath);
         params.add("-filter_complex");
@@ -88,20 +98,19 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("experimental");
         params.add(outputPath);
 
-
         return params;
     }
 
-    private class AsyncVideoMergeTask extends AsyncTask<File, Double, Boolean> {
+    private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {
         private long start, end;
         private double maxInputTime = 0;
 
         @Override
-        protected Boolean doInBackground(File... params) {
+        protected Boolean doInBackground(VideoMergeTaskParams... params) {
             start = System.currentTimeMillis();
-            File majorVideo = params[0];
-            File minorVideo = params[1];
-            File outputFile = params[2];
+            File majorVideo = params[0].getFile1();
+            File minorVideo = params[0].getFile2();
+            File outputFile = params[0].getOutputFile();
 
             log.info("Running ffmpeg to merge {} and {} into {}", majorVideo, minorVideo, outputFile);
             File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
@@ -118,7 +127,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     outputFile.delete();
                     log.info("Existing file at {} is deleted", outputFile);
                 }
-                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(), minorVideo.getAbsolutePath(), outputFile.getAbsolutePath());
+                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(), minorVideo.getAbsolutePath(), outputFile.getAbsolutePath(), params[0].getConfiguration());
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
                 log.info("Ffmpeg parameters are {}", cmdParams);
                 ProcessBuilder builder = new ProcessBuilder(cmdParams);
@@ -193,5 +202,11 @@ public class FfmpegVideoMerger implements VideoMerger {
         protected void onCancelled() {
             log.info("Task unexpectedly cancelled!");
         }
+    }
+
+    @Data
+    private class VideoMergeTaskParams {
+        File file1, file2, outputFile;
+        MergeConfiguration configuration;
     }
 }

@@ -24,6 +24,8 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
+import com.trioscope.chameleon.util.merge.MergeConfiguration;
+import com.trioscope.chameleon.util.merge.MergeConfiguration.MergeConfigurationBuilder;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import org.slf4j.Logger;
@@ -275,7 +277,10 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             videoMerger.setContext(currentContext);
             videoMerger.setProgressUpdatable(this);
             videoMerger.prepare();
-            videoMerger.mergeVideos(vid1, vid2, output);
+
+            MergeConfigurationBuilder config = MergeConfiguration.builder();
+            config.videoStartOffsetMilli(1000l);
+            videoMerger.mergeVideos(vid1, vid2, output, config.build());
             startTime = System.currentTimeMillis();
 
 
