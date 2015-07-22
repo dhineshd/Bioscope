@@ -10,6 +10,7 @@ import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -81,28 +82,46 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     }
 
     public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo){
-        // Turn on Wifi device (if not already on)
-        final WifiManager wifiManager = (WifiManager) getActivity().getSystemService(Context.WIFI_SERVICE);
 
-        if (wifiManager.isWifiEnabled()){
-            log.info("Wifi already enabled..");
-            establishConnection(connectionInfo);
+        new AsyncTask<Void, Void, Void>(){
 
-        } else {
-            connectionStatusTextView.setText("Enabling WiFi..");
+            @Override
+            protected Void doInBackground(Void... voids) {
+                // Turn on Wifi device (if not already on)
+                final WifiManager wifiManager = (WifiManager) getActivity().getSystemService(Context.WIFI_SERVICE);
 
-            chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
-                @Override
-                public void run() {
+                if (wifiManager.isWifiEnabled()){
+                    log.info("Wifi already enabled..");
                     establishConnection(connectionInfo);
+
+                } else {
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            connectionStatusTextView.setText("Enabling WiFi..");
+                        }
+                    });
+
+                    chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
+                        @Override
+                        public void run() {
+                            establishConnection(connectionInfo);
+                        }
+                    });
                 }
-            });
-        }
+                return null;
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private void establishConnection(final WiFiNetworkConnectionInfo connectionInfo){
 
-        connectionStatusTextView.setText("Connecting to " + connectionInfo.getSSID() + "..");
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                connectionStatusTextView.setText("Connecting to " + connectionInfo.getSSID() + "..");
+            }
+        });
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
