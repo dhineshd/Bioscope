@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -39,6 +40,8 @@ public class SendConnectionInfoFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        log.info("onCreate : SendConnectionInfoFragment");
+
         // Re-use the fragment on orientation change etc to retain the view
         setRetainInstance(true);
     }
@@ -47,11 +50,11 @@ public class SendConnectionInfoFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        log.info("onViewCreated : SendConnectionInfoFragment");
+
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_sender_connection_status);
-
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
-
-        enableWifiAndCreateHotspot();
+        new SetupWifiHotspotTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     @Override
@@ -71,6 +74,7 @@ public class SendConnectionInfoFragment extends Fragment {
                 connectionStatusTextView.setText(connectionStatusText);
             }
         }
+        log.info("onViewStateRestored : SendConnectionInfoFragment");
         super.onViewStateRestored(savedInstanceState);
     }
 
@@ -78,6 +82,15 @@ public class SendConnectionInfoFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_send_connection_info, container, false);
+    }
+
+    class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void>{
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            enableWifiAndCreateHotspot();
+            return null;
+        }
     }
 
     private void enableWifiAndCreateHotspot(){
@@ -91,7 +104,12 @@ public class SendConnectionInfoFragment extends Fragment {
             log.info("Wifi already enabled..");
             createWifiHotspot();
         } else {
-            connectionStatusTextView.setText("Enabling Wifi..");
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    connectionStatusTextView.setText("Enabling Wifi..");
+                }
+            });
             chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
                 @Override
                 public void run() {
@@ -103,7 +121,12 @@ public class SendConnectionInfoFragment extends Fragment {
 
     private void createWifiHotspot() {
 
-        connectionStatusTextView.setText("Creating WiFi network..");
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                connectionStatusTextView.setText("Creating WiFi network..");
+            }
+        });
 
         log.info("Creating Wifi hotspot");
 
@@ -196,7 +219,13 @@ public class SendConnectionInfoFragment extends Fragment {
                     // Connection info will be used in other components of the app
                     ((WifiConnectionInfoListener) getActivity()).onWifiNetworkCreated(nci);
 
-                    connectionStatusTextView.setText("Ready to send connection info..");
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            connectionStatusTextView.setText("Ready to send connection info..");
+                        }
+                    });
+
                 }
             }
         });
