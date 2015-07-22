@@ -46,13 +46,21 @@ public abstract class EnableForegroundDispatchForNFCMessageActivity extends AppC
 
     @Override
     protected void onPause() {
+        disableForegroundDispatch();
         super.onPause();
+    }
+
+    protected void disableForegroundDispatch() {
         mNfcAdapter.disableForegroundDispatch(this);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        enableForegroundDispatch();
+    }
+
+    protected void enableForegroundDispatch() {
         mNfcAdapter.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray);
     }
 

@@ -114,6 +114,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     protected void onResume() {
+        super.onResume();
+
         if (previewDisplay != null) {
             previewDisplay.onResume();
         }
@@ -125,8 +127,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                     mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
             newFragment.show(getFragmentManager(), "dialog");
         }
-
-        super.onResume();
     }
 
     @Override
@@ -140,8 +140,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         // Not putting this in onDestroy since it does not seem to be called every time
         ((ChameleonApplication) getApplication()).cleanup();
         LOG.info("onBackPressed!");
+
+        //Disable NFC Foreground dispatch
+        super.disableForegroundDispatch();
+
         //moveTaskToBack(true);
         super.onBackPressed();
+
         System.exit(0);
     }
 
