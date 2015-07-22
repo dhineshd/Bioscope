@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
     private static final int STREAMING_FRAMES_PER_SEC = 20;
-    private static final int STREAMING_COMPRESSION_QUALITY = 20; // 1 - 100
+    private static final int STREAMING_COMPRESSION_QUALITY = 50; // 1 - 100
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
@@ -71,8 +71,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 try {
                     destOutputStream.write(byteArray, 0, byteArray.length);
                     previousFrameSendTimeMs = System.currentTimeMillis();
-                    //log.info("Sending image to remote client.. bytes = {}, process latency = {}",
-                    //        byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
+                    // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
+                    // byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
                 } catch (IOException e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
