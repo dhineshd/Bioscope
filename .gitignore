@@ -3,10 +3,13 @@ app/app.iml
 /local.properties
 /.idea/workspace.xml
 /.idea/libraries
-.idea/misc.xml
 /.idea/vcs.xml
 .idea/gradle.xml
 /.idea/misc.xml
 .DS_Store
 /build
 chameleon.iml
+
+**/ffmpeg/**/include
+**/ffmpeg/**/share
+**/ffmpeg/**/lib
