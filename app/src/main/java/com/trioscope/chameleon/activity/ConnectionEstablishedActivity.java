@@ -430,7 +430,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         protected void onPostExecute(Void aVoid) {
             progressBar.setVisibility(View.INVISIBLE);
 
-            Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
             remoteRecordingStartTimeMillis -= remoteClockAheadOfLocalClockMillis;
@@ -457,9 +456,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.info("Local filename = {}", localVideoFile.getName());
             log.info("Remote filename = {}", remoteVideoFile.getName());
 
-            Gson gson = new Gson();
-            intent.putExtra(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
-            intent.putExtra(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+            Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
+            intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+            intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
         }
 

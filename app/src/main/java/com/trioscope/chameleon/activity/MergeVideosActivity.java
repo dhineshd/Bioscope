@@ -40,6 +40,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable, SurfaceHolder.Callback {
     private static final Logger LOG = LoggerFactory.getLogger(MergeVideosActivity.class);
+    public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
+    public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
@@ -69,9 +71,9 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         Intent intent = getIntent();
 
         localRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
         remoteRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
 
         printArchInfo();
         runFfmpeg();
@@ -83,8 +85,8 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         // retained across a configuration change.
         if (taskFragment == null) {
             taskFragment = FfmpegTaskFragment.newInstance(
-                    intent.getStringExtra(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY),
-                    intent.getStringExtra(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY));
+                    intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY),
+                    intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY));
             fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
         } else {
             LOG.info("Task fragment exists - reusing (device rotated)");
@@ -231,8 +233,8 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 final String serializedRemoteRecordingMetadata) {
             FfmpegTaskFragment f = new FfmpegTaskFragment();
             Bundle args = new Bundle();
-            args.putString(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY, serializedLocalRecordingMetadata);
-            args.putString(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY, serializedRemoteRecordingMetadata);
+            args.putString(LOCAL_RECORDING_METADATA_KEY, serializedLocalRecordingMetadata);
+            args.putString(REMOTE_RECORDING_METADATA_KEY, serializedRemoteRecordingMetadata);
             f.setArguments(args);
             return f;
         }
@@ -263,9 +265,9 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
             videoMerger = new FfmpegVideoMerger();
             localRecordingMetadata = gson.fromJson(
-                    args.getString(PreviewMergeActivity.LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                    args.getString(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
             remoteRecordingMetadata = gson.fromJson(
-                    args.getString(PreviewMergeActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                    args.getString(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
             File vid1 = new File(localRecordingMetadata.getAbsoluteFilePath());
             File vid2 = new File(remoteRecordingMetadata.getAbsoluteFilePath());
             File output = new File("/storage/emulated/0/DCIM/Camera/Merged_" + System.currentTimeMillis() + ".mp4");

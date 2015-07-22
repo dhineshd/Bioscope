@@ -17,8 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
-    public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     private final Gson gson = new Gson();
 
     @Override
@@ -28,9 +26,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         Intent intent = getIntent();
         final RecordingMetadata localRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                intent.getStringExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
         final RecordingMetadata remoteRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                intent.getStringExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
 
         final int absDifferenceBetweenLocalAndRemoteStartTimes = (int) Math.abs(localRecordingMetadata.getStartTimeMillis()
                 - remoteRecordingMetadata.getStartTimeMillis());
@@ -89,8 +87,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
-                intent.putExtra(LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
-                intent.putExtra(REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+                intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+                intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
                 startActivity(intent);
             }
         });
