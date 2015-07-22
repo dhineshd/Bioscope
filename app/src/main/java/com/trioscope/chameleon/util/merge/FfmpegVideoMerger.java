@@ -80,10 +80,14 @@ public class FfmpegVideoMerger implements VideoMerger {
         AsyncTask<VideoMergeTaskParams, Double, Boolean> task = new AsyncVideoMergeTask().execute(params);
     }
 
-    private List<String> constructPIPArguments(String majorVidPath, String minorVidPath, String outputPath) {
+    private List<String> constructPIPArguments(String majorVidPath, String minorVidPath, String outputPath, MergeConfiguration configuration) {
         List<String> params = new LinkedList<>();
         params.add("-i");
         params.add(majorVidPath);
+        if (configuration.getVideoStartOffsetMilli() != null) {
+            params.add("-itsoffset");
+            params.add(String.format("%.3f", configuration.getVideoStartOffsetMilli() / 1000.0));
+        }
         params.add("-i");
         params.add(minorVidPath);
         params.add("-filter_complex");
@@ -93,7 +97,6 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-strict");
         params.add("experimental");
         params.add(outputPath);
-
 
         return params;
     }
@@ -124,7 +127,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     outputFile.delete();
                     log.info("Existing file at {} is deleted", outputFile);
                 }
-                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(), minorVideo.getAbsolutePath(), outputFile.getAbsolutePath());
+                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(), minorVideo.getAbsolutePath(), outputFile.getAbsolutePath(), params[0].getConfiguration());
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
                 log.info("Ffmpeg parameters are {}", cmdParams);
                 ProcessBuilder builder = new ProcessBuilder(cmdParams);
