@@ -1,4 +1,4 @@
-package com.trioscope.chameleon;
+package com.trioscope.chameleon.listener;
 
 import android.opengl.GLSurfaceView;
 

@@ -20,9 +20,11 @@ import android.view.Gravity;
 import android.view.WindowManager;
 
 import com.trioscope.chameleon.activity.MainActivity;
+import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
+import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;

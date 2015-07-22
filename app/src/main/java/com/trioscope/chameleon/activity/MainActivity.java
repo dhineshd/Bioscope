@@ -14,7 +14,7 @@ import android.widget.RelativeLayout;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.RenderRequestFrameListener;
+import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
