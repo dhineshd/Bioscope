@@ -16,6 +16,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 
@@ -69,6 +70,16 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         }
 
         LOG.info("Activity is created");
+
+        final Button continueSessionButton = (Button) findViewById(R.id.button_continue_session);
+
+        continueSessionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(getApplicationContext(), ConnectionEstablishedActivity.class);
+                startActivity(i);
+            }
+        });
 
         Intent intent = getIntent();
 

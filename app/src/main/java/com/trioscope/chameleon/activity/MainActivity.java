@@ -46,8 +46,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         LOG.info("Created main activity");
 
-        chameleonApplication.startConnectionServerIfNotRunning();
-
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
@@ -114,13 +112,16 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         if (previewDisplay != null) {
             previewDisplay.onPause();
         }
+
+        super.onPause();
+
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
-            ((ChameleonApplication) getApplication()).cleanup();
+            chameleonApplication.cleanup();
+            System.exit(0);
         }
 
-        super.onPause();
     }
 
     @Override
@@ -148,20 +149,20 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.onStop();
     }
 
-    @Override
-    public void onBackPressed() {
-        // Not putting this in onDestroy since it does not seem to be called every time
-        ((ChameleonApplication) getApplication()).cleanup();
-        LOG.info("onBackPressed!");
-
-        //Disable NFC Foreground dispatch
-        super.disableForegroundDispatch();
-
-        //moveTaskToBack(true);
-        super.onBackPressed();
-
-        System.exit(0);
-    }
+//    @Override
+//    public void onBackPressed() {
+//        // Not putting this in onDestroy since it does not seem to be called every time
+//        ((ChameleonApplication) getApplication()).cleanup();
+//        LOG.info("onBackPressed!");
+//
+//        //Disable NFC Foreground dispatch
+//        super.disableForegroundDispatch();
+//
+//        //moveTaskToBack(true);
+//        super.onBackPressed();
+//
+//        System.exit(0);
+//    }
 
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());

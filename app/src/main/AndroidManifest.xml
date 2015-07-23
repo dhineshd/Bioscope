@@ -45,16 +45,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".activity.GLSurfaceViewRotation"
-            android:label="RotationActivity"
-            android:noHistory="true" />
-        <activity
-            android:name=".activity.MergeVideosActivity"
-            android:label="FfmpegActivity"
-            android:noHistory="true"
-            android:screenOrientation="portrait"
-            android:theme="@style/FullscreenTheme" />
 
         <service android:name=".service.BackgroundRecorderService" />
 
@@ -81,13 +71,8 @@
         <activity
             android:name=".activity.ConnectionEstablishedActivity"
             android:label="ConnectionEstablishedActivity"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".activity.PreviewMergeActivity"
-            android:label="@string/title_activity_preview_merge"
-            android:noHistory="true"
-            android:screenOrientation="portrait"></activity>
+            android:screenOrientation="portrait"
+            android:noHistory="true"/>
 
         <activity
             android:name=".activity.PreferencesActivity"

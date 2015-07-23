@@ -346,7 +346,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                 // Request recorded file from peer
                 PeerMessage peerMsg = PeerMessage.builder()
-                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST)
+                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO)
                         .build();
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -501,7 +501,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             PrintWriter pw  = new PrintWriter(socket.getOutputStream());
             HandshakeMessage handshakeMessage = HandshakeMessage.builder().info("blah").build();
             PeerMessage peerMsg = PeerMessage.builder()
-                    .type(PeerMessage.Type.CONNECTION_HANDSHAKE)
+                    .type(PeerMessage.Type.START_SESSION)
                     .contents("abc")
                     .build();
             log.info("Sending msg = {}", gson.toJson(peerMsg));
