@@ -14,3 +14,4 @@ chameleon.iml
 **/ffmpeg/**/share
 **/ffmpeg/**/lib
 .idea/inspectionProfiles/
+.idea/
