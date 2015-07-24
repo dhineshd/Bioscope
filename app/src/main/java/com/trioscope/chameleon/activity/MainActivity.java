@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,9 +15,9 @@ import android.widget.RelativeLayout;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
+import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.SessionStatus;
 
@@ -69,10 +70,20 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        final Button editSettingsButton = (Button) findViewById(R.id.app_settings_button);
+
+        editSettingsButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Clicked on preferences button for {}", PreferencesActivity.class);
+                Intent i = new Intent(MainActivity.this, PreferencesActivity.class);
+                startActivity(i);
+            }
+        });
+
         // Tell the application we're ready to show preview whenever
         chameleonApplication.setEglContextCallback(this);
     }
-
 
 
     @Override
@@ -104,7 +115,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             previewDisplay.onPause();
         }
         // If we are not connected, we can release network resources
-        if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())){
+        if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
             ((ChameleonApplication) getApplication()).cleanup();
         }
@@ -116,12 +127,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     protected void onResume() {
         super.onResume();
 
+        LOG.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
+
         if (previewDisplay != null) {
             previewDisplay.onResume();
         }
         chameleonApplication.startConnectionServerIfNotRunning();
 
-        if(!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
+        if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
 
             DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(
                     mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
