@@ -76,8 +76,9 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         continueSessionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(getApplicationContext(), ConnectionEstablishedActivity.class);
-                startActivity(i);
+                Intent intent = new Intent(getApplicationContext(), ConnectionEstablishedActivity.class);
+                intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, getIntent().getStringExtra(ConnectionEstablishedActivity.PEER_INFO));
+                startActivity(intent);
             }
         });
 

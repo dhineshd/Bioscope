@@ -32,7 +32,7 @@ public class IncomingPhoneCallBroadcastReceiver extends BroadcastReceiver {
         } else if(TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
             log.info("call answered");
             // TODO : Do this more gracefully
-            // chameleonApplication.cleanup();
+            // chameleonApplication.cleanupAndExit();
         }
 
         Toast.makeText(context, msg, Toast.LENGTH_LONG).show();

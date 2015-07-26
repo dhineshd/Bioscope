@@ -356,7 +356,7 @@ public class ChameleonApplication extends Application {
 
     }
 
-    public void cleanup(){
+    public void cleanupAndExit(){
         LOG.info("Tearing down application resources..");
 
         //  Tear down server
@@ -377,6 +377,19 @@ public class ChameleonApplication extends Application {
 
         // Tear down phone call receiver
         unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
+
+        // Stop recording
+        if (videoRecorder != null) {
+            videoRecorder.stopRecording();
+        }
+
+        // Release camera
+        if (camera != null){
+            camera.release();
+            camera = null;
+        }
+
+        System.exit(0);
     }
 
     public void tearDownWifiHotspot() {

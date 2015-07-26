@@ -51,6 +51,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+                LOG.info("Start sesion button pressed");
                 chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
@@ -118,8 +119,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
-            chameleonApplication.cleanup();
-            System.exit(0);
+            chameleonApplication.cleanupAndExit();
         }
 
     }
@@ -149,20 +149,18 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.onStop();
     }
 
-//    @Override
-//    public void onBackPressed() {
-//        // Not putting this in onDestroy since it does not seem to be called every time
-//        ((ChameleonApplication) getApplication()).cleanup();
-//        LOG.info("onBackPressed!");
-//
-//        //Disable NFC Foreground dispatch
-//        super.disableForegroundDispatch();
-//
-//        //moveTaskToBack(true);
-//        super.onBackPressed();
-//
-//        System.exit(0);
-//    }
+
+    @Override
+    public void onBackPressed() {
+        LOG.info("User pressed back");
+
+        //Disable NFC Foreground dispatch
+        super.disableForegroundDispatch();
+
+        super.onBackPressed();
+
+        ((ChameleonApplication) getApplication()).cleanupAndExit();
+    }
 
     private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
         LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());

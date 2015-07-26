@@ -228,6 +228,8 @@ public class ReceiveConnectionInfoFragment extends Fragment {
             // Enable only our network and disable others
             //wifiManager.disconnect();
             wifiManager.enableNetwork(netId, true);
+        } else {
+            log.info("Already connected to SSID = {}", networkSSID);
         }
     }
 

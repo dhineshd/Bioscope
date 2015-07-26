@@ -65,7 +65,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String PEER_INFO = "PEER_INFO";
-    private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 20000; // 20 secs
+    private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask connectToServerTask;
     private Gson gson = new Gson();
@@ -467,11 +467,25 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     class StreamFromPeerTask extends AsyncTask<Void, Void, Void>{
         private Thread mThread;
 
-        public StreamFromPeerTask(final InetAddress hostIp, final int port){
+        public StreamFromPeerTask(final InetAddress hostIp, final int port) {
+            final Context context = getApplicationContext();
             mThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    receiveStreamFromPeer(hostIp, port);
+                    int attemptsLeft = 3;
+                    while (attemptsLeft-- > 0){
+                        try{
+                            receiveStreamFromPeer(hostIp, port);
+                        } catch (Exception e){
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(getApplicationContext(), "Failed to stream from peer", Toast.LENGTH_LONG);
+                                }
+                            });
+                            log.warn("Failed to stream from peer attemptsLeft = " + attemptsLeft, e);
+                        }
+                    }
                 }
             });
         }
@@ -488,47 +502,45 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
     }
 
-    private void receiveStreamFromPeer(final InetAddress remoteHostIp, final int port){
+    private void receiveStreamFromPeer(final InetAddress remoteHostIp, final int port) throws IOException{
         log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
-        try {
-            waitUntilIPBecomesReachable(remoteHostIp);
-            
-            SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(remoteHostIp, port);
-            socket.setEnabledProtocols(new String[]{"TLSv1.2"});
 
-            final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
+        waitUntilIPBecomesReachable(remoteHostIp);
 
-            PrintWriter pw  = new PrintWriter(socket.getOutputStream());
-            HandshakeMessage handshakeMessage = HandshakeMessage.builder().info("blah").build();
-            PeerMessage peerMsg = PeerMessage.builder()
-                    .type(PeerMessage.Type.START_SESSION)
-                    .contents("abc")
-                    .build();
-            log.info("Sending msg = {}", gson.toJson(peerMsg));
-            pw.println(gson.toJson(peerMsg));
-            pw.close();
-            final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE];
-            InputStream inputStream = socket.getInputStream();
-            while (!Thread.currentThread().isInterrupted()){
-                // TODO More robust
-                final int bytesRead = inputStream.read(buffer);
-                if (bytesRead != -1){
-                    //log.info("Received preview image from remote server bytes = " + bytesRead);
-                    final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
-                            BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (imageView != null && bmpRef.get() != null) {
-                                imageView.setImageBitmap(bmpRef.get());
-                            }
+        SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(remoteHostIp, port);
+        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+
+        final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
+
+        PrintWriter pw  = new PrintWriter(socket.getOutputStream());
+        HandshakeMessage handshakeMessage = HandshakeMessage.builder().info("blah").build();
+        PeerMessage peerMsg = PeerMessage.builder()
+                .type(PeerMessage.Type.START_SESSION)
+                .contents("abc")
+                .build();
+        log.info("Sending msg = {}", gson.toJson(peerMsg));
+        pw.println(gson.toJson(peerMsg));
+        pw.close();
+        final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE];
+        InputStream inputStream = socket.getInputStream();
+        while (!Thread.currentThread().isInterrupted()){
+            // TODO More robust
+            final int bytesRead = inputStream.read(buffer);
+            if (bytesRead != -1){
+                //log.info("Received preview image from remote server bytes = " + bytesRead);
+                final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                        BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (imageView != null && bmpRef.get() != null) {
+                            imageView.setImageBitmap(bmpRef.get());
                         }
-                    });
-                }
+                    }
+                });
             }
-        } catch (IOException e) {
-            log.warn("Connection to remote server closed", e);
         }
+
     }
     
     private void waitUntilIPBecomesReachable(final InetAddress ipAddress) throws IOException {
