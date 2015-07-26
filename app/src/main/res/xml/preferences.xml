@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/stream_preferences">
+        <ListPreference
+            android:defaultValue="720p"
+            android:entries="@array/stream_resolution_values"
+            android:entryValues="@array/stream_resolution_names"
+            android:key="@string/pref_stream_resolution"
+            android:summary="@string/pref_stream_resolution_summary"
+            android:title="@string/pref_stream_resolution_title" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
