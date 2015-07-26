@@ -78,6 +78,12 @@
             android:name=".activity.PreferencesActivity"
             android:label="PreferencesActivity" />
 
+        <activity
+            android:name=".activity.MergeVideosActivity"
+            android:label="MergeVideosActivity"
+            android:screenOrientation="portrait"
+            android:noHistory="true"/>
+
         <meta-data
             android:name="android.nfc.disable_beam_default"
             android:value="true" />

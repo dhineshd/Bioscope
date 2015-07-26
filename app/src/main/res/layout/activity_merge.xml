@@ -27,13 +27,6 @@
         android:layout_height="20dp"
         android:layout_margin="10dp" />
 
-    <Button
-        android:id="@+id/button_continue_session"
-        android:text="Take another video"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center" />
-
     <ImageButton
         android:id="@+id/share_button"
         android:layout_width="40dp"
