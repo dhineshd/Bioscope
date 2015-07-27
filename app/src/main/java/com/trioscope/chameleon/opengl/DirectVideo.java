@@ -140,7 +140,6 @@ public class DirectVideo {
         GLES20.glViewport(0, 0, fboSize.getWidth(), fboSize.getHeight());
         drawColor();
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-
     }
 
     private void drawColor() {
