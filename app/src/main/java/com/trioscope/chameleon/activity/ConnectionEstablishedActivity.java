@@ -112,6 +112,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             log.info("isRecording is {}", isRecording);
                             Toast.makeText(getApplicationContext(), "Video recording started..", Toast.LENGTH_LONG).show();
                         }
+                        // Also, start recording using MediaCodec method
+                        chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     }
                 } else if(ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
                     log.info("Stop recording event received!!");
@@ -120,6 +122,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         isRecording = false;
                         Toast.makeText(getApplicationContext(), "Video recording stopped..", Toast.LENGTH_LONG).show();
                     }
+                    // Stop recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStopRecording();
+
                 }
             }
         };
@@ -326,6 +331,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPreExecute() {
             progressBar.setVisibility(View.VISIBLE);
+            log.info("Progress bar set to be visible = {}", progressBar.getVisibility());
             progressBar.setProgress(0);
             super.onPreExecute();
         }
@@ -422,6 +428,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onProgressUpdate(Integer... values) {
+            log.info("Updating progress bar.. {}", values[0]);
             progressBar.setProgress(values[0]);
             super.onProgressUpdate(values);
         }
