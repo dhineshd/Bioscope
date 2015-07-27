@@ -126,7 +126,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         // Display camera preview
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_session_preview);
-        layout.addView(chameleonApplication.generatePreviewDisplay());
+        layout.addView(chameleonApplication.createPreviewDisplay());
 
         // Retrieve peer info to start streaming
         Intent intent = getIntent();

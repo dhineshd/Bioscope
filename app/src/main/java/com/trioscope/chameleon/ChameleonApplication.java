@@ -17,7 +17,6 @@ import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.FBOPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.metrics.MetricsHelper;
@@ -85,9 +84,6 @@ public class ChameleonApplication extends Application {
     private CameraInfo cameraInfo;
 
     @Getter
-    private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
-
-    @Getter
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
@@ -98,7 +94,6 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private PreviewDisplayer previewDisplayer;
-
 
     @Getter
     private WifiP2pManager wifiP2pManager;
@@ -207,7 +202,6 @@ public class ChameleonApplication extends Application {
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
 
             previewDisplayer = new FBOPreviewDisplayer(this, camera, cameraInfo, rotationState);
-            ((FBOPreviewDisplayer) previewDisplayer).setCameraPreviewFrameListener(cameraPreviewFrameListener);
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
 
             previewDisplayer.addPreparedCallback(new Runnable() {
@@ -243,7 +237,7 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public SurfaceTextureDisplay generatePreviewDisplay() {
+    public SurfaceTextureDisplay createPreviewDisplay() {
         if (previewDisplayer instanceof FBOPreviewDisplayer) {
             return ((FBOPreviewDisplayer) previewDisplayer).generatePreviewDisplay();
         } else {

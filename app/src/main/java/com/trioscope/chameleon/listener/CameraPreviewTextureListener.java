@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.listener;
 
 import android.graphics.SurfaceTexture;
-import android.opengl.GLSurfaceView;
 
 import com.trioscope.chameleon.service.FrameListener;
 
@@ -17,24 +16,16 @@ import java.util.List;
 public class CameraPreviewTextureListener implements SurfaceTexture.OnFrameAvailableListener {
     private static final Logger LOG = LoggerFactory.getLogger(CameraPreviewTextureListener.class);
 
-    private List<GLSurfaceView> displaySurfaces = new ArrayList<>();
     private List<FrameListener> frameListeners = new ArrayList<>();
 
     @Override
     public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-        LOG.debug("Camera frame is available, alerting {} surfaces and {} listeners, thread {}", displaySurfaces.size(), frameListeners.size(), Thread.currentThread());
-
-        for (GLSurfaceView surface : displaySurfaces) {
-            surface.requestRender();
-        }
+        LOG.debug("Camera frame is available, alerting {} listeners, thread {}", frameListeners.size(), Thread.currentThread());
 
         for (FrameListener listener : frameListeners)
             listener.frameAvailable();
     }
 
-    public void addDisplaySurface(GLSurfaceView surface) {
-        displaySurfaces.add(surface);
-    }
 
     public void addFrameListener(FrameListener listener) {
         frameListeners.add(listener);

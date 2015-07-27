@@ -14,7 +14,6 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import org.slf4j.Logger;
@@ -168,8 +167,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
-        previewDisplay = chameleonApplication.generatePreviewDisplay();
+        previewDisplay = chameleonApplication.createPreviewDisplay();
         layout.addView(previewDisplay);
-        chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
     }
 }

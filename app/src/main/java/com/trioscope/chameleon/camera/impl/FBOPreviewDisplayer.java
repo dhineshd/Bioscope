@@ -29,7 +29,6 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
 import javax.microedition.khronos.egl.EGLDisplay;
 
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -49,12 +48,10 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
     private WindowManager windowManager;
     private SystemOverlayGLSurface surfaceView;
     private EGLContextAvailableHandler eglContextAvailHandler = new EGLContextAvailableHandler();
+    private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
 
     private final Object eglCallbackLock = new Object();
     private List<Runnable> preparedCallbacks = new ArrayList<>();
-
-    @Setter
-    private CameraPreviewTextureListener cameraPreviewFrameListener;
 
     public FBOPreviewDisplayer(Context context, Camera camera, CameraInfo cameraInfo, RotationState rotationState) {
         this.context = context;
@@ -160,6 +157,8 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
         previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
         //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
         previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(rotationState));
+        cameraPreviewFrameListener.addFrameListener(new RenderRequestFrameListener(previewDisplay));
+
         return previewDisplay;
     }
 }
