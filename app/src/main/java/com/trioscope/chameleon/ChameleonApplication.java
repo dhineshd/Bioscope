@@ -11,6 +11,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.telephony.TelephonyManager;
+import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
@@ -204,7 +205,7 @@ public class ChameleonApplication extends Application {
             previewDisplayer = new FBOPreviewDisplayer(this, camera, cameraInfo, rotationState);
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
 
-            previewDisplayer.addPreparedCallback(new Runnable() {
+            previewDisplayer.addOnPreparedCallback(new Runnable() {
                 @Override
                 public void run() {
                     previewDisplayer.startPreview();
@@ -237,13 +238,11 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public SurfaceTextureDisplay createPreviewDisplay() {
-        if (previewDisplayer instanceof FBOPreviewDisplayer) {
-            return ((FBOPreviewDisplayer) previewDisplayer).generatePreviewDisplay();
-        } else {
-            LOG.warn("No way to generate a preview display");
-            return null;
-        }
+    /*
+        Convenience method for creationg a preview display through the PreviewDisplayer
+     */
+    public SurfaceView createPreviewDisplay() {
+        return previewDisplayer.createPreviewDisplay();
     }
 
     public void cleanup() {

@@ -6,13 +6,13 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.types.SessionStatus;
 
@@ -23,7 +23,7 @@ import static android.view.View.OnClickListener;
 
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
-    private SurfaceTextureDisplay previewDisplay;
+    private SurfaceView previewDisplay;
     private ChameleonApplication chameleonApplication;
 
     @Override
@@ -75,7 +75,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         });
 
         // Tell the application we're ready to show preview whenever
-        chameleonApplication.getPreviewDisplayer().addPreparedCallback(new Runnable() {
+        chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
             @Override
             public void run() {
                 LOG.info("Preview displayer is ready to display a preview - adding one to the main activity");
@@ -110,9 +110,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onPause() {
         LOG.info("onPause: Activity is no longer in foreground");
-        if (previewDisplay != null) {
-            previewDisplay.onPause();
-        }
+        
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
@@ -128,9 +126,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         LOG.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
 
-        if (previewDisplay != null) {
-            previewDisplay.onResume();
-        }
         chameleonApplication.startConnectionServerIfNotRunning();
 
         if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {

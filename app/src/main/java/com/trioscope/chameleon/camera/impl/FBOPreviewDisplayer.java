@@ -98,7 +98,7 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
     }
 
     @Override
-    public void addPreparedCallback(Runnable runnable) {
+    public void addOnPreparedCallback(Runnable runnable) {
         synchronized (eglCallbackLock) {
             if (globalEglContextInfo == null) {
                 preparedCallbacks.add(runnable);
@@ -128,7 +128,8 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
         }
     }
 
-    public SurfaceTextureDisplay generatePreviewDisplay() {
+    @Override
+    public SurfaceTextureDisplay createPreviewDisplay() {
         final EGLContextAvailableMessage contextMessage = globalEglContextInfo;
         SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(context);
         previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {

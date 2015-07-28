@@ -1,5 +1,7 @@
 package com.trioscope.chameleon.camera;
 
+import android.view.SurfaceView;
+
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 
 /**
@@ -10,5 +12,7 @@ public interface PreviewDisplayer {
 
     void setCameraFrameBuffer(CameraFrameBuffer cfb);
 
-    void addPreparedCallback(Runnable runnable);
+    void addOnPreparedCallback(Runnable runnable);
+
+    SurfaceView createPreviewDisplay();
 }
