@@ -33,7 +33,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         chameleonApplication = (ChameleonApplication) getApplication();
 
         chameleonApplication.updateOrientation();
-        chameleonApplication.startPreview();
 
         setContentView(R.layout.activity_main);
 
@@ -74,14 +73,19 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        chameleonApplication.preparePreview();
+        LOG.info("Getting preview displayer and attaching prepared callback {}", chameleonApplication.getPreviewDisplayer());
         // Tell the application we're ready to show preview whenever
         chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
             @Override
             public void run() {
                 LOG.info("Preview displayer is ready to display a preview - adding one to the main activity");
-                createSurfaceTextureWithSharedEglContext();
+                addCameraPreviewSurface();
+                chameleonApplication.startPreview();
             }
         });
+
+        LOG.info("Added prepared callback");
     }
 
 
@@ -110,7 +114,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onPause() {
         LOG.info("onPause: Activity is no longer in foreground");
-        
+
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
@@ -157,12 +161,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         System.exit(0);
     }
 
-    private void createSurfaceTextureWithSharedEglContext() {
-        LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
+    private void addCameraPreviewSurface() {
+        LOG.info("Creating surfaceView on thread {}", Thread.currentThread());
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
         previewDisplay = chameleonApplication.createPreviewDisplay();
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
         layout.addView(previewDisplay);
     }
 }

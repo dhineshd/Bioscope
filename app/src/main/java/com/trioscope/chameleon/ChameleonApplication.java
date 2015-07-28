@@ -16,7 +16,7 @@ import android.view.SurfaceView;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
-import com.trioscope.chameleon.camera.impl.FBOPreviewDisplayer;
+import com.trioscope.chameleon.camera.impl.CallbackPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
@@ -193,7 +193,7 @@ public class ChameleonApplication extends Application {
         return sslServerSocketFactory;
     }
 
-    public void startPreview() {
+    public void preparePreview() {
         if (!previewStarted) {
             LOG.info("Grabbing camera and starting preview");
             camera = Camera.open();
@@ -202,9 +202,15 @@ public class ChameleonApplication extends Application {
 
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
 
-            previewDisplayer = new FBOPreviewDisplayer(this, camera, cameraInfo, rotationState);
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
+            previewDisplayer = new CallbackPreviewDisplayer(this, camera);
+        } else {
+            LOG.info("Preview already started");
+        }
+    }
 
+    public void startPreview() {
+        if (!previewStarted) {
             previewDisplayer.addOnPreparedCallback(new Runnable() {
                 @Override
                 public void run() {

@@ -24,6 +24,7 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
     private CameraFrameBuffer cameraFrameBuffer;
     private Camera camera;
     private SurfaceHolder displaySurfaceHolder;
+    private boolean shouldCallStartWhenAvailable = false;
 
     public CallbackPreviewDisplayer(Context context, Camera c) {
         this.context = context;
@@ -39,20 +40,35 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
 
     @Override
     public void startPreview() {
-        log.info("Starting preview");
+        log.info("Starting preview with camera {} and displaySurfaceHolder {}", camera, displaySurfaceHolder);
         try {
-            camera.setPreviewDisplay(displaySurfaceHolder);
-            camera.startPreview();
-        } catch (IOException e) {
-            e.printStackTrace();
+            synchronized (this) {
+                if (displaySurfaceHolder != null) {
+                    camera.setPreviewDisplay(displaySurfaceHolder);
+                    camera.setDisplayOrientation(90);
+                    camera.startPreview();
+                } else {
+                    log.warn("Display surface holder not yet available, going to start preview later");
+                    shouldCallStartWhenAvailable = true;
+                }
+            }
+        } catch (IOException e1) {
+            e1.printStackTrace();
         }
+        log.info("Starting preview");
+        camera.startPreview();
     }
 
     @Override
     public void addOnPreparedCallback(Runnable runnable) {
         log.info("Running prepared callback");
         // No preparation needed - run it immediately
-        runnable.run();
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            log.error("Error received while calling callback", e);
+            throw e;
+        }
     }
 
     @Override
@@ -63,7 +79,14 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
-                displaySurfaceHolder = holder;
+                log.info("Surface has been created in thread {}", Thread.currentThread());
+                synchronized (CallbackPreviewDisplayer.this) {
+                    displaySurfaceHolder = holder;
+                    if (shouldCallStartWhenAvailable) {
+                        log.info("Requested to start the preview before the surfaceview was available, starting preview now");
+                        startPreview();
+                    }
+                }
             }
 
             @Override
@@ -76,6 +99,7 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
 
             }
         });
-        return null;
+
+        return surfaceView;
     }
 }
