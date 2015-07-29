@@ -1,12 +1,14 @@
 package com.trioscope.chameleon.camera.impl;
 
 import android.content.Context;
+import android.graphics.ImageFormat;
 import android.hardware.Camera;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.types.CameraInfo;
 
 import java.io.IOException;
 
@@ -17,25 +19,21 @@ import lombok.extern.slf4j.Slf4j;
  * Created by phand on 7/27/15.
  */
 @Slf4j
-public class CallbackPreviewDisplayer implements PreviewDisplayer {
+public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.PreviewCallback {
     private final Context context;
 
     @Setter
     private CameraFrameBuffer cameraFrameBuffer;
     private Camera camera;
+    private CameraInfo cameraInfo;
     private SurfaceHolder displaySurfaceHolder;
     private boolean shouldCallStartWhenAvailable = false;
+    private int[] dataBufferAsInt;
 
-    public CallbackPreviewDisplayer(Context context, Camera c) {
+    public SurfaceViewPreviewDisplayer(Context context, Camera c, CameraInfo cameraInfo) {
         this.context = context;
         this.camera = c;
-    }
-
-
-    public CallbackPreviewDisplayer(Context context, Camera c, SurfaceHolder displaySurfaceHolder) {
-        this.context = context;
-        this.camera = c;
-        this.displaySurfaceHolder = displaySurfaceHolder;
+        this.cameraInfo = cameraInfo;
     }
 
     @Override
@@ -45,6 +43,10 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
             synchronized (this) {
                 if (displaySurfaceHolder != null) {
                     camera.setPreviewDisplay(displaySurfaceHolder);
+                    camera.setPreviewCallbackWithBuffer(this);
+                    int bufferSize = getBufferSize(camera);
+                    byte[] buffer = new byte[bufferSize];
+                    camera.addCallbackBuffer(buffer);
                     camera.setDisplayOrientation(90);
                     camera.startPreview();
                 } else {
@@ -57,6 +59,15 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
         }
         log.info("Starting preview");
         camera.startPreview();
+    }
+
+    private int getBufferSize(Camera camera) {
+        int bufferSize = camera.getParameters().getPreviewSize().height * camera.getParameters().getPreviewSize().width;
+        double bitsPerPixel = ImageFormat.getBitsPerPixel(camera.getParameters().getPreviewFormat());
+        bufferSize *= bitsPerPixel / 8;
+
+        log.info("Buffersize determined to be {} ({} bits per pixel)", bufferSize, bitsPerPixel);
+        return bufferSize;
     }
 
     @Override
@@ -80,7 +91,7 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 log.info("Surface has been created in thread {}", Thread.currentThread());
-                synchronized (CallbackPreviewDisplayer.this) {
+                synchronized (SurfaceViewPreviewDisplayer.this) {
                     displaySurfaceHolder = holder;
                     if (shouldCallStartWhenAvailable) {
                         log.info("Requested to start the preview before the surfaceview was available, starting preview now");
@@ -101,5 +112,18 @@ public class CallbackPreviewDisplayer implements PreviewDisplayer {
         });
 
         return surfaceView;
+    }
+
+    @Override
+    public void onPreviewFrame(byte[] data, Camera camera) {
+        if (dataBufferAsInt == null) {
+            log.info("Initializing data as int array");
+            dataBufferAsInt = new int[getBufferSize(camera)];
+        }
+        for (int i = 0; i < data.length; i++)
+            dataBufferAsInt[i] = data[i];
+
+        cameraFrameBuffer.frameAvailable(cameraInfo, dataBufferAsInt);
+        camera.addCallbackBuffer(data);
     }
 }

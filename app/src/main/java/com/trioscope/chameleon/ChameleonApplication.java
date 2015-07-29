@@ -16,7 +16,7 @@ import android.view.SurfaceView;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
-import com.trioscope.chameleon.camera.impl.CallbackPreviewDisplayer;
+import com.trioscope.chameleon.camera.impl.SurfaceViewPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
@@ -137,11 +137,10 @@ public class ChameleonApplication extends Application {
             enableWifiAndPerformActionWhenEnabled(null);
         }
 
-        // Add FPS listener to CameraBuffer
-        cameraFrameBuffer.addListener(new UpdateRateListener());
-
         streamListener = new VideoStreamFrameListener(this);
         cameraFrameBuffer.addListener(streamListener);
+        // Add FPS listener to CameraBuffer
+        cameraFrameBuffer.addListener(new UpdateRateListener());
 
         //Code for phone
         IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
@@ -203,7 +202,8 @@ public class ChameleonApplication extends Application {
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
 
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
-            previewDisplayer = new CallbackPreviewDisplayer(this, camera);
+            previewDisplayer = new SurfaceViewPreviewDisplayer(this, camera, cameraInfo);
+            previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
         } else {
             LOG.info("Preview already started");
         }

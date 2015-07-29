@@ -12,9 +12,11 @@ public class CameraFrameBuffer {
     private List<CameraFrameAvailableListener> listeners = new ArrayList<>();
 
     public void frameAvailable(CameraInfo cameraInfo, int[] frameData) {
-        for(CameraFrameAvailableListener listener : listeners)
+        for (CameraFrameAvailableListener listener : listeners)
             listener.onFrameAvailable(cameraInfo, frameData);
     }
+
+
 
     public void addListener(CameraFrameAvailableListener listener) {
         listeners.add(listener);
