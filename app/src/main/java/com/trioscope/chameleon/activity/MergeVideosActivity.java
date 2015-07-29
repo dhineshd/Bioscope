@@ -134,12 +134,15 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
     @Override
     public void onProgress(double progress, double outOf) {
-        int progressPerc = (int) Math.ceil(100.0 * progress / outOf);
+        int progressPerc = getPercent(progress, outOf);
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setProgress(progressPerc);
 
-        log.info("Now {}% done", String.format("%.2f", progress / outOf * 100.0));
+        log.info("Now {}% done", String.format("%.2f", progressPerc));
+    }
 
+    private static int getPercent(double progress, double outOf) {
+        return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
     }
 
     @Override
@@ -225,7 +228,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 });
                 outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis);
 
-            } else  if (localVideoStartedBeforeRemoteVideoOffsetMillis < 0) {
+            } else if (localVideoStartedBeforeRemoteVideoOffsetMillis < 0) {
 
                 // Advance playback for remote video if it started before the local video
                 innerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
@@ -341,7 +344,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             if (currentContext != null)
                 ((ProgressUpdatable) currentContext).onProgress(progress, outOf);
 
-            int progressPerc = (int) Math.ceil(100.0 * progress / outOf);
+            int progressPerc = getPercent(progress, outOf);
             int remaining = 100 - progressPerc;
             long elapsed = System.currentTimeMillis() - startTime;
             Double timeRemainingMilli;
