@@ -35,6 +35,8 @@ public class SendConnectionInfoNFCActivity
 
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
+
+        log.info("Created");
     }
 
     @Override

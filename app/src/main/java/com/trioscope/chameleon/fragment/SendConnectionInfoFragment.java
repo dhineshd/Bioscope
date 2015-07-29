@@ -53,6 +53,7 @@ public class SendConnectionInfoFragment extends Fragment {
         log.info("onViewCreated : SendConnectionInfoFragment");
 
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_sender_connection_status);
+
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
         new SetupWifiHotspotTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }

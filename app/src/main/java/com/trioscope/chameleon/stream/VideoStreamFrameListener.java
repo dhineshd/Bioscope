@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
     private static final int STREAMING_FRAMES_PER_SEC = 20;
-    private static final int STREAMING_COMPRESSION_QUALITY = 50; // 1 - 100
+    private static final int STREAMING_COMPRESSION_QUALITY = 50; // 0 worst - 100 best
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
@@ -48,9 +48,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private volatile boolean isStreamingStarted;
     private volatile OutputStream destOutputStream;
 
-    private ByteArrayOutputStream stream =
+    private final ByteArrayOutputStream stream =
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
-    private Gson gson = new Gson();
+    private final Gson gson = new Gson();
 
     private long previousFrameSendTimeMs = 0;
 
@@ -109,14 +109,26 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
         log.info("onClientRequest invoked for client = {}, isStreamingStarted = {}",
                 clientSocket.getInetAddress().getHostAddress(), isStreamingStarted);
-        if (PeerMessage.Type.CONNECTION_HANDSHAKE.equals(messageFromClient.getType())){
-            startStreaming(clientSocket);
-        } else if (PeerMessage.Type.START_RECORDING.equals(messageFromClient.getType())){
-            startRecording(clientSocket);
-        } else if (PeerMessage.Type.STOP_RECORDING.equals(messageFromClient.getType())){
-            stopRecording();
-        } else if (PeerMessage.Type.SEND_RECORDED_VIDEO_REQUEST.equals(messageFromClient.getType())){
-            requestRecordedVideo(clientSocket);
+
+        switch(messageFromClient.getType()) {
+            case START_SESSION:
+                startStreaming(clientSocket);
+                break;
+            case SESSION_HEARTBEAT:
+                updateConnectionHealth();
+                break;
+            case START_RECORDING:
+                startRecording(clientSocket);
+                break;
+            case STOP_RECORDING:
+                stopRecording();
+                break;
+            case SEND_RECORDED_VIDEO:
+                sendRecordedVideo(clientSocket);
+                break;
+            default:
+                log.info("Unknown message received from client. Type = {}",
+                        messageFromClient.getType());
         }
     }
 
@@ -141,6 +153,12 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             context.startActivity(intent);
             isStreamingStarted = true;
         }
+    }
+
+    private void updateConnectionHealth() {
+        //TODO : Need to update last seen time and declare connection as
+        // dead when no heartbeat received for a while. When that happens,
+        // show dialog and take user back to main activity
     }
 
     private void startRecording(final Socket clientSocket) {
@@ -168,7 +186,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
     }
 
-    private void requestRecordedVideo(final Socket clientSocket) {
+    private void sendRecordedVideo(final Socket clientSocket) {
         log.info("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();

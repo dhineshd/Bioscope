@@ -116,7 +116,9 @@ public class ChameleonApplication extends Application {
     @Getter
     private static MetricsHelper metrics;
 
+    // Receivers
     private BroadcastReceiver enableWifiBroadcastReceiver;
+    private IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver;
 
     private Boolean isWifiEnabledInitially;
 
@@ -149,6 +151,7 @@ public class ChameleonApplication extends Application {
         IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
         registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
         LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
+        startup();
     }
 
 
@@ -251,7 +254,25 @@ public class ChameleonApplication extends Application {
         return previewDisplayer.createPreviewDisplay();
     }
 
-    public void cleanup() {
+    public void startup() {
+        LOG.info("Starting up application resources..");
+
+        startConnectionServerIfNotRunning();
+
+        //Code for phone
+        IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
+        phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+        incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
+        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
+        LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
+
+        // Reset session flags
+        sessionStatus = SessionStatus.DISCONNECTED;
+        streamListener.setStreamingStarted(false);
+
+    }
+
+    public void cleanupAndExit() {
         LOG.info("Tearing down application resources..");
 
         //  Tear down server
@@ -267,8 +288,24 @@ public class ChameleonApplication extends Application {
         // Tear down Wifi hotspot
         tearDownWifiHotspot();
 
-        // Tear down wifi if necessary
+        // Tear down wifi if it was disabled before app was started
         tearDownWifiIfNecessary();
+
+        // Tear down phone call receiver
+        unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
+
+        // Stop recording
+        if (videoRecorder != null) {
+            videoRecorder.stopRecording();
+        }
+
+        // Release camera
+        if (camera != null) {
+            camera.release();
+            camera = null;
+        }
+
+        System.exit(0);
     }
 
     public void tearDownWifiHotspot() {
@@ -419,9 +456,9 @@ public class ChameleonApplication extends Application {
     }
 
     /**
-     * Enable wifi and optionally perform some action on wifi enabled (asynchronous).
+     * Enable wifi and optionally perform some action when wifi enabled asynchronously.
      *
-     * @param runnable (null if no action required)
+     * @param runnable (null if no action required when wifi enabled)
      */
     public void enableWifiAndPerformActionWhenEnabled(final Runnable runnable) {
         IntentFilter filter = new IntentFilter();

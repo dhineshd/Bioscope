@@ -6,6 +6,8 @@ app/app.iml
 /.idea/vcs.xml
 .idea/gradle.xml
 /.idea/misc.xml
+/.idea/compiler.xml
+/.idea/modules.xml
 .DS_Store
 /build
 chameleon.iml

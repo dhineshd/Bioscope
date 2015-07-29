@@ -11,11 +11,18 @@ import lombok.NonNull;
 @Getter
 public class PeerMessage {
     public enum Type{
-        CONNECTION_HANDSHAKE,
+        START_SESSION,
+
+        SESSION_HEARTBEAT, // Exchanged by devices periodically to act as connectivity health check
+
+        TERMINATE_SESSION,
+
         START_RECORDING,
+
         START_RECORDING_RESPONSE,
         STOP_RECORDING,
-        SEND_RECORDED_VIDEO_REQUEST,
+
+        SEND_RECORDED_VIDEO,
         SEND_RECORDED_VIDEO_RESPONSE
     }
 

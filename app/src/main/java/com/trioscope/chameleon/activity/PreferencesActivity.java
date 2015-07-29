@@ -54,7 +54,9 @@ public class PreferencesActivity extends Activity {
             if (getString(R.string.pref_stream_resolution).equals(key)) {
                 Preference connectionPref = findPreference(key);
                 // Set summary to be the user-description for the selected value
-                connectionPref.setSummary(sharedPreferences.getString(key, ""));
+                if (connectionPref != null){
+                    connectionPref.setSummary(sharedPreferences.getString(key, ""));
+                }
             } else {
                 log.info("Preferences changed from {} not {}", key, getString(R.string.pref_stream_resolution));
             }

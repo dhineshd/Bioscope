@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
 
+import com.trioscope.chameleon.ChameleonApplication;
+
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 public class IncomingPhoneCallBroadcastReceiver extends BroadcastReceiver {
     @NonNull
-    private Context context;
+    private ChameleonApplication chameleonApplication;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -29,6 +31,8 @@ public class IncomingPhoneCallBroadcastReceiver extends BroadcastReceiver {
             log.info("ringing");
         } else if(TelephonyManager.EXTRA_STATE_OFFHOOK.equals(state)) {
             log.info("call answered");
+            // TODO : Do this more gracefully
+            // chameleonApplication.cleanupAndExit();
         }
 
         Toast.makeText(context, msg, Toast.LENGTH_LONG).show();
