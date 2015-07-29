@@ -28,11 +28,9 @@ import com.trioscope.chameleon.util.merge.MergeConfiguration;
 import com.trioscope.chameleon.util.merge.MergeConfiguration.MergeConfigurationBuilder;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -40,10 +38,12 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Created by phand on 6/19/15.
  */
+@Slf4j
 public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable, SurfaceHolder.Callback {
-    private static final Logger LOG = LoggerFactory.getLogger(MergeVideosActivity.class);
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
+    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
+            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
@@ -52,9 +52,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
     private Gson gson = new Gson();
     private RecordingMetadata localRecordingMetadata;
     private RecordingMetadata remoteRecordingMetadata;
+    private long localVideoStartedBeforeRemoteVideoOffsetMillis;
 
     private SurfaceHolder outerVideoHolder, innerVideoHolder;
     private SurfaceView innerSurfaceView;
+    private boolean outerMediaPlayerPrepared, innerMediaPlayerPrepared;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,11 +66,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         setContentView(R.layout.activity_merge);
 
         if (getSupportActionBar() != null) {
-            LOG.info("Removing actionbar");
+            log.info("Removing actionbar");
             getSupportActionBar().hide();
         }
 
-        LOG.info("Activity is created");
+        log.info("Activity is created");
 
         Intent intent = getIntent();
 
@@ -76,6 +78,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
         remoteRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+
+        // We will use this to adjust local and remote videos to show/merge them in sync
+        localVideoStartedBeforeRemoteVideoOffsetMillis =
+                (int) (remoteRecordingMetadata.getStartTimeMillis()
+                        - localRecordingMetadata.getStartTimeMillis());
 
         printArchInfo();
         runFfmpeg();
@@ -88,13 +95,15 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         if (taskFragment == null) {
             taskFragment = FfmpegTaskFragment.newInstance(
                     intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY),
-                    intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY));
+                    intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY),
+                    localVideoStartedBeforeRemoteVideoOffsetMillis);
             fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
         } else {
-            LOG.info("Task fragment exists - reusing (device rotated)");
+            log.info("Task fragment exists - reusing (device rotated)");
         }
 
 
+        // Local video will be shown on outer player and remote video on inner player
         outerMediaPlayer = new MediaPlayer();
         SurfaceView surfaceView = (SurfaceView) findViewById(R.id.outerVideoMerge);
         outerVideoHolder = surfaceView.getHolder();
@@ -107,7 +116,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
     private void printArchInfo() {
         String sysArch = System.getProperty("os.arch");
-        LOG.info("System architecture is {}", sysArch);
+        log.info("System architecture is {}", sysArch);
     }
 
     private void runFfmpeg() {
@@ -115,11 +124,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
     private void printDir(String dir) {
         File dirFile = new File(dir);
-        LOG.info("Dir exists? {} isDirectory? {}", dirFile.exists(), dirFile.isDirectory());
+        log.info("Dir exists? {} isDirectory? {}", dirFile.exists(), dirFile.isDirectory());
         File[] list = dirFile.listFiles();
 
         for (File f : list) {
-            LOG.info("File in directory: {}", f.toString());
+            log.info("File in directory: {}", f.toString());
         }
     }
 
@@ -129,13 +138,13 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setProgress(progressPerc);
 
-        LOG.info("Now {}% done", String.format("%.2f", progress / outOf * 100.0));
+        log.info("Now {}% done", String.format("%.2f", progress / outOf * 100.0));
 
     }
 
     @Override
     public void onCompleted() {
-        LOG.info("FFMPEG Completed! Allowing user to share");
+        log.info("FFMPEG Completed! Allowing user to share");
 
         // Make share button available
         ImageButton shareButton = (ImageButton) findViewById(R.id.share_button);
@@ -144,7 +153,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         shareButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("User wants to share the video");
+                log.info("User wants to share the video");
                 Intent shareIntent = new Intent();
                 shareIntent.setAction(Intent.ACTION_SEND);
                 File mergedFile = new File("/storage/emulated/0/DCIM/Camera/Merged.mp4");
@@ -155,13 +164,14 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         });
     }
 
-
-    int created = 0;
-
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
 
+        // TODO : Consider prepareAsync() if following code hogs UI thread
+
         if (holder == outerVideoHolder) {
+            innerSurfaceView.setZOrderOnTop(true);
+
             if (outerMediaPlayer.isPlaying()) {
                 outerMediaPlayer.reset();
             }
@@ -172,22 +182,14 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             try {
                 outerMediaPlayer.setDataSource(localRecordingMetadata.getAbsoluteFilePath());
                 outerMediaPlayer.prepare();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+                outerMediaPlayerPrepared = true;
+            } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+                log.error("Failed to start outer media player", e);
             }
-
-            outerMediaPlayer.start();
-            innerSurfaceView.setZOrderOnTop(true);
         }
 
-
         if (holder == innerVideoHolder) {
-            innerSurfaceView.setZOrderOnTop(true);
-            LOG.info("Starting inner video holder");
+            log.info("Starting inner video holder");
             if (innerMediaPlayer.isPlaying()) {
                 innerMediaPlayer.reset();
             }
@@ -198,16 +200,46 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             try {
                 innerMediaPlayer.setDataSource(remoteRecordingMetadata.getAbsoluteFilePath());
                 innerMediaPlayer.prepare();
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+                innerMediaPlayerPrepared = true;
+            } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+                log.error("Failed to start inner media player", e);
             }
-
-            innerMediaPlayer.start();
         }
+
+        // Begin both playback at same time when they are ready
+        if (innerMediaPlayerPrepared && outerMediaPlayerPrepared) {
+
+            log.info("local started before remote by {} ms",
+                    localVideoStartedBeforeRemoteVideoOffsetMillis);
+
+            if (localVideoStartedBeforeRemoteVideoOffsetMillis > 0) {
+
+                // Advance playback for local video if it started before the remote video
+                outerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                    @Override
+                    public void onSeekComplete(MediaPlayer mediaPlayer) {
+                        log.info("local video onSeek complete. Starting playback at {}", new Date());
+                        outerMediaPlayer.start();
+                        innerMediaPlayer.start();
+                    }
+                });
+                outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis);
+
+            } else  if (localVideoStartedBeforeRemoteVideoOffsetMillis < 0) {
+
+                // Advance playback for remote video if it started before the local video
+                innerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                    @Override
+                    public void onSeekComplete(MediaPlayer mediaPlayer) {
+                        log.info("remote video onSeek complete. Starting playback at {}", new Date());
+                        outerMediaPlayer.start();
+                        innerMediaPlayer.start();
+                    }
+                });
+                innerMediaPlayer.seekTo((int) Math.abs(localVideoStartedBeforeRemoteVideoOffsetMillis));
+            }
+        }
+
     }
 
     @Override
@@ -228,15 +260,19 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         private Notification.Builder notificationBuilder;
         private RecordingMetadata localRecordingMetadata;
         private RecordingMetadata remoteRecordingMetadata;
+        private long localVideoStartedBeforeRemoteVideoOffsetMillis;
         private Gson gson = new Gson();
 
         public static FfmpegTaskFragment newInstance(
                 final String serializedLocalRecordingMetadata,
-                final String serializedRemoteRecordingMetadata) {
+                final String serializedRemoteRecordingMetadata,
+                final long localVideoStartedBeforeRemoteVideoOffsetMillis) {
             FfmpegTaskFragment f = new FfmpegTaskFragment();
             Bundle args = new Bundle();
             args.putString(LOCAL_RECORDING_METADATA_KEY, serializedLocalRecordingMetadata);
             args.putString(REMOTE_RECORDING_METADATA_KEY, serializedRemoteRecordingMetadata);
+            args.putLong(LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY,
+                    localVideoStartedBeforeRemoteVideoOffsetMillis);
             f.setArguments(args);
             return f;
         }
@@ -279,7 +315,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
             videoMerger.prepare();
 
             MergeConfigurationBuilder config = MergeConfiguration.builder();
-            config.videoStartOffsetMilli(1000l);
+            config.videoStartOffsetMilli(localVideoStartedBeforeRemoteVideoOffsetMillis);
             videoMerger.mergeVideos(vid1, vid2, output, config.build());
             startTime = System.currentTimeMillis();
 
