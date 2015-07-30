@@ -138,7 +138,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setProgress(progressPerc);
 
-        log.info("Now {}% done", String.format("%.2f", progressPerc));
+        log.info("Now {}% done", progressPerc);
     }
 
     private static int getPercent(double progress, double outOf) {
