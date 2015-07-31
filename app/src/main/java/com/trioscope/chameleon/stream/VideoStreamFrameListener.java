@@ -73,9 +73,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     stream.reset();
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraInfos.getCaptureResolution().getWidth(), cameraInfos.getCaptureResolution().getHeight(), null);
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        yuvimage.compressToJpeg(new Rect(0, 0, cameraInfos.getCaptureResolution().getWidth(), cameraInfos.getCaptureResolution().getHeight()), 80, stream);
+                        yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     } else {
@@ -84,7 +84,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     }
-                    
+
                     previousFrameSendTimeMs = System.currentTimeMillis();
                     // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
                     // byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
