@@ -10,6 +10,8 @@ import com.trioscope.chameleon.listener.CameraFrameBuffer;
 public interface PreviewDisplayer {
     void startPreview();
 
+    void stopPreview();
+
     void setCameraFrameBuffer(CameraFrameBuffer cfb);
 
     void addOnPreparedCallback(Runnable runnable);

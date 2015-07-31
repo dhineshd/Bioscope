@@ -60,15 +60,17 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
 
+        log.info("Frame available to send across the stream on thread {}", Thread.currentThread());
         if (destOutputStream != null) {
 
             if (shouldStreamCurrentFrame()) {
-                stream.reset();
-                new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
-                        .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-                byte[] byteArray = stream.toByteArray();
-
+                log.info("Decided to send current frame across stream");
                 try {
+                    stream.reset();
+                    new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
+                            .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
+                    byte[] byteArray = stream.toByteArray();
+
                     destOutputStream.write(byteArray, 0, byteArray.length);
                     previousFrameSendTimeMs = System.currentTimeMillis();
                     // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
@@ -77,6 +79,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
                     isStreamingStarted = false;
+                } catch (Exception e) {
+                    log.error("Failed to send data to client (unknown)", e);
+                    throw e;
                 }
             }
         }
@@ -96,8 +101,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             // Refer: https://www.khronos.org/registry/gles/extensions/EXT/EXT_read_format_bgra.txt
             pixelsBuffer[i] =
                     ((pixelsBuffer[i] & 0xff00ff00))
-                    | ((pixelsBuffer[i] & 0x000000ff) << 16)
-                    | ((pixelsBuffer[i] & 0x00ff0000) >> 16);
+                            | ((pixelsBuffer[i] & 0x000000ff) << 16)
+                            | ((pixelsBuffer[i] & 0x00ff0000) >> 16);
         }
         Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         bmp.setPixels(pixelsBuffer, screenshotSize - width, -width, 0, 0, width, height);
@@ -110,7 +115,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         log.info("onClientRequest invoked for client = {}, isStreamingStarted = {}",
                 clientSocket.getInetAddress().getHostAddress(), isStreamingStarted);
 
-        switch(messageFromClient.getType()) {
+        switch (messageFromClient.getType()) {
             case START_SESSION:
                 startStreaming(clientSocket);
                 break;
@@ -132,7 +137,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private void startStreaming(final Socket clientSocket){
+    private void startStreaming(final Socket clientSocket) {
         try {
             destOutputStream = clientSocket.getOutputStream();
             log.info("Destination output stream set in Thread = {}", Thread.currentThread());
@@ -141,7 +146,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
 
         Context context = chameleonApplication.getApplicationContext();
-        if (context != null && !isStreamingStarted){
+        if (context != null && !isStreamingStarted) {
             Intent intent = new Intent(context, ConnectionEstablishedActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PeerInfo peerInfo = PeerInfo.builder()
@@ -173,7 +178,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             log.info("Sending file size msg = {}", gson.toJson(responseMsg));
             pw.println(gson.toJson(responseMsg));
             pw.close();
-        } catch (IOException e){
+        } catch (IOException e) {
             log.error("Failed to send START_RECORDING_RESPONSE", e);
         }
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
@@ -190,11 +195,11 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         log.info("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
-        if (videoFile != null && recordingStartTimeMillis != null){
+        if (videoFile != null && recordingStartTimeMillis != null) {
             OutputStream outputStream = null;
             InputStream inputStream = null;
             try {
-                PrintWriter pw  = new PrintWriter(clientSocket.getOutputStream());
+                PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
                         .fileSizeBytes(videoFile.length())
                         .recordingStartTimeMillis(recordingStartTimeMillis)
@@ -216,7 +221,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 inputStream = new BufferedInputStream(new FileInputStream(videoFile));
                 byte[] buffer = new byte[65536];
                 int bytesRead = 0;
-                while ((bytesRead = inputStream.read(buffer)) != -1){
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
                     log.info("Sending recorded file.. bytes = {}", bytesRead);
                     outputStream.write(buffer, 0, bytesRead);
                 }

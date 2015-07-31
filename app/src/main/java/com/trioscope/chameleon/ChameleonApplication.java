@@ -15,6 +15,7 @@ import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
+import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.SurfaceViewPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -79,7 +80,7 @@ public class ChameleonApplication extends Application {
     private volatile Long recordingStartTimeMillis;
 
     @Getter
-    private Camera camera;
+    private CameraOpener cameraOpener;
 
     @Getter
     private CameraInfo cameraInfo;
@@ -198,19 +199,22 @@ public class ChameleonApplication extends Application {
     public void preparePreview() {
         if (!previewStarted) {
             LOG.info("Grabbing camera and starting preview");
-            camera = Camera.open();
 
-            Camera.Parameters params = camera.getParameters();
+            cameraOpener = new CameraOpener();
+            cameraOpener.openCamera();
+
+            Camera.Parameters params = cameraOpener.getCamera().getParameters();
 
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
 
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
-            previewDisplayer = new SurfaceViewPreviewDisplayer(this, camera, cameraInfo);
+            previewDisplayer = new SurfaceViewPreviewDisplayer(this, cameraOpener.getCamera(), cameraInfo);
             previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
         } else {
             LOG.info("Preview already started");
         }
     }
+
 
     public void startPreview() {
         if (!previewStarted) {
@@ -251,6 +255,9 @@ public class ChameleonApplication extends Application {
         Convenience method for creationg a preview display through the PreviewDisplayer
      */
     public SurfaceView createPreviewDisplay() {
+        LOG.info("Creating preview display and stopping preview first");
+        previewDisplayer.stopPreview();
+        previewStarted = false;
         return previewDisplayer.createPreviewDisplay();
     }
 
@@ -300,9 +307,8 @@ public class ChameleonApplication extends Application {
         }
 
         // Release camera
-        if (camera != null) {
-            camera.release();
-            camera = null;
+        if (cameraOpener.getCamera() != null) {
+            cameraOpener.release();
         }
 
         System.exit(0);
@@ -438,7 +444,7 @@ public class ChameleonApplication extends Application {
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
         LOG.info("Setting video file = {}", videoFile.getAbsolutePath());
         videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCamera(camera);
+        videoRecorder.setCamera(cameraOpener.getCamera());
         return true;
     }
 

@@ -93,6 +93,11 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
     }
 
     @Override
+    public void stopPreview() {
+        camera.stopPreview();
+    }
+
+    @Override
     public void setCameraFrameBuffer(CameraFrameBuffer cfb) {
         surfaceView.setCameraFrameBuffer(cfb);
     }

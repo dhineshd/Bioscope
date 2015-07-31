@@ -48,7 +48,9 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
                     byte[] buffer = new byte[bufferSize];
                     camera.addCallbackBuffer(buffer);
                     camera.setDisplayOrientation(90);
+                    log.info("Starting preview");
                     camera.startPreview();
+                    log.info("Preview started");
                 } else {
                     log.warn("Display surface holder not yet available, going to start preview later");
                     shouldCallStartWhenAvailable = true;
@@ -56,9 +58,18 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
             }
         } catch (IOException e1) {
             e1.printStackTrace();
+        } catch (Exception e) {
+            log.info("Failed to start preview", e);
+            throw e;
         }
-        log.info("Starting preview");
-        camera.startPreview();
+    }
+
+    public void stopPreview() {
+        synchronized (this) {
+            shouldCallStartWhenAvailable = false;
+            displaySurfaceHolder = null;
+            camera.stopPreview();
+        }
     }
 
     private int getBufferSize(Camera camera) {
@@ -111,6 +122,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
             }
         });
 
+        log.info("Creates surfaceView {}", surfaceView);
         return surfaceView;
     }
 
