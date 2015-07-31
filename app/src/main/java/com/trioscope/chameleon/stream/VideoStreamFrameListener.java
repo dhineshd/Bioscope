@@ -64,15 +64,16 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
 
-        log.info("Frame available to send across the stream on thread {}", Thread.currentThread());
+        log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
         if (destOutputStream != null) {
 
             if (shouldStreamCurrentFrame()) {
-                log.info("Decided to send current frame across stream");
+                log.debug("Decided to send current frame across stream");
                 try {
                     stream.reset();
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
+                        log.debug("Using NV21 frame");
                         YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
