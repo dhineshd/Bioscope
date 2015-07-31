@@ -74,8 +74,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
-    private long networkCommunicationLatencyMs;
     private SurfaceView previewDisplay;
+    private long clockDifferenceMs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,7 +91,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         chameleonApplication.createBackgroundRecorder(new RecordingEventListener() {
             @Override
             public void onStartRecording(final long recordingStartTimeMillis) {
-                chameleonApplication.setRecordingStartTimeMillis(recordingStartTimeMillis);
+                // chameleonApplication.setRecordingStartTimeMillis(recordingStartTimeMillis);
             }
 
             @Override
@@ -108,20 +108,25 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     log.info("Start recording event received!!");
                     if (videoRecorder != null) {
                         // initialize video camera
-                        if (chameleonApplication.prepareVideoRecorder()) {
-                            videoRecorder.startRecording();
-                            isRecording = true;
-                            log.info("isRecording is {}", isRecording);
-                            Toast.makeText(getApplicationContext(), "Video recording started..", Toast.LENGTH_LONG).show();
-                        }
+//                        if (chameleonApplication.prepareVideoRecorder()) {
+//                            videoRecorder.startRecording();
+//                            isRecording = true;
+//                            log.info("isRecording is {}", isRecording);
+//                            Toast.makeText(getApplicationContext(), "Video recording started..", Toast.LENGTH_LONG).show();
+//                        }
+                        // Also, start recording using MediaCodec method
+                        chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     }
                 } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
                     log.info("Stop recording event received!!");
-                    if (videoRecorder != null) {
-                        chameleonApplication.finishVideoRecording();
-                        isRecording = false;
-                        Toast.makeText(getApplicationContext(), "Video recording stopped..", Toast.LENGTH_LONG).show();
-                    }
+//                    if (videoRecorder != null) {
+//                        chameleonApplication.finishVideoRecording();
+//                        isRecording = false;
+//                        Toast.makeText(getApplicationContext(), "Video recording stopped..", Toast.LENGTH_LONG).show();
+//                    }
+                    // Stop recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStopRecording();
+
                 }
             }
         };
@@ -246,7 +251,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     }
 
     private void showRetakeOrMergeVideoDialog(final PeerInfo peerInfo) {
-        final File peerVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
+        final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
 
         new AlertDialog.Builder(this)
                 .setPositiveButton("Merge videos",
@@ -304,15 +309,16 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                                 PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
                                 StartRecordingResponse response =
                                         gson.fromJson(message.getContents(), StartRecordingResponse.class);
+                                long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse - localCurrentTimeMsBeforeSendingRequest) / 2;
+                                clockDifferenceMs = response.getCurrentTimeMillis() -
+                                        localCurrentTimeMsAfterReceivingResponse +
+                                        networkLatencyMs;
                                 log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                                 log.info("Remote current time = {}", response.getCurrentTimeMillis());
                                 log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
-                                networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
-                                        localCurrentTimeMsBeforeSendingRequest) / 2;
-                                log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
+                                log.info("Clock difference ms = {}", clockDifferenceMs);
                             }
                         }
-
                     } catch (IOException e) {
                         log.error("Failed to send message = " + peerMsg + " to peer", e);
                     }
@@ -347,6 +353,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPreExecute() {
             progressBar.setVisibility(View.VISIBLE);
+            log.info("Progress bar set to be visible = {}", progressBar.getVisibility());
             progressBar.setProgress(0);
             super.onPreExecute();
         }
@@ -394,9 +401,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                             log.info("Remote current time = {}", response.getCurrentTimeMillis());
                             log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
-//                            long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
-//                                    localCurrentTimeMsBeforeSendingRequest) / 2;
-                            // log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
+                            long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
+                                    localCurrentTimeMsBeforeSendingRequest) / 2;
+                             log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
                             remoteClockAheadOfLocalClockMillis = response.getCurrentTimeMillis() -
                                     localCurrentTimeMsAfterReceivingResponse +
                                     networkCommunicationLatencyMs;
@@ -443,6 +450,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onProgressUpdate(Integer... values) {
+            log.info("Updating progress bar.. {}", values[0]);
             progressBar.setProgress(values[0]);
             super.onProgressUpdate(values);
         }
@@ -453,9 +461,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
-            remoteRecordingStartTimeMillis -= remoteClockAheadOfLocalClockMillis;
+            long clockAdjustmentMs = (remoteClockAheadOfLocalClockMillis + clockDifferenceMs) / 2;
+            remoteRecordingStartTimeMillis -= clockAdjustmentMs;
 
-            log.info("Adjusting remote recording start time millis by {} ms", remoteClockAheadOfLocalClockMillis);
+            log.info("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
+            Toast.makeText(getApplicationContext(), "Clock diff : " + (clockAdjustmentMs / 1000.0), Toast.LENGTH_LONG).show();
             log.info("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
             log.info("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()

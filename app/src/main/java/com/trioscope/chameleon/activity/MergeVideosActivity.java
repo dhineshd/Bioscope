@@ -309,9 +309,13 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                     args.getString(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
             remoteRecordingMetadata = gson.fromJson(
                     args.getString(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+            localVideoStartedBeforeRemoteVideoOffsetMillis =
+                    args.getLong(LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY);
+            log.info("Local video started before remote video offset millis = {}",
+                    localVideoStartedBeforeRemoteVideoOffsetMillis);
             File vid1 = new File(localRecordingMetadata.getAbsoluteFilePath());
             File vid2 = new File(remoteRecordingMetadata.getAbsoluteFilePath());
-            File output = new File("/storage/emulated/0/DCIM/Camera/Merged_" + System.currentTimeMillis() + ".mp4");
+            File output = new File("/storage/sdcard0/DCIM/Camera/Merged.mp4");
 
             videoMerger.setContext(currentContext);
             videoMerger.setProgressUpdatable(this);

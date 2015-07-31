@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 5;
+    private static final int MAX_NUM_IMAGES = 2;
     private final Context context;
     private final CameraDevice cameraDevice;
     private final CameraManager cameraManager;
@@ -149,7 +149,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             log.info("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
-                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
                 requestBuilder.addTarget(imageReader.getSurface());
                 requestBuilder.addTarget(previewSurface);
                 log.info("Creating capture session");
@@ -167,10 +167,14 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         try {
                             // Auto focus should be continuous for camera preview.
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                                    CaptureRequest.CONTROL_AF_MODE_OFF);
+//                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+//                                    Range.create(20, 20));
                             // Flash is automatically enabled when necessary.
-                            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+//                            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+//                                    CaptureRequest.CONTROL_AE_MODE_OFF);
+//                            requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE,
+//                                    CaptureRequest.CONTROL_AWB_MODE_OFF);
 
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
@@ -179,14 +183,28 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                             log.info("Repeating request sent at {}", requestSentAt);
                             captureSession.setRepeatingRequest(previewRequest,
                                     new CameraCaptureSession.CaptureCallback() {
+                                        long captureStartTime = System.currentTimeMillis();
+
+                                        @Override
+                                        public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
+                                            super.onCaptureStarted(session, request, timestamp, frameNumber);
+                                            captureStartTime = System.currentTimeMillis();
+                                        }
+
                                         @Override
                                         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                                             super.onCaptureCompleted(session, request, result);
                                             if (firstRequestReceived == null) {
+                                                for (CaptureResult.Key key : result.getKeys()) {
+                                                    log.info("Capture exposure key = {}, value = {}", key.getName(), result.get(key));
+                                                }
                                                 firstRequestReceived = System.currentTimeMillis();
-                                                log.info("Latency between calls is {}", firstRequestReceived - requestSentAt);
+                                                log.info("Latency between calls is {} ms", firstRequestReceived - requestSentAt);
                                             }
-                                            log.debug("Capture completed - {}", result.get(CaptureResult.SENSOR_TIMESTAMP));
+                                            log.debug("Capture completed - {}, capture delay = {} ms, frame duration = {} ms",
+                                                    result.get(CaptureResult.SENSOR_TIMESTAMP),
+                                                    System.currentTimeMillis() - captureStartTime,
+                                                    result.get(CaptureResult.SENSOR_FRAME_DURATION) / 1000000);
                                         }
 
                                     }, null);
@@ -201,8 +219,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                     }
                 }, null);
             } catch (Exception e) {
-                log.error("Error ", e);
-                throw e;
+                log.error("Failed to create capture session", e);
             }
 
         } catch (CameraAccessException e) {
@@ -291,7 +308,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 // Reuse buffer
                 ImageUtil.getDataFromImage(image, buffer);
             }
-            frameInfo.setTimestamp(image.getTimestamp());
+            frameInfo.setTimestampNanos(image.getTimestamp());
             cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray, frameInfo);
 
             image.close();

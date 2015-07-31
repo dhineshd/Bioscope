@@ -40,6 +40,7 @@ public class MetricsHelper {
                         .setCategory(category)
                         .setLabel(label)
                         .setValue(timeInMillis)
+                        .setVariable(label)
                         .build()
         );
     }

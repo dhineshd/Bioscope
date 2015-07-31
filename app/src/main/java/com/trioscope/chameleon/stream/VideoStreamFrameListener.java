@@ -9,6 +9,7 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
+import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.gson.Gson;
@@ -69,8 +70,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int targetWidth = 480;//cameraInfos.getCaptureResolution().getWidth();
         int targetHeight = 270;//cameraInfos.getCaptureResolution().getHeight();
 
-
-        log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
+        log.info("Frame available to send across the stream on thread {}, frame timestamp = {}, currentTime = {}, uptime = {}",
+                Thread.currentThread(), frameInfo.getTimestampNanos() / 1000000, System.currentTimeMillis(), SystemClock.uptimeMillis());
         if (destOutputStream != null) {
 
             if (shouldStreamCurrentFrame()) {
