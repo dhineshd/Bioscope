@@ -8,6 +8,7 @@ import android.view.SurfaceView;
 
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.types.CameraInfo;
 
 import java.io.IOException;
@@ -28,7 +29,6 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
     private CameraInfo cameraInfo;
     private SurfaceHolder displaySurfaceHolder;
     private boolean shouldCallStartWhenAvailable = false;
-    private int[] dataBufferAsInt;
 
     public SurfaceViewPreviewDisplayer(Context context, Camera c, CameraInfo cameraInfo) {
         this.context = context;
@@ -128,14 +128,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
 
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
-        if (dataBufferAsInt == null) {
-            log.info("Initializing data as int array");
-            dataBufferAsInt = new int[getBufferSize(camera)];
-        }
-        for (int i = 0; i < data.length; i++)
-            dataBufferAsInt[i] = data[i];
-
-        cameraFrameBuffer.frameAvailable(cameraInfo, dataBufferAsInt);
+        cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(data));
         camera.addCallbackBuffer(data);
     }
 }

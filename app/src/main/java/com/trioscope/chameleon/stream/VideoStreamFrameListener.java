@@ -3,6 +3,9 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
 import android.support.v4.content.LocalBroadcastManager;
 
@@ -10,6 +13,7 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
+import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
@@ -55,7 +59,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private long previousFrameSendTimeMs = 0;
 
     @Override
-    public void onFrameAvailable(final CameraInfo cameraInfos, final int[] data) {
+    public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data) {
         long frameProcessingStartTime = System.currentTimeMillis();
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
@@ -67,11 +71,20 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 log.info("Decided to send current frame across stream");
                 try {
                     stream.reset();
-                    new WeakReference<Bitmap>(convertToBmp(data, w, h)).get()
-                            .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-                    byte[] byteArray = stream.toByteArray();
 
-                    destOutputStream.write(byteArray, 0, byteArray.length);
+                    if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraInfos.getCaptureResolution().getWidth(), cameraInfos.getCaptureResolution().getHeight(), null);
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        yuvimage.compressToJpeg(new Rect(0, 0, cameraInfos.getCaptureResolution().getWidth(), cameraInfos.getCaptureResolution().getHeight()), 80, stream);
+                        byte[] byteArray = stream.toByteArray();
+                        destOutputStream.write(byteArray, 0, byteArray.length);
+                    } else {
+                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), w, h)).get()
+                                .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
+                        byte[] byteArray = stream.toByteArray();
+                        destOutputStream.write(byteArray, 0, byteArray.length);
+                    }
+                    
                     previousFrameSendTimeMs = System.currentTimeMillis();
                     // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
                     // byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
