@@ -3,14 +3,11 @@ package com.trioscope.chameleon.service;
 import android.app.Service;
 import android.content.Intent;
 import android.hardware.Camera;
-import android.media.AudioManager;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
-import android.media.ToneGenerator;
 import android.os.IBinder;
 
 import com.trioscope.chameleon.SystemOverlayGLSurface;
-import com.trioscope.chameleon.SystemPropertiesProxy;
 import com.trioscope.chameleon.stream.RecordingEventListener;
 
 import org.slf4j.Logger;
@@ -65,18 +62,7 @@ public class BackgroundRecorderService extends Service {
     public void startRecording() {
         LOG.info("Starting recording");
 
-        SystemPropertiesProxy.set(getApplicationContext(), "rw.media.record.test", "true");
-        LOG.info("MediaRecord test mode = {}", SystemPropertiesProxy.get(getApplicationContext(), "rw.media.record.test"));
-
-
         mediaRecorder = new MediaRecorder();
-
-        mediaRecorder.setOnInfoListener(new MediaRecorder.OnInfoListener() {
-            @Override
-            public void onInfo(MediaRecorder mediaRecorder, int i, int i1) {
-                LOG.info("Received onInfo event : what = {}, extra = {}", i, i1);
-            }
-        });
 
         // Unlock and set camera to MediaRecorder
         camera.unlock();
@@ -108,8 +94,6 @@ public class BackgroundRecorderService extends Service {
         }
 
         mediaRecorder.start();
-
-        new ToneGenerator(AudioManager.STREAM_MUSIC, ToneGenerator.MAX_VOLUME).startTone(ToneGenerator.TONE_DTMF_0, 1000);
 
         // Started recording
         recordingEventListener.onStartRecording(System.currentTimeMillis());

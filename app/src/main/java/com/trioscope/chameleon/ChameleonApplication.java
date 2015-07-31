@@ -187,6 +187,9 @@ public class ChameleonApplication extends Application {
         streamListener = new VideoStreamFrameListener(this);
         cameraFrameBuffer.addListener(streamListener);
 
+        recordingFrameListener = new VideoRecordingFrameListener(this);
+        cameraFrameBuffer.addListener(recordingFrameListener);
+
         startup();
     }
 
