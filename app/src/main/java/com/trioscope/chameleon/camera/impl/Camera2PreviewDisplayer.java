@@ -20,24 +20,29 @@ import android.view.SurfaceView;
 
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Created by phand on 8/3/15.
  */
-@RequiredArgsConstructor
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private static final int MAX_NUM_IMAGES = 5;
     private final Context context;
     private final CameraDevice cameraDevice;
     private final CameraManager cameraManager;
+    private final CameraInfo cameraInfo;
     private ImageReader imageReader;
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSessions;
@@ -52,6 +57,30 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private long requestSentAt;
     private Long firstRequestReceived = null;
 
+    public Camera2PreviewDisplayer(Context context, CameraDevice cameraDevice, CameraManager cameraManager) {
+        this.context = context;
+        this.cameraDevice = cameraDevice;
+        this.cameraManager = cameraManager;
+
+        Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
+        CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
+
+        log.info("Creating cameraInfo");
+        CameraInfo.ImageEncoding encoding;
+        /* ImageReader doesnt support NV21 currently.
+          if (supportedEncodings.contains(CameraInfo.ImageEncoding.NV21))
+            encoding = CameraInfo.ImageEncoding.NV21;
+            */
+        encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
+
+        builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        builder.encoding(encoding);
+        cameraInfo = builder.build();
+
+        log.info("Using cameraInfo {}", cameraInfo);
+    }
+
     @Override
     public void startPreview() {
         if (previewSurface != null)
@@ -60,30 +89,59 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             shouldStartPreviewHelper = true;
     }
 
+    private Set<CameraInfo.ImageEncoding> getSupportedEncodings() {
+        Set<CameraInfo.ImageEncoding> encodings = new HashSet<>();
+
+        CameraCharacteristics characteristics = null;
+        try {
+            characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+            for (int format : map.getOutputFormats()) {
+                if (format == ImageFormat.YUV_420_888)
+                    encodings.add(CameraInfo.ImageEncoding.YUV_420_888);
+                else if (format == ImageFormat.NV21)
+                    encodings.add(CameraInfo.ImageEncoding.NV21);
+                else
+                    log.info("Unknown image format {}", format);
+            }
+        } catch (CameraAccessException e) {
+            log.error("Unable to retrieve supported encodings", e);
+        }
+
+        return encodings;
+    }
+
+    private List<Size> getSupportedSizes(int format) {
+        List<Size> sizes = new ArrayList<>();
+        try {
+            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            log.info("Supported sizes: {}", map.getOutputSizes(format));
+            log.info("Supported sizes for MediaRecorder: {}", map.getOutputSizes(MediaRecorder.class));
+            log.info("Supported sizes for SurfaceHolder: {}", map.getOutputSizes(SurfaceHolder.class));
+
+            for (android.util.Size sz : map.getOutputSizes(format)) {
+                sizes.add(new Size(sz));
+            }
+        } catch (CameraAccessException e) {
+            log.error("Unable to get camera sizes", e);
+        }
+
+        log.info("Getting sizes for format {} = {}", format, sizes);
+        return sizes;
+    }
+
     private void startPreviewHelper() {
         try {
             CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
-
-            log.info("Characteristics info keys {}", characteristics.getKeys());
-            for (CameraCharacteristics.Key key : characteristics.getKeys()) {
-                log.info(key.getName());
-            }
-
             log.info("Timestamp source: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
 
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             log.info("SensorOrientation: {}", characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION));
-            log.info("Output formats: {}", map.getOutputFormats());
-            log.info("Formats JPEG: {}", ImageFormat.JPEG);
-            log.info("Formats RAW_SENSOR: {}", ImageFormat.RAW_SENSOR);
-            log.info("Formats NV21: {}", ImageFormat.NV21);
-            log.info("Formats YUV_420_888: {}", ImageFormat.YUV_420_888);
-            log.info("Supported sizes: {}", map.getOutputSizes(ImageFormat.YUV_420_888));
-            log.info("Supported sizes for MediaRecorder: {}", map.getOutputSizes(MediaRecorder.class));
-            log.info("Supported sizes for SurfaceHolder: {}", map.getOutputSizes(SurfaceHolder.class));
             log.info("Preview Surface: {}", previewSurface);
-            prepareImageReader(new Size(map.getOutputSizes(ImageFormat.YUV_420_888)[0]), ImageFormat.YUV_420_888);
+            prepareImageReader(cameraInfo.getCaptureResolution(), cameraInfo.getEncoding().getImageFormat());
 
             log.info("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
@@ -151,10 +209,14 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private void prepareImageReader(Size sz, int format) {
         int width = sz.getWidth();
         int height = sz.getHeight();
-        imageReader = ImageReader.newInstance(width, height, format, MAX_NUM_IMAGES);
-        simpleImageListener = new SimpleImageListener();
-        imageReader.setOnImageAvailableListener(simpleImageListener, null);
-        log.info("Prepared image listener {}", simpleImageListener);
+        try {
+            imageReader = ImageReader.newInstance(width, height, format, MAX_NUM_IMAGES);
+            simpleImageListener = new SimpleImageListener();
+            imageReader.setOnImageAvailableListener(simpleImageListener, null);
+            log.info("Prepared image listener {}", simpleImageListener);
+        } catch (Exception e) {
+            log.error("Unable to create ImageReader with parameters", e);
+        }
     }
 
     @Override
@@ -195,13 +257,22 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     }
 
     private class SimpleImageListener implements ImageReader.OnImageAvailableListener {
+        byte[] buffer;
+        IntOrByteArray intOrByteArray;
+
         @Override
         public void onImageAvailable(ImageReader reader) {
-
-            log.debug("Image is available. {}", System.currentTimeMillis());
+            //TODO : Are we dropping images by not using acquireNextImage?
             Image image = reader.acquireLatestImage();
-            if (image != null)
-                log.debug("Timestamp was {} - {}", image.getTimestamp(), System.currentTimeMillis());
+            /*if (buffer == null) {
+                buffer = ImageUtil.getDataFromImage(image);
+                intOrByteArray = new IntOrByteArray(buffer);
+            } else {
+                // Reuse buffer
+                ImageUtil.getDataFromImage(image, buffer);
+            }
+            cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray);
+*/
             image.close();
         }
     }
