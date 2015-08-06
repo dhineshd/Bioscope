@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.hardware.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -17,7 +19,7 @@ import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastRecei
 import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
-import com.trioscope.chameleon.camera.impl.SurfaceViewPreviewDisplayer;
+import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
@@ -29,7 +31,7 @@ import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
-import com.trioscope.chameleon.types.factory.CameraInfoFactory;
+import com.trioscope.chameleon.types.ThreadWithHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,10 +198,29 @@ public class ChameleonApplication extends Application {
         return sslServerSocketFactory;
     }
 
+    public PreviewDisplayer getPreviewDisplayer() {
+        synchronized (this) {
+            if (previewDisplayer == null) {
+                LOG.info("Waiting on preview displayer to be available");
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                    LOG.error("Unable to wait on application", e);
+                }
+            }
+
+
+            LOG.info("Returning preview displayer");
+            return previewDisplayer;
+        }
+    }
+
     public void preparePreview() {
         if (!previewStarted) {
             LOG.info("Grabbing camera and starting preview");
 
+
+            /*
             cameraOpener = new CameraOpener();
             cameraOpener.openCamera();
 
@@ -209,12 +230,47 @@ public class ChameleonApplication extends Application {
 
             LOG.info("CameraInfo for opened camera is {}", cameraInfo);
             previewDisplayer = new SurfaceViewPreviewDisplayer(this, cameraOpener.getCamera(), cameraInfo);
-            previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
+            */
+            final CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            try {
+                ThreadWithHandler handlerThread = new ThreadWithHandler();
+                String[] cameras = manager.getCameraIdList();
+                LOG.info("Camera ids are {}, going to open first in list", cameras);
+                manager.openCamera(cameras[0], new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(CameraDevice camera) {
+                        LOG.info("Found camera device callback {}", camera);
+
+                        previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
+                        previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
+
+                        synchronized (ChameleonApplication.this) {
+                            LOG.info("Notifying chameleon waiters");
+                            ChameleonApplication.this.notifyAll();
+                        }
+                    }
+
+                    @Override
+                    public void onDisconnected(CameraDevice camera) {
+                        LOG.info("Camera is disconnected");
+                    }
+
+                    @Override
+                    public void onError(CameraDevice camera, int error) {
+                        LOG.info("CameraDevice errored on open, {} err = {}", camera, error);
+                        synchronized (ChameleonApplication.this) {
+                            LOG.info("Notifying chameleon waiters even though we errored");
+                            ChameleonApplication.this.notifyAll();
+                        }
+                    }
+                }, handlerThread.getHandler());
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
         } else {
             LOG.info("Preview already started");
         }
     }
-
 
     public void startPreview() {
         if (!previewStarted) {

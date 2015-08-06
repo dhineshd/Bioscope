@@ -8,4 +8,14 @@ import lombok.Data;
 @Data
 public class Size {
     private final int width, height;
+
+    public Size(android.util.Size size) {
+        this.width = size.getWidth();
+        this.height = size.getHeight();
+    }
+
+    public Size(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
 }

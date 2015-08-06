@@ -2,7 +2,11 @@ package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
 import android.content.Intent;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -87,7 +91,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         LOG.info("Added prepared callback");
     }
 
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -165,6 +168,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
         previewDisplay = chameleonApplication.createPreviewDisplay();
         RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
-        layout.addView(previewDisplay);
+        layout.addView(previewDisplay, layoutParams);
     }
 }

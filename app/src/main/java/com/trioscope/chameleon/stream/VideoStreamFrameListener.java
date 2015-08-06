@@ -75,7 +75,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
                         log.debug("Using NV21 frame");
                         YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
