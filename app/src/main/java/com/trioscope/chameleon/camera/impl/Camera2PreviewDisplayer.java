@@ -23,6 +23,8 @@ import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
+import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.ImageUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,7 +47,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private final CameraInfo cameraInfo;
     private ImageReader imageReader;
     private SimpleImageListener simpleImageListener;
-    private CameraCaptureSession captureSessions;
+    private CameraCaptureSession captureSession;
     private Surface previewSurface;
 
 
@@ -159,7 +161,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         }
 
                         // When the session is ready, we start displaying the preview.
-                        captureSessions = session;
+                        captureSession = session;
                         try {
                             // Auto focus should be continuous for camera preview.
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
@@ -173,7 +175,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
                             requestSentAt = System.currentTimeMillis();
                             log.info("Repeating request sent at {}", requestSentAt);
-                            captureSessions.setRepeatingRequest(previewRequest,
+                            captureSession.setRepeatingRequest(previewRequest,
                                     new CameraCaptureSession.CaptureCallback() {
                                         @Override
                                         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
@@ -212,7 +214,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         try {
             imageReader = ImageReader.newInstance(width, height, format, MAX_NUM_IMAGES);
             simpleImageListener = new SimpleImageListener();
-            imageReader.setOnImageAvailableListener(simpleImageListener, null);
+            imageReader.setOnImageAvailableListener(simpleImageListener, new ThreadWithHandler().getHandler());
             log.info("Prepared image listener {}", simpleImageListener);
         } catch (Exception e) {
             log.error("Unable to create ImageReader with parameters", e);
@@ -221,6 +223,14 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
     @Override
     public void stopPreview() {
+        log.info("Stopping camera2 preview");
+        if (captureSession != null) {
+            try {
+                captureSession.abortCaptures();
+            } catch (CameraAccessException e) {
+                log.error("Unable to abort captures", e);
+            }
+        }
     }
 
     @Override
@@ -264,7 +274,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         public void onImageAvailable(ImageReader reader) {
             //TODO : Are we dropping images by not using acquireNextImage?
             Image image = reader.acquireLatestImage();
-            /*if (buffer == null) {
+            if (image == null) {
+                log.warn("Null image from acquire latest image -- skipping");
+                return;
+            }
+
+            if (buffer == null) {
                 buffer = ImageUtil.getDataFromImage(image);
                 intOrByteArray = new IntOrByteArray(buffer);
             } else {
@@ -272,7 +287,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 ImageUtil.getDataFromImage(image, buffer);
             }
             cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray);
-*/
+
             image.close();
         }
     }

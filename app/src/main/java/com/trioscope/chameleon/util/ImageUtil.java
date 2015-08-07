@@ -3,12 +3,15 @@ package com.trioscope.chameleon.util;
 import android.graphics.ImageFormat;
 import android.media.Image;
 
+import com.trioscope.chameleon.aop.Timed;
+
 import java.nio.ByteBuffer;
 
 /**
  * Created by phand on 8/6/15.
  */
 public class ImageUtil {
+    @Timed
     public static byte[] getDataFromImage(Image image) {
         int format = image.getFormat();
         int width = image.getWidth();

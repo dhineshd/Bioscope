@@ -114,6 +114,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         LOG.info("onPause: Activity is no longer in foreground");
         super.onPause();
 
+        if (chameleonApplication.getPreviewDisplayer() != null)
+            chameleonApplication.getPreviewDisplayer().stopPreview();
+
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
             LOG.info("Teardown initiated from MainActivity");
@@ -141,6 +144,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onStop() {
         LOG.info("onStop: Activity is no longer visible to user");
+        if (chameleonApplication.getPreviewDisplayer() != null)
+            chameleonApplication.getPreviewDisplayer().stopPreview();
         super.onStop();
     }
 
