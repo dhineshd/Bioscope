@@ -270,6 +270,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private class SimpleImageListener implements ImageReader.OnImageAvailableListener {
         byte[] buffer;
         IntOrByteArray intOrByteArray;
+        FrameInfo frameInfo;
 
         @Override
         public void onImageAvailable(ImageReader reader) {
@@ -283,11 +284,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             if (buffer == null) {
                 buffer = ImageUtil.getDataFromImage(image);
                 intOrByteArray = new IntOrByteArray(buffer);
+                frameInfo = new FrameInfo();
             } else {
                 // Reuse buffer
                 ImageUtil.getDataFromImage(image, buffer);
             }
-            cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray);
+            frameInfo.setTimestamp(image.getTimestamp());
+            cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray, frameInfo);
 
             image.close();
         }

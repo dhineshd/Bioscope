@@ -161,7 +161,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
                 GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
                 LOG.debug("IntBuffer: {}", b);
-                cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(ib.array()));
+                cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(ib.array()), null);
             }
         }
 

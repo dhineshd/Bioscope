@@ -128,7 +128,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
 
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
-        cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(data));
+        cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(data), null);
         camera.addCallbackBuffer(data);
     }
 }

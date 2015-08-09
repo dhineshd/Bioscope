@@ -12,6 +12,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
+import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
@@ -59,7 +60,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private long previousFrameSendTimeMs = 0;
 
     @Override
-    public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data) {
+    public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
         long frameProcessingStartTime = System.currentTimeMillis();
         int w = cameraInfos.getCaptureResolution().getWidth();
         int h = cameraInfos.getCaptureResolution().getHeight();
