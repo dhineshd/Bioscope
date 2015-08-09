@@ -206,8 +206,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
             layout.addView(previewDisplay);
         } catch (Exception e) {
-            log.info("Exception caught", e);
-            throw e;
+            log.error("Failed to add camera preview surface", e);
         }
     }
 

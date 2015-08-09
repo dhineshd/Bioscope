@@ -62,8 +62,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
         long frameProcessingStartTime = System.currentTimeMillis();
-        int w = cameraInfos.getCaptureResolution().getWidth();
-        int h = cameraInfos.getCaptureResolution().getHeight();
+        int w = cameraInfos.getCameraResolution().getWidth();
+        int h = cameraInfos.getCameraResolution().getHeight();
 
         log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
         if (destOutputStream != null) {
@@ -73,9 +73,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 try {
                     stream.reset();
 
-                    if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
-                        log.debug("Using NV21 frame");
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
+                    if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.YUV_420_888, w, h, null);
                         yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
@@ -95,7 +94,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     isStreamingStarted = false;
                 } catch (Exception e) {
                     log.error("Failed to send data to client (unknown)", e);
-                    throw e;
                 }
             }
         }

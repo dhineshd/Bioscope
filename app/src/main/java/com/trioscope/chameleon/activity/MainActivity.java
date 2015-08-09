@@ -75,14 +75,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         chameleonApplication.preparePreview();
         LOG.info("Getting preview displayer and attaching prepared callback {}", chameleonApplication.getPreviewDisplayer());
         // Tell the application we're ready to show preview whenever
-        chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
-            @Override
-            public void run() {
-                LOG.info("Preview displayer is ready to display a preview - adding one to the main activity");
-                addCameraPreviewSurface();
-                chameleonApplication.startPreview();
-            }
-        });
+//        chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
+//            @Override
+//            public void run() {
+//                LOG.info("Preview displayer is ready to display a preview - adding one to the main activity");
+//                addCameraPreviewSurface();
+//                chameleonApplication.startPreview();
+//            }
+//        });
 
         LOG.info("Added prepared callback");
     }
