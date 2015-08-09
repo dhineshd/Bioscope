@@ -130,7 +130,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         LOG.info("Starting application");
 
-        metrics = new MetricsHelper(this);
+        // metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -363,7 +363,7 @@ public class ChameleonApplication extends Application {
         }
 
         // Release camera
-        if (cameraOpener.getCamera() != null) {
+        if (cameraOpener != null && cameraOpener.getCamera() != null) {
             cameraOpener.release();
         }
 

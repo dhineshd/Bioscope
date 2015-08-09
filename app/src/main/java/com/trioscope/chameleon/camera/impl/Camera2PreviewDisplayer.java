@@ -227,6 +227,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         if (captureSession != null) {
             try {
                 captureSession.abortCaptures();
+                cameraDevice.close();
             } catch (CameraAccessException e) {
                 log.error("Unable to abort captures", e);
             }

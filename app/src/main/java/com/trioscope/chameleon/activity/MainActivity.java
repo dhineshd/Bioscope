@@ -123,6 +123,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             chameleonApplication.cleanupAndExit();
         }
 
+        LOG.info("Activity has been paused");
     }
 
     @Override
