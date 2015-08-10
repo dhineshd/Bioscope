@@ -75,8 +75,10 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             */
         encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
 
-        builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
-        builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        //builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        //builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        builder.captureResolution(new Size(1920, 1080));
+        builder.cameraResolution(new Size(1920, 1080));
         builder.encoding(encoding);
         cameraInfo = builder.build();
 

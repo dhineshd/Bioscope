@@ -204,7 +204,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_session_preview);
             previewDisplay = chameleonApplication.createPreviewDisplay();
             RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
-            layout.addView(previewDisplay);
+            layout.addView(previewDisplay, layoutParams);
         } catch (Exception e) {
             log.error("Failed to add camera preview surface", e);
         }

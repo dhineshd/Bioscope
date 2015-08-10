@@ -74,9 +74,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     stream.reset();
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.YUV_420_888, w, h, null);
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
                         yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
+                        log.info("Stream image size = {} bytes", byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     } else {
                         new WeakReference<Bitmap>(convertToBmp(data.getInts(), w, h)).get()
