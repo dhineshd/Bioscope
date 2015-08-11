@@ -3,7 +3,9 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
@@ -44,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int STREAMING_FRAMES_PER_SEC = 20;
+    private static final int STREAMING_FRAMES_PER_SEC = 5;
     private static final int STREAMING_COMPRESSION_QUALITY = 50; // 0 worst - 100 best
 
     @NonNull
@@ -61,9 +63,12 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
-        long frameProcessingStartTime = System.currentTimeMillis();
-        int w = cameraInfos.getCameraResolution().getWidth();
-        int h = cameraInfos.getCameraResolution().getHeight();
+        int cameraWidth = cameraInfos.getCameraResolution().getWidth();
+        int cameraHeight = cameraInfos.getCameraResolution().getHeight();
+
+        int targetWidth = 176;//cameraInfos.getCaptureResolution().getWidth();
+        int targetHeight = 144;//cameraInfos.getCaptureResolution().getHeight();
+
 
         log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
         if (destOutputStream != null) {
@@ -74,13 +79,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     stream.reset();
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
-                        yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = stream.toByteArray();
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraWidth, cameraHeight, null);
+                        yuvimage.compressToJpeg(new Rect(0, 0, cameraWidth, cameraHeight), STREAMING_COMPRESSION_QUALITY, stream);
+                        byte[] byteArray = bitmapToByteArray(createScaledBitmap(stream.toByteArray(), targetWidth, targetHeight, 90));
+                        //byte[] byteArray = stream.toByteArray();
                         log.info("Stream image size = {} bytes", byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     } else {
-                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), w, h)).get()
+                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
@@ -103,6 +109,20 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
+    }
+
+    public static Bitmap createScaledBitmap(byte[] bitmapAsData, int width, int height, int rotateAngle) {
+        Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapAsData, 0, bitmapAsData.length);
+        Matrix matrix = new Matrix();
+        matrix.postRotate(rotateAngle);
+        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
+        return Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.getWidth(), scaledBitmap.getHeight(), matrix, true);
+    }
+
+    public static  byte[] bitmapToByteArray(final Bitmap bitmap) {
+        ByteArrayOutputStream blob = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, blob);
+        return blob.toByteArray();
     }
 
     private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
