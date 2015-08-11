@@ -46,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int STREAMING_FRAMES_PER_SEC = 5;
+    private static final int STREAMING_FRAMES_PER_SEC = 20;
     private static final int STREAMING_COMPRESSION_QUALITY = 50; // 0 worst - 100 best
 
     @NonNull
@@ -66,8 +66,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
-        int targetWidth = 176;//cameraInfos.getCaptureResolution().getWidth();
-        int targetHeight = 144;//cameraInfos.getCaptureResolution().getHeight();
+        int targetWidth = 480;//cameraInfos.getCaptureResolution().getWidth();
+        int targetHeight = 270;//cameraInfos.getCaptureResolution().getHeight();
 
 
         log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
