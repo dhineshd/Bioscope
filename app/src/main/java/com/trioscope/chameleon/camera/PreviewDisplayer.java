@@ -17,4 +17,6 @@ public interface PreviewDisplayer {
     void addOnPreparedCallback(Runnable runnable);
 
     SurfaceView createPreviewDisplay();
+
+    void toggleFrontFacingCamera();
 }

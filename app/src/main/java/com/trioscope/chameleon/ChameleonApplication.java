@@ -47,6 +47,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.net.ssl.KeyManagerFactory;
@@ -136,7 +137,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         LOG.info("Starting application");
 
-        metrics = new MetricsHelper(this);
+        //metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -238,11 +239,11 @@ public class ChameleonApplication extends Application {
             try {
                 ThreadWithHandler handlerThread = new ThreadWithHandler();
                 String[] cameras = manager.getCameraIdList();
-                LOG.info("Camera ids are {}, going to open first in list", cameras);
-                manager.openCamera(cameras[0], new CameraDevice.StateCallback() {
+                LOG.info("Camera ids are {}, going to open first in list", Arrays.asList(cameras));
+                manager.openCamera(cameras[1], new CameraDevice.StateCallback() {
                     @Override
                     public void onOpened(CameraDevice camera) {
-                        LOG.info("Found camera device callback {}", camera);
+                        LOG.info("Opened camera device {}", camera);
 
                         previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
                         previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
@@ -251,6 +252,11 @@ public class ChameleonApplication extends Application {
                             LOG.info("Notifying chameleon waiters");
                             ChameleonApplication.this.notifyAll();
                         }
+                    }
+
+                    @Override
+                    public void onClosed(CameraDevice camera) {
+                        LOG.info("Camera {} is closed", camera);
                     }
 
                     @Override
@@ -542,8 +548,8 @@ public class ChameleonApplication extends Application {
                 if (wifiManager.isWifiEnabled()) {
 
                     //Publish time for wifi to be enabled
-                    metrics.sendTime(MetricNames.Category.WIFI.getName(),
-                            MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
+                    //metrics.sendTime(MetricNames.Category.WIFI.getName(),
+                     //       MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
 
                     // Done with checking Wifi state
                     unregisterReceiverSafely(this);

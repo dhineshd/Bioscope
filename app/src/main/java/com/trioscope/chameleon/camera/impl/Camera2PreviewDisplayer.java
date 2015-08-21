@@ -7,6 +7,7 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureFailure;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
@@ -14,6 +15,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.os.HandlerThread;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -28,6 +30,7 @@ import com.trioscope.chameleon.util.ImageUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,13 +45,14 @@ import lombok.extern.slf4j.Slf4j;
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private static final int MAX_NUM_IMAGES = 2;
     private final Context context;
-    private final CameraDevice cameraDevice;
     private final CameraManager cameraManager;
     private final CameraInfo cameraInfo;
+    private CameraDevice cameraDevice;
     private ImageReader imageReader;
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
+    private int curLensFacing;
 
 
     @Setter
@@ -83,10 +87,20 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         cameraInfo = builder.build();
 
         log.info("Using cameraInfo {}", cameraInfo);
+
+        try {
+            CameraCharacteristics cc = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            curLensFacing = cc.get(CameraCharacteristics.LENS_FACING);
+            log.info("Camera is facing {}", curLensFacing);
+        } catch (CameraAccessException e) {
+            log.error("Unable to access camerainformation", e);
+        }
+
     }
 
     @Override
     public void startPreview() {
+        log.info("Starting camera preview");
         if (previewSurface != null)
             startPreviewHelper();
         else
@@ -116,6 +130,73 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         return encodings;
     }
 
+    Collection<Integer> ALLOWABLE_CAMERA_LENS = Arrays.asList(CameraCharacteristics.LENS_FACING_BACK, CameraCharacteristics.LENS_FACING_FRONT);
+
+    /*
+     * Toggle between front and rear facing cameras. This method automatically stops and starts the camera preview.
+     */
+    public void toggleFrontFacingCamera() {
+        try {
+            log.info("Iterating through cameraIds searching for suitable camera");
+            String suitableCameraId = null;
+            int suitableDirection = -1;
+            for (String cameraId : cameraManager.getCameraIdList()) {
+                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraId);
+                int facingDirection = characteristics.get(CameraCharacteristics.LENS_FACING);
+
+                if (ALLOWABLE_CAMERA_LENS.contains(facingDirection) && facingDirection != curLensFacing) {
+                    log.info("Found suitable camera {} - facing {}", cameraId, facingDirection);
+                    suitableCameraId = cameraId;
+                    suitableDirection = facingDirection;
+                }
+            }
+
+            if (suitableCameraId != null) {
+                stopPreview();
+                curLensFacing = suitableDirection;
+                cameraDevice = null;
+                cameraManager.openCamera(suitableCameraId, new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(CameraDevice cd) {
+                        log.info("Successfully changed cameraDevice");
+                        synchronized (Camera2PreviewDisplayer.this) {
+                            cameraDevice = cd;
+                            Camera2PreviewDisplayer.this.notifyAll();
+                        }
+                    }
+
+                    @Override
+                    public void onDisconnected(CameraDevice cameraDevice) {
+                        log.warn("CameraDevice disconnected (unexpectedly?) {}", cameraDevice);
+                    }
+
+                    @Override
+                    public void onError(CameraDevice cameraDevice, int i) {
+                        log.error("Error with cameraDevice, errorCode={}", i);
+                    }
+                }, new ThreadWithHandler().getHandler());
+
+                // TODO: We should really be waiting on a different thread for the camera device to become ready
+                // Wait for the camera device to become available before we start hte preview again
+                synchronized (this) {
+                    while (cameraDevice == null) {
+                        try {
+                            log.info("Waiting for cameraDevice to become available.");
+                            this.wait();
+                        } catch (InterruptedException e) {
+                            log.error("Waiting for camera to open was interupted");
+                        }
+                    }
+                }
+
+                log.info("Restarting cameraPreview");
+                startPreview();
+            }
+        } catch (CameraAccessException e) {
+            log.error("Unable to access camera information", e);
+        }
+    }
+
     private List<Size> getSupportedSizes(int format) {
         List<Size> sizes = new ArrayList<>();
         try {
@@ -139,7 +220,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private void startPreviewHelper() {
         try {
             CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
-            log.info("Timestamp source: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
+            log.info("Timestamp source for camera2: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
 
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
@@ -149,7 +230,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             log.info("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
-                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                 requestBuilder.addTarget(imageReader.getSurface());
                 requestBuilder.addTarget(previewSurface);
                 log.info("Creating capture session");
@@ -166,8 +247,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         captureSession = session;
                         try {
                             // Auto focus should be continuous for camera preview.
-                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_OFF);
+                            //requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                            //      CaptureRequest.CONTROL_AF_MODE_OFF);
 //                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
 //                                    Range.create(20, 20));
                             // Flash is automatically enabled when necessary.
@@ -181,14 +262,28 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
                             requestSentAt = System.currentTimeMillis();
                             log.info("Repeating request sent at {}", requestSentAt);
-                            captureSession.setRepeatingRequest(previewRequest,
+
+                            ThreadWithHandler handler = new ThreadWithHandler();
+                            handler.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                                @Override
+                                public void uncaughtException(Thread thread, Throwable throwable) {
+                                    log.error("Uncaught exception in the handling of the capture request {}", thread, throwable);
+                                }
+
+
+                            });
+
+                            captureSession.capture(previewRequest,
                                     new CameraCaptureSession.CaptureCallback() {
                                         long captureStartTime = System.currentTimeMillis();
+
+
 
                                         @Override
                                         public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
                                             super.onCaptureStarted(session, request, timestamp, frameNumber);
                                             captureStartTime = System.currentTimeMillis();
+                                            log.info("Capture successfully started");
                                         }
 
                                         @Override
@@ -201,21 +296,41 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                                                 firstRequestReceived = System.currentTimeMillis();
                                                 log.info("Latency between calls is {} ms", firstRequestReceived - requestSentAt);
                                             }
-                                            log.debug("Capture completed - {}, capture delay = {} ms, frame duration = {} ms",
+                                            log.info("Capture completed - {}, capture delay = {} ms, frame duration = {} ms",
                                                     result.get(CaptureResult.SENSOR_TIMESTAMP),
                                                     System.currentTimeMillis() - captureStartTime,
                                                     result.get(CaptureResult.SENSOR_FRAME_DURATION) / 1000000);
                                         }
 
-                                    }, null);
-                        } catch (CameraAccessException e) {
-                            e.printStackTrace();
+                                        @Override
+                                        public void onCaptureFailed(CameraCaptureSession session, CaptureRequest request, CaptureFailure failure) {
+                                            log.error("Error on capture request {}, failure is {}", request, failure);
+                                        }
+
+                                        @Override
+                                        public void onCaptureSequenceAborted(CameraCaptureSession session, int sequenceId) {
+                                            log.warn("Capture aborted");
+                                        }
+
+                                        @Override
+                                        public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
+                                            log.info("Capture progressed");
+                                        }
+
+                                        @Override
+                                        public void onCaptureSequenceCompleted(CameraCaptureSession session, int sequenceId, long frameNumber) {
+                                            log.info("Capture sequence completed");
+                                        }
+                                    }, handler.getHandler());
+                            log.info("Call to capture completed");
+                        } catch (Exception e) {
+                            log.error("Exception caught", e);
                         }
                     }
 
                     @Override
                     public void onConfigureFailed(CameraCaptureSession session) {
-
+                        log.info("Configuration failed for session {}", session);
                     }
                 }, null);
             } catch (Exception e) {
@@ -247,6 +362,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             try {
                 captureSession.abortCaptures();
                 cameraDevice.close();
+                cameraDevice = null;
             } catch (CameraAccessException e) {
                 log.error("Unable to abort captures", e);
             }
@@ -260,6 +376,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
     @Override
     public SurfaceView createPreviewDisplay() {
+        log.info("Creating PreviewDisplay for open camera");
         SurfaceView surfaceView = new SurfaceView(context);
         surfaceView.getHolder().setFixedSize(1920, 1080);
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {

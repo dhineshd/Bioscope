@@ -167,4 +167,9 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
 
         return previewDisplay;
     }
+
+    @Override
+    public void toggleFrontFacingCamera() {
+        throw new UnsupportedOperationException("This preview displayer does not support front facing camera" );
+    }
 }

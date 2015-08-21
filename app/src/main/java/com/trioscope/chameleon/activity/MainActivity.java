@@ -43,7 +43,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("Start sesion button pressed");
+                LOG.info("Start session button pressed");
                 chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
@@ -72,7 +72,30 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        final Button toggleFrontFacingCamera = (Button) findViewById(R.id.switch_to_front_facing_button);
+
+        toggleFrontFacingCamera.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Clicked on front facing button for {}");
+                chameleonApplication.getPreviewDisplayer().toggleFrontFacingCamera();
+            }
+        });
+
         chameleonApplication.preparePreview();
+
+        LOG.info("Getting preview displayer and attaching prepared callback {}", chameleonApplication.getPreviewDisplayer());
+        // Tell the application we're ready to show preview whenever
+        chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
+            @Override
+            public void run() {
+                LOG.info("Preview displayer is ready to display a preview - adding one to the main activity");
+                addCameraPreviewSurface();
+                chameleonApplication.startPreview();
+            }
+        });
+
+        LOG.info("Added prepared callback");
     }
 
     @Override
