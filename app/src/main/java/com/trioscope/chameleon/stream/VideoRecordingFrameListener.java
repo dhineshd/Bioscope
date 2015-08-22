@@ -4,16 +4,17 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.media.MediaRecorder;
-import android.os.Build;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.types.CameraInfo;
+import com.trioscope.chameleon.types.Size;
 
 import java.io.File;
 import java.io.IOException;
@@ -58,6 +59,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
     private long previousFrameSendTimeMs = 0;
+    private String encoderName;
+    private Size cameraFrameSize;
+    byte[] finalFrameData;
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
@@ -66,14 +70,19 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     }
 
     private void setupVideoEncoder() {
-        int w = 1920, h = 1080;
+        cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+        finalFrameData = new byte[cameraFrameSize.getHeight() * cameraFrameSize.getWidth() * 3/2];
+
         // Setup video encoder
         try {
-            videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
+            encoderName = selectEncoder(MIME_TYPE_VIDEO).getName();
+            log.info("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, encoderName);
+            videoEncoder = MediaCodec.createByCodecName(encoderName);
             for (int colorFormat : videoEncoder.getCodecInfo().getCapabilitiesForType(MIME_TYPE_VIDEO).colorFormats ) {
                 log.info("Supported color format = {}", colorFormat);
             }
-            MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO, w, h);
+            MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO,
+                    cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
@@ -134,6 +143,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
             if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
                 if (shouldRecordCurrentFrame()) {
+
                     try {
                         long preFrameProcessingTime = System.currentTimeMillis();
                         //byte[] audioData = new byte[4096];
@@ -193,9 +203,20 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         //return actualAudioPresentationTimeMicros;
     }
 
-    private long processVideo(final byte[] videoData, final long presentationTimeMicros) {
+    private long processVideo(final byte[] frameData, final long presentationTimeMicros) {
 
         log.info("Processing video..");
+
+        // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)
+        // doesn't support COLOR_FormatYUV420Planar, we need to convert
+        // the frame data to COLOR_FormatYUV420SemiPlanar before handing it to MediaCodec.
+        // TODO : Find effective color format for encoder and use that instead of encoder name
+        if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
+            log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
+            convertYUV420PlanarToYUV420SemiPlanar(frameData, finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+        } else {
+            finalFrameData = frameData;
+        }
 
         long actualPresentationTimeMicros = -1;
 
@@ -204,9 +225,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         if (videoInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = videoEncoder.getInputBuffer(videoInputBufferIndex);
             inputBuffer.clear();
-            log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), videoData.length);
-            inputBuffer.put(videoData);
-            videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, videoData.length, presentationTimeMicros, 0);
+            log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), frameData.length);
+            inputBuffer.put(finalFrameData);
+            videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, finalFrameData.length, presentationTimeMicros, 0);
         }
 
         MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();
@@ -249,6 +270,61 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             log.warn("unexpected result from video encoder.dequeueOutputBuffer: " + videoOutputBufferIndex);
         }
         return actualPresentationTimeMicros;
+    }
+
+    private static byte[] convertYUV420PlanarToYUV420SemiPlanar(
+            final byte[] input, final byte[] output, final int width, final int height) {
+
+        final int frameSize = width * height;
+        final int qFrameSize = frameSize / 4;
+
+        System.arraycopy(input, 0, output, 0, frameSize); // Y
+
+        for (int i = 0; i < qFrameSize; i++) {
+            output[frameSize + i * 2 + 1] = input[frameSize + i + qFrameSize]; // Cb (U)
+            output[frameSize + i * 2] = input[frameSize + i]; // Cr (V)
+        }
+
+        return output;
+    }
+
+    private byte[] getPaddedFrameData(final byte[] frameData) {
+        int padding = 0;
+        if (encoderName.contains("OMX.qcom")) {
+            padding = (cameraFrameSize.getWidth() * cameraFrameSize.getHeight()) % 2048;
+            log.info("padding = {}", padding);
+            byte[] frameDataWithPadding = new byte[padding + frameData.length];
+
+            System.arraycopy(frameData, 0, frameDataWithPadding, 0, frameData.length);
+            int offset = cameraFrameSize.getWidth() * cameraFrameSize.getHeight();
+            System.arraycopy(frameData, offset, frameDataWithPadding,
+                    offset + padding, frameData.length - offset);
+            return frameDataWithPadding;
+        }
+        return frameData;
+    }
+
+    /**
+     * Returns the first codec capable of encoding the specified MIME type, or null if no
+     * match was found.
+     */
+    private MediaCodecInfo selectEncoder(String mimeType) {
+        int numCodecs = MediaCodecList.getCodecCount();
+        MediaCodecInfo validCodecInfo = null;
+        for (int i = 0; i < numCodecs; i++) {
+            MediaCodecInfo codecInfo = MediaCodecList.getCodecInfoAt(i);
+            if (!codecInfo.isEncoder()) {
+                continue;
+            }
+            String[] types = codecInfo.getSupportedTypes();
+            for (int j = 0; j < types.length; j++) {
+                if (types[j].equalsIgnoreCase(mimeType)) {
+                    log.info("Valid encoder found : {}", codecInfo.getName());
+                    return codecInfo;
+                }
+            }
+        }
+        return validCodecInfo;
     }
 
     private long processAudio(final long presentationTimeMicros) {
@@ -314,21 +390,11 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         return actualPresentationTimeMicros;
     }
 
-    private static String getDeviceName() {
-        String manufacturer = Build.MANUFACTURER;
-        String model = Build.MODEL;
-        if (model.startsWith(manufacturer)) {
-            return model;
-        }
-        return manufacturer + "_" + model;
-    }
-
     @Override
     public void onStartRecording(long recordingStartTimeMillis) {
         //Setup MediaMuxer to save MediaCodec output to file
         try {
-            File outputFile = chameleonApplication.getOutputMediaFile(
-                    getDeviceName()+ "_muxer.mp4");
+            File outputFile = chameleonApplication.getOutputMediaFile("LocalVideo.mp4");
             if (outputFile.exists()) {
                 outputFile.delete();
             }

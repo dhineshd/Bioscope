@@ -562,7 +562,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         log.info("Sending msg = {}", gson.toJson(peerMsg));
         pw.println(gson.toJson(peerMsg));
         pw.close();
-        final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE];
+        final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
         InputStream inputStream = socket.getInputStream();
         while (!Thread.currentThread().isInterrupted()) {
             // TODO More robust

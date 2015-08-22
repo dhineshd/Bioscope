@@ -47,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int STREAMING_FRAMES_PER_SEC = 20;
+    private static final int STREAMING_FRAMES_PER_SEC = 10;
     private static final int STREAMING_COMPRESSION_QUALITY = 50; // 0 worst - 100 best
 
     @NonNull
@@ -57,7 +57,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private volatile OutputStream destOutputStream;
 
     private final ByteArrayOutputStream stream =
-            new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
+            new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
 
     private long previousFrameSendTimeMs = 0;
@@ -78,30 +78,27 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 log.debug("Decided to send current frame across stream");
                 try {
                     stream.reset();
+                    byte[] byteArray = null;
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
                         YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraWidth, cameraHeight, null);
-                        yuvimage.compressToJpeg(new Rect(0, 0, cameraWidth, cameraHeight), STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = bitmapToByteArray(createScaledBitmap(stream.toByteArray(), targetWidth, targetHeight, 90));
-                        //byte[] byteArray = stream.toByteArray();
-                        log.info("Stream image size = {} bytes", byteArray.length);
-                        destOutputStream.write(byteArray, 0, byteArray.length);
-                    } else {
+                        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight), STREAMING_COMPRESSION_QUALITY, stream);
+                        //byteArray = bitmapToByteArray(createScaledBitmap(stream.toByteArray(), targetWidth, targetHeight, 0));
+                        byteArray = stream.toByteArray();
+                    } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.RGBA_8888) {
                         new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = stream.toByteArray();
+                        byteArray = stream.toByteArray();
+                    }
+                    if (byteArray != null ) {
+                        log.info("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     }
-
                     previousFrameSendTimeMs = System.currentTimeMillis();
-                    // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
-                    // byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
                     isStreamingStarted = false;
-                } catch (Exception e) {
-                    log.error("Failed to send data to client (unknown)", e);
                 }
             }
         }
