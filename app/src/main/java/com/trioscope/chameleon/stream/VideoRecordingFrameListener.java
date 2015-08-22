@@ -224,7 +224,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int videoInputBufferIndex = videoEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (videoInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = videoEncoder.getInputBuffer(videoInputBufferIndex);
-            inputBuffer.clear();
             log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), frameData.length);
             inputBuffer.put(finalFrameData);
             videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, finalFrameData.length, presentationTimeMicros, 0);
@@ -245,10 +244,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             }
 
             if (videoBufferInfo.size != 0 && muxerStarted) {
-                // adjust the ByteBuffer values to match BufferInfo (not needed?)
-                outputBuffer.position(videoBufferInfo.offset);
-                outputBuffer.limit(videoBufferInfo.offset + videoBufferInfo.size);
-
                 mediaMuxer.writeSampleData(videoTrackIndex, outputBuffer, videoBufferInfo);
 
                 actualPresentationTimeMicros = videoBufferInfo.presentationTimeUs;
@@ -336,7 +331,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int audioInputBufferIndex = audioEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (audioInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = audioEncoder.getInputBuffer(audioInputBufferIndex);
-            inputBuffer.clear();
             int audioBytesRead = audioRecorder.read(inputBuffer, AUDIO_SAMPLES_PER_FRAME * 2);
             log.info("audio bytebuffer size = {}, bytes read = {}",
                     inputBuffer.capacity(), audioBytesRead);
@@ -357,10 +351,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             }
 
             if (audioBufferInfo.size != 0 && muxerStarted) {
-
-                // adjust the ByteBuffer values to match BufferInfo (not needed?)
-                outputBuffer.position(audioBufferInfo.offset);
-                outputBuffer.limit(audioBufferInfo.offset + audioBufferInfo.size);
 
                 mediaMuxer.writeSampleData(audioTrackIndex, outputBuffer, audioBufferInfo);
 
