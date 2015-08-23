@@ -57,9 +57,17 @@ public class PreferencesActivity extends Activity {
                 if (connectionPref != null){
                     connectionPref.setSummary(sharedPreferences.getString(key, ""));
                 }
+            } else if (getString(R.string.pref_user_name_key).equals(key)) {
+
+                Preference connectionPref = findPreference(key);
+                // Set summary to be the user-description for the selected value
+                if (connectionPref != null) {
+                    connectionPref.setSummary(sharedPreferences.getString(key, ""));
+                }
             } else {
                 log.info("Preferences changed from {} not {}", key, getString(R.string.pref_stream_resolution));
             }
+            log.info("Preferences changed for {}", key);
         }
     }
 }

@@ -16,12 +16,22 @@
     <string name="mime_type_nfc_connect_wifi">application/com.trioscope.chameleon.connect.wifi</string>
     <string name="title_activity_preview_merge">PreviewMergeActivity</string>
     <string name="share_via">Share via</string>
-    <string name="stream_preferences">Streaming</string>
+
     <string name="menu_settings">Settings</string>
 
 
     <!-- Preferences -->
+    <string name="stream_preferences">Streaming</string>
+
     <string name="pref_stream_resolution">StreamResolution</string>
     <string name="pref_stream_resolution_summary">Resolution sent across the stream</string>
     <string name="pref_stream_resolution_title">Stream Resolution</string>
+
+    <string name="user_preferences">User Details</string>
+
+    <string name="pref_user_name_key">UserName</string>
+    <string name="pref_user_name_summary">Enter Name</string>
+    <string name="pref_user_name_title">Name</string>
+
+
 </resources>
