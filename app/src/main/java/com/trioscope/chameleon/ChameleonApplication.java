@@ -27,6 +27,7 @@ import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
 import com.trioscope.chameleon.stream.RecordingEventListener;
+import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
@@ -79,6 +80,9 @@ public class ChameleonApplication extends Application {
     private volatile File videoFile;
     @Getter
     @Setter
+    private volatile File secondaryVideoFile;
+    @Getter
+    @Setter
     private volatile Long recordingStartTimeMillis;
 
     @Getter
@@ -110,6 +114,8 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private volatile VideoStreamFrameListener streamListener;
+    @Getter
+    private volatile VideoRecordingFrameListener recordingFrameListener;
     @Setter
     private ConnectionServer connectionServer;
     @Getter
@@ -130,7 +136,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         LOG.info("Starting application");
 
-        // metrics = new MetricsHelper(this);
+        metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -143,22 +149,19 @@ public class ChameleonApplication extends Application {
         }
 
         streamListener = new VideoStreamFrameListener(this);
-        cameraFrameBuffer.addListener(streamListener);
+        //cameraFrameBuffer.addListener(streamListener);
+
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
 
-        //Code for phone
-        IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
-        phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+        recordingFrameListener = new VideoRecordingFrameListener(this);
+        cameraFrameBuffer.addListener(recordingFrameListener);
 
-        IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
-        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
-        LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
         startup();
     }
 
-
-    public void createBackgroundRecorder(final RecordingEventListener recordingEventListener) {
+    public void createBackgroundRecorder(
+            final RecordingEventListener recordingEventListener) {
         videoRecorder = new BackgroundRecorder(this, recordingEventListener);
     }
 

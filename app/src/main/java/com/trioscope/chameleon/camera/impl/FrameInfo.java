@@ -7,5 +7,5 @@ import lombok.Data;
  */
 @Data
 public class FrameInfo {
-    private long timestamp;
+    private long timestampNanos;
 }

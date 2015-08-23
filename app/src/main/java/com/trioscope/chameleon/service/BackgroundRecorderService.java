@@ -28,6 +28,7 @@ public class BackgroundRecorderService extends Service {
     private MediaRecorder mediaRecorder;
     private SystemOverlayGLSurface surfaceView;
 
+
     @Setter
     private Camera camera = null;
 
@@ -77,6 +78,7 @@ public class BackgroundRecorderService extends Service {
 
         // Set output file
         LOG.info("Setting outputh path = {}", outputFile.getPath());
+
         mediaRecorder.setOutputFile(outputFile.getPath());
 
         // Step 5: Prepare configured MediaRecorder

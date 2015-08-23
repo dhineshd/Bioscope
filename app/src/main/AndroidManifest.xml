@@ -81,7 +81,7 @@
         <activity
             android:name=".activity.MergeVideosActivity"
             android:label="MergeVideosActivity"
-            android:screenOrientation="portrait"
+            android:screenOrientation="landscape"
             android:noHistory="true"/>
 
         <meta-data

@@ -3,10 +3,13 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
+import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.gson.Gson;
@@ -61,11 +64,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     @Override
     public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
-        long frameProcessingStartTime = System.currentTimeMillis();
-        int w = cameraInfos.getCaptureResolution().getWidth();
-        int h = cameraInfos.getCaptureResolution().getHeight();
+        int cameraWidth = cameraInfos.getCameraResolution().getWidth();
+        int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
-        log.debug("Frame available to send across the stream on thread {}", Thread.currentThread());
+        int targetWidth = 480;//cameraInfos.getCaptureResolution().getWidth();
+        int targetHeight = 270;//cameraInfos.getCaptureResolution().getHeight();
+
+        log.info("Frame available to send across the stream on thread {}, frame timestamp = {}, currentTime = {}, uptime = {}",
+                Thread.currentThread(), frameInfo.getTimestampNanos() / 1000000, System.currentTimeMillis(), SystemClock.uptimeMillis());
         if (destOutputStream != null) {
 
             if (shouldStreamCurrentFrame()) {
@@ -73,14 +79,15 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 try {
                     stream.reset();
 
-                    if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
-                        log.debug("Using NV21 frame");
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, w, h, null);
-                        yuvimage.compressToJpeg(new Rect(0, 0, w, h), STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = stream.toByteArray();
+                    if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
+                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraWidth, cameraHeight, null);
+                        yuvimage.compressToJpeg(new Rect(0, 0, cameraWidth, cameraHeight), STREAMING_COMPRESSION_QUALITY, stream);
+                        byte[] byteArray = bitmapToByteArray(createScaledBitmap(stream.toByteArray(), targetWidth, targetHeight, 90));
+                        //byte[] byteArray = stream.toByteArray();
+                        log.info("Stream image size = {} bytes", byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     } else {
-                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), w, h)).get()
+                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
                         byte[] byteArray = stream.toByteArray();
                         destOutputStream.write(byteArray, 0, byteArray.length);
@@ -95,7 +102,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     isStreamingStarted = false;
                 } catch (Exception e) {
                     log.error("Failed to send data to client (unknown)", e);
-                    throw e;
                 }
             }
         }
@@ -104,6 +110,20 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
+    }
+
+    public static Bitmap createScaledBitmap(byte[] bitmapAsData, int width, int height, int rotateAngle) {
+        Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapAsData, 0, bitmapAsData.length);
+        Matrix matrix = new Matrix();
+        matrix.postRotate(rotateAngle);
+        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
+        return Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.getWidth(), scaledBitmap.getHeight(), matrix, true);
+    }
+
+    public static  byte[] bitmapToByteArray(final Bitmap bitmap) {
+        ByteArrayOutputStream blob = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, blob);
+        return blob.toByteArray();
     }
 
     private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
