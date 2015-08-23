@@ -40,7 +40,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:orientation="vertical"
-                android:weightSum="3">
+                android:weightSum="4">
 
                 <View
                     android:layout_width="0dp"
@@ -50,6 +50,12 @@
                 <View
                     android:layout_width="0dp"
                     android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/peer_user_name"
+                    android:layout_width="0dp"
+                    android:layout_height="10dp"
                     android:layout_weight="1" />
 
                 <ImageView
@@ -63,7 +69,7 @@
 
         </LinearLayout>
 
-        <ProgressBar
+       <ProgressBar
             android:id="@+id/progressBar_file_transfer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

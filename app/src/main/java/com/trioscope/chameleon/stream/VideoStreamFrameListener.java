@@ -151,7 +151,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
         switch (messageFromClient.getType()) {
             case START_SESSION:
-                startStreaming(clientSocket);
+                String peerUserName = messageFromClient.getSenderUserName();
+                startStreaming(clientSocket, peerUserName);
                 break;
             case SESSION_HEARTBEAT:
                 updateConnectionHealth();
@@ -171,7 +172,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private void startStreaming(final Socket clientSocket) {
+    private void startStreaming(final Socket clientSocket, String peerUserName) {
         try {
             destOutputStream = clientSocket.getOutputStream();
             log.info("Destination output stream set in Thread = {}", Thread.currentThread());
@@ -187,6 +188,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     .ipAddress(clientSocket.getInetAddress())
                     .port(ChameleonApplication.SERVER_PORT)
                     .role(PeerInfo.Role.CREW_MEMBER)
+                    .userName(peerUserName)
                     .build();
             intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
             context.startActivity(intent);

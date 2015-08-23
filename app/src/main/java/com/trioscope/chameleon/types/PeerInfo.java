@@ -23,4 +23,7 @@ public class PeerInfo {
     private Integer port;
     @NonNull
     private Role role;
+    @NonNull
+    private String userName;
+
 }

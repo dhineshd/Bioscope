@@ -6,11 +6,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -20,6 +22,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -76,6 +79,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private ProgressBar progressBar;
     private SurfaceView previewDisplay;
     private long clockDifferenceMs;
+    private TextView peerUserNameTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +87,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         setContentView(R.layout.activity_connection_established);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
+
+        peerUserNameTextView = (TextView) findViewById(R.id.peer_user_name);
 
         sslSocketFactory = getInitializedSSLSocketFactory();
 
@@ -150,6 +156,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         chameleonApplication.getStreamListener().setStreamingStarted(true);
 
         log.info("PeerInfo = {}", peerInfo);
+
+        peerUserNameTextView.setText(peerInfo.getUserName());
+
         connectToServerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         connectToServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
@@ -548,6 +557,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         PeerMessage peerMsg = PeerMessage.builder()
                 .type(PeerMessage.Type.START_SESSION)
                 .contents("abc")
+                .senderUserName(getUserName()) //Send this user's name
                 .build();
         log.info("Sending msg = {}", gson.toJson(peerMsg));
         pw.println(gson.toJson(peerMsg));
@@ -572,6 +582,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             }
         }
 
+    }
+
+    private String getUserName() {
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this.chameleonApplication.getApplicationContext());
+        return settings.getString(getString(R.string.pref_user_name_key), "");
     }
 
     private void waitUntilIPBecomesReachable(final InetAddress ipAddress) throws IOException {

@@ -24,4 +24,6 @@ public class WiFiNetworkConnectionInfo {
     private String serverIpAddress;
     @NonNull
     private Integer serverPort;
+    @NonNull
+    private String userName;
 }
