@@ -15,6 +15,7 @@ import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
+import com.trioscope.chameleon.util.ColorConversionUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -210,10 +211,11 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)
         // doesn't support COLOR_FormatYUV420Planar, we need to convert
         // the frame data to COLOR_FormatYUV420SemiPlanar before handing it to MediaCodec.
-        // TODO : Find effective color format for encoder and use that instead of encoder name
+        // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
             log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
-            convertYUV420PlanarToYUV420SemiPlanar(frameData, finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            finalFrameData = ColorConversionUtil.convertI420ToNV12(frameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            //convertYUV420PlanarToYUV420SemiPlanar(frameData, finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
         } else {
             finalFrameData = frameData;
         }
@@ -224,7 +226,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int videoInputBufferIndex = videoEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (videoInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = videoEncoder.getInputBuffer(videoInputBufferIndex);
-            log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), frameData.length);
+            log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), finalFrameData.length);
             inputBuffer.put(finalFrameData);
             videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, finalFrameData.length, presentationTimeMicros, 0);
         }
