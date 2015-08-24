@@ -91,7 +91,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-i");
         params.add(minorVidPath);
         params.add("-filter_complex");
-        params.add("[0] transpose=1,scale=iw*2/3:-1 [0new]; [1] transpose=1,scale=iw*2/3:-1 [1new]; [1new]scale=iw/2:ih/2 [pip]; [0new][pip] overlay=main_w-overlay_w-10:main_h-overlay_h-10");
+        params.add("[0] transpose=1,scale=iw:-1 [0new]; [1] transpose=1,scale=iw:-1 [1new]; [1new]scale=iw/3:ih/3 [pip]; [0new][pip] overlay=main_w-overlay_w-10:main_h-overlay_h-10");
         params.add("-preset");
         params.add("ultrafast");
         params.add("-strict");
