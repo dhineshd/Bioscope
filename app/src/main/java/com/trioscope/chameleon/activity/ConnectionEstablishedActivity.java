@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -564,6 +565,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         pw.close();
         final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
         InputStream inputStream = socket.getInputStream();
+        final Matrix matrix = new Matrix();
+        matrix.postRotate(90);
         while (!Thread.currentThread().isInterrupted()) {
             // TODO More robust
             final int bytesRead = inputStream.read(buffer);
@@ -575,7 +578,19 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     @Override
                     public void run() {
                         if (imageView != null && bmpRef.get() != null) {
-                            imageView.setImageBitmap(bmpRef.get());
+                            // TODO : Rotate image without using bitmap
+                            Bitmap scaledBitmap = Bitmap.createScaledBitmap(
+                                    bmpRef.get(), bmpRef.get().getWidth(), bmpRef.get().getHeight(), true);
+                            Bitmap rotatedBitmap = Bitmap.createBitmap(
+                                    scaledBitmap , 0, 0, scaledBitmap.getWidth(),
+                                    scaledBitmap.getHeight(), matrix, true);
+                            scaledBitmap = null;
+                            imageView.setImageBitmap(rotatedBitmap);
+//                            Matrix matrix = new Matrix();
+//                            matrix.setRotate(90, imageView.getDrawable().getBounds().width() / 2, imageView.getDrawable().getBounds().height() / 2);
+//                            imageView.setScaleType(ImageView.ScaleType.MATRIX);   //required
+//                            imageView.setImageMatrix(matrix);
+
                         }
                     }
                 });

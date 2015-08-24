@@ -67,7 +67,11 @@ public class ChameleonApplication extends Application {
     public static final int MEDIA_TYPE_AUDIO = 3;
     public static final String START_RECORDING_ACTION = "START_RECORDING";
     public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
-    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 20;
+    // Stream image buffer size is set to be the same as minimum socket buffer size
+    // which ensures that each image can be transferred in a single send eliminating
+    // the need to maintain sequence numbers when sending data. So, we
+    // need to ensure that the compressed stream image size is less than this value.
+    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
 
