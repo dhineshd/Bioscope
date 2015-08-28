@@ -17,7 +17,9 @@ public class ColorConversionUtil {
 
     public static native byte[] convertI420ToNV12(byte[] input, int width, int height);
 
-    public static native byte[] convertI420ToNV21(byte[] input, int width, int height);
+    public static native byte[] convertI420ToNV21(byte[] input, byte[] output, int width, int height);
+
+    public static native void scaleAndConvertI420ToNV21(byte[] input, byte[] output, int oldWidth, int oldHeight, int newWidth, int newHeight);
 
     public static native byte[] i420ScaleAndRotateBy90(byte[] input, int currentWidth, int currentHeight, int newWidth, int newHeight);
 }
