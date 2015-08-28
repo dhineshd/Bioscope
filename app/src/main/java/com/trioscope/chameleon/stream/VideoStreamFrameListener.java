@@ -105,24 +105,6 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private byte[] convertYUV420888ToJPEGByteArrayMethod1(
-            final byte[] frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight) {
-        ColorConversionUtil.convertI420ToNV21(
-                ColorConversionUtil.i420ScaleAndRotateBy90(
-                        frameData, frameWidth, frameHeight, targetWidth, targetHeight),
-                finalFrameData, targetWidth, targetHeight);
-        YuvImage yuvimage = new YuvImage(
-                finalFrameData,
-                ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
     private byte[] convertYUV420888ToJPEGByteArrayMethod2(
             final byte[] frameData,
             final int frameWidth,

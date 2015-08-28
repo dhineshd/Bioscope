@@ -61,7 +61,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
     private Size cameraFrameSize;
-    private volatile byte[] finalFrameData;
+    private volatile byte[] finalFrameData =
+            new byte[ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth() *
+                    ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight() * 3 / 2];
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
@@ -192,7 +194,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         }
     }
 
-    private synchronized long processVideo(
+    private long processVideo(
             final byte[] frameData,
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
@@ -205,8 +207,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
             log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
-            //finalFrameData = frameData;
-            finalFrameData = ColorConversionUtil.convertI420ToNV12(frameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            ColorConversionUtil.convertI420ToNV12(frameData, finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
         } else {
             finalFrameData = frameData;
         }
