@@ -8,6 +8,7 @@ import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.media.MediaRecorder;
 import android.os.AsyncTask;
+import android.os.Build;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.aop.Timed;
@@ -39,7 +40,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private static final int AUDIO_BIT_RATE = 128000;
     private static final int AUDIO_SAMPLES_PER_FRAME = 1024; // AAC
     private static final int AUDIO_FRAMES_PER_BUFFER = 24;
-    private static final int VIDEO_FRAME_RATE = 20;
+    private static final int VIDEO_FRAME_RATE = 30;
     private static final int VIDEO_BIT_RATE = 6000000;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.DEFAULT;
@@ -59,11 +60,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private int audioTrackIndex = -1;
     private int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
-    private long previousFrameSendTimeMs = 0;
     private Size cameraFrameSize;
     private volatile byte[] finalFrameData;
-    //private volatile byte[] frameDataCopy;
-    //private byte[] audioReadBytes = new byte[AUDIO_SAMPLES_PER_FRAME * 4];
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
@@ -85,8 +83,17 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                     cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
-            mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
             mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+
+            // Special case for API 21 and Exynos encoder
+            if (videoEncoder.getCodecInfo().getName().contains("OMX.Exynos") &&
+                    Build.VERSION.SDK_INT == 21) {
+                mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                        MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar);
+            } else {
+                mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
+            }
+
             videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             videoEncoder.start();
         } catch (IOException e) {
@@ -120,7 +127,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                     AUDIO_SAMPLE_RATE, // sample rate, hz
                     CHANNEL_CONFIG, // channels
                     AUDIO_FORMAT, // audio format
-                    iMinBufferSize * 2); // buffer size (bytes)
+                    iMinBufferSize * 2
+                    //iBufferSize
+            ); // buffer size (bytes)
 
             log.info("AudioRecord state = {}", audioRecorder.getState());
 
@@ -172,26 +181,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 videoData,
                 presentationTimeMicros,
                 adjustedFrameReceiveTimeMillis);
-
-//        System.arraycopy(videoData, 0, frameDataCopy, 0, videoData.length);
-//
-//        new AsyncTask<Void, Void, Long>(){
-//
-//            @Override
-//            protected Long doInBackground(Void... voids) {
-//                try {
-//                    return processVideo(
-//                            frameDataCopy,
-//                            presentationTimeMicros,
-//                            adjustedFrameReceiveTimeMillis);
-//                } catch (Exception e) {
-//                    log.error("Failed to process video!", e);
-//                }
-//                return null;
-//            }
-//        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-        //processAudio(presentationTimeMicros);
 
         // Start MediaMuxer when both audio and video tracks have been initialized
         if (!muxerStarted
@@ -380,7 +369,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                     while (!isCancelled() && audioRecorder != null) {
                         try {
                             processAudio(System.nanoTime() / 1000);
-                            //Thread.sleep(30);
+                            Thread.sleep(20);
                         } catch (Exception e) {
                             log.error("Failed to process audio!", e);
                         }
