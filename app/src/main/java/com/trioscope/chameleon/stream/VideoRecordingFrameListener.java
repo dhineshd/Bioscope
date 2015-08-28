@@ -52,11 +52,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private volatile boolean isRecording;
 
     private volatile MediaCodec videoEncoder;
-    private volatile MediaCodec audioEncoder;
     private volatile MediaMuxer mediaMuxer;
-    private volatile AudioRecord audioRecorder;
+    private AsyncTask audioRecordTask;
     private volatile boolean muxerStarted;
-    private volatile boolean audioRecorderStarted;
     private int audioTrackIndex = -1;
     private int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
@@ -103,41 +101,20 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         }
     }
 
-    private void setupAudioEncoder() {
+    private MediaCodec setupAudioEncoder() {
         try {
-            audioEncoder = MediaCodec.createEncoderByType(MIME_TYPE_AUDIO);
+            MediaCodec audioEncoder = MediaCodec.createEncoderByType(MIME_TYPE_AUDIO);
             MediaFormat mediaFormat  = MediaFormat.createAudioFormat(MIME_TYPE_AUDIO, AUDIO_SAMPLE_RATE, CHANNEL_COUNT);
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, AUDIO_BIT_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_OUT_MONO);
             mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
             audioEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             audioEncoder.start();
-
-            int iMinBufferSize = AudioRecord.getMinBufferSize(AUDIO_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-            int iBufferSize = AUDIO_SAMPLES_PER_FRAME * AUDIO_FRAMES_PER_BUFFER;
-
-            // Ensure buffer is adequately sized for the AudioRecord
-            // object to initialize
-            if (iBufferSize < iMinBufferSize) {
-                iBufferSize = ((iMinBufferSize / AUDIO_SAMPLES_PER_FRAME) + 1) * AUDIO_SAMPLES_PER_FRAME * 2;
-            }
-
-            log.info("AudioRecord min buffer size = {}, buffer size = {}", iMinBufferSize, iBufferSize);
-
-            audioRecorder = new AudioRecord(
-                    AUDIO_SOURCE, // source
-                    AUDIO_SAMPLE_RATE, // sample rate, hz
-                    CHANNEL_CONFIG, // channels
-                    AUDIO_FORMAT, // audio format
-                    iMinBufferSize * 2
-                    //iBufferSize
-            ); // buffer size (bytes)
-
-            log.info("AudioRecord state = {}", audioRecorder.getState());
-
+            return audioEncoder;
         } catch (IOException e) {
             log.error("Failed to create audio encoder", e);
         }
+        return null;
     }
 
 
@@ -266,28 +243,10 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         return actualPresentationTimeMicros;
     }
 
-    private void computeAndSetRecordingStartTime(
-            final long frameReceiveTimeMillis,
-            final long frameDelayMillis) {
-        if (firstFrameReceivedForRecordingTimeMillis == null) {
-            //long framePresentationDelayMillis = (framePresentationTimeMicros - actualPresentationTimeMicros) / 1000;
-            firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis - frameDelayMillis;
-//            log.info("<first>Received first frame [{} x {}] with size = {} bytes after recording started at {}",
-//                    cameraInfo.getCaptureResolution().getWidth(),
-//                    cameraInfo.getCaptureResolution().getHeight(),
-//                    data.getBytes().length,
-//                    firstFrameReceivedForRecordingTimeMillis);
-//            log.info("<first>Frame receive : uptime = {} ms, epoch time = {} ms",
-//                    frameReceiveTimeNanos / 1000000, frameReceiveTimeMillis);
-//            log.info("<first>Frame presentation time : recorded = {} ms, actual = {} ms",
-//                    framePresentationTimeMicros / 1000, actualPresentationTimeMicros / 1000);
-            log.info("<first>Frame delay = {} ms", frameDelayMillis);
-            chameleonApplication.setRecordingStartTimeMillis(firstFrameReceivedForRecordingTimeMillis);
-        }
-    }
-
-    private synchronized long processAudio(final long presentationTimeMicros) {
-        long currentTimeMicros = System.nanoTime() / 1000;
+    private long processAudio(
+            final MediaCodec audioEncoder,
+            final AudioRecord audioRecorder,
+            final long presentationTimeMicros) {
         long actualPresentationTimeMicros = -1;
         log.info("Processing audio..");
 
@@ -360,20 +319,46 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             isRecording = true;
 
             // Process audio in a separate thread
-            new AsyncTask<Void, Void, Void>(){
+            audioRecordTask = new AsyncTask<Void, Void, Void>(){
 
                 @Override
                 protected Void doInBackground(Void... voids) {
+
+                    MediaCodec audioEncoder = setupAudioEncoder();
+
+                    int iMinBufferSize = AudioRecord.getMinBufferSize(AUDIO_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
+
+                    log.info("AudioRecord min buffer size = {}", iMinBufferSize);
+
+                    AudioRecord audioRecorder = new AudioRecord(
+                            AUDIO_SOURCE, // source
+                            AUDIO_SAMPLE_RATE, // sample rate, hz
+                            CHANNEL_CONFIG, // channels
+                            AUDIO_FORMAT, // audio format
+                            iMinBufferSize * 2 // buffer size (bytes)
+                    );
+
+                    log.info("AudioRecord state = {}", audioRecorder.getState());
+
                     log.info("Async audio task started on thread = {}", Thread.currentThread());
+
                     audioRecorder.startRecording();
 
-                    while (!isCancelled() && audioRecorder != null) {
+                    while (!isCancelled()) {
                         try {
-                            processAudio(System.nanoTime() / 1000);
+                            processAudio(audioEncoder, audioRecorder, System.nanoTime() / 1000);
                             Thread.sleep(20);
                         } catch (Exception e) {
                             log.error("Failed to process audio!", e);
                         }
+                    }
+                    if (audioRecorder != null) {
+                        audioRecorder.stop();;
+                        audioRecorder.release();;
+                    }
+                    if (audioEncoder != null) {
+                        audioEncoder.stop();
+                        audioEncoder.release();
                     }
                     return null;
                 }
@@ -392,15 +377,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             videoEncoder.release();
             videoEncoder = null;
         }
-        if (audioEncoder != null) {
-            audioEncoder.stop();
-            audioEncoder.release();
-            audioEncoder = null;
-        }
-        if (audioRecorder != null) {
-            audioRecorder.stop();;
-            audioRecorder.release();;
-            audioRecorder = null;
+        if (audioRecordTask != null) {
+            audioRecordTask.cancel(true);
         }
         if (mediaMuxer != null) {
             mediaMuxer.stop();
@@ -408,7 +386,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             mediaMuxer = null;
         }
         muxerStarted = false;
-        audioRecorderStarted = false;
         videoTrackIndex = -1;
         audioTrackIndex = -1;
     }
