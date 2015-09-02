@@ -8,8 +8,6 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.CaptureResult;
-import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
@@ -21,7 +19,7 @@ import android.view.SurfaceView;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
-import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
@@ -73,7 +71,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         /* ImageReader doesnt support NV21 currently.
           if (supportedEncodings.contains(CameraInfo.ImageEncoding.NV21))
             encoding = CameraInfo.ImageEncoding.NV21;
-            */
+        */
         encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
         //builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
         //builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
@@ -108,6 +106,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                     encodings.add(CameraInfo.ImageEncoding.YUV_420_888);
                 } else if (format == ImageFormat.NV21) {
                     encodings.add(CameraInfo.ImageEncoding.NV21);
+                } else if (format == ImageFormat.YV12) {
+                    encodings.add(CameraInfo.ImageEncoding.YV12);
                 } else {
                     log.info("Unknown image format {}", format);
                 }
@@ -195,22 +195,6 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                                             captureStartTime = System.currentTimeMillis();
                                         }
 
-                                        @Override
-                                        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
-                                            super.onCaptureCompleted(session, request, result);
-                                            if (firstRequestReceived == null) {
-                                                for (CaptureResult.Key key : result.getKeys()) {
-                                                    log.info("Capture exposure key = {}, value = {}", key.getName(), result.get(key));
-                                                }
-                                                firstRequestReceived = System.currentTimeMillis();
-                                                log.info("Latency between calls is {} ms", firstRequestReceived - requestSentAt);
-                                            }
-                                            log.debug("Capture completed - {}, capture delay = {} ms, frame duration = {} ms",
-                                                    result.get(CaptureResult.SENSOR_TIMESTAMP),
-                                                    System.currentTimeMillis() - captureStartTime,
-                                                    result.get(CaptureResult.SENSOR_FRAME_DURATION) / 1000000);
-                                        }
-
                                     }, null);
                         } catch (CameraAccessException e) {
                             e.printStackTrace();
@@ -265,7 +249,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     @Override
     public SurfaceView createPreviewDisplay() {
         SurfaceView surfaceView = new SurfaceView(context);
-        surfaceView.getHolder().setFixedSize(1920, 1080);
+        surfaceView.getHolder().setFixedSize(
+                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth(),
+                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
@@ -292,7 +278,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
     private class SimpleImageListener implements ImageReader.OnImageAvailableListener {
         byte[] buffer;
-        IntOrByteArray intOrByteArray;
+        CameraFrameData frameData;
         FrameInfo frameInfo;
 
         @Override
@@ -304,16 +290,20 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 return;
             }
 
+            //buffer = ImageUtil.getDataFromImage(image);
+            //frameData = new CameraFrameData(image);
+            //frameInfo = new FrameInfo();
+
             if (buffer == null) {
                 buffer = ImageUtil.getDataFromImage(image);
-                intOrByteArray = new IntOrByteArray(buffer);
+                frameData = new CameraFrameData(buffer);
                 frameInfo = new FrameInfo();
             } else {
                 // Reuse buffer
                 ImageUtil.getDataFromImage(image, buffer);
             }
             frameInfo.setTimestampNanos(image.getTimestamp());
-            cameraFrameBuffer.frameAvailable(cameraInfo, intOrByteArray, frameInfo);
+            cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
 
             image.close();
         }

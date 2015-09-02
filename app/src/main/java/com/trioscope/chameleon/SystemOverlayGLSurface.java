@@ -9,7 +9,7 @@ import android.os.Handler;
 
 import com.trioscope.chameleon.camera.impl.FBOPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
-import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.opengl.DirectVideo;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
@@ -161,7 +161,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
                 GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
                 LOG.debug("IntBuffer: {}", b);
-                cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(ib.array()), null);
+                cameraFrameBuffer.frameAvailable(cameraInfo, new CameraFrameData(ib.array()), null);
             }
         }
 

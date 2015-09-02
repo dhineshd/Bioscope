@@ -18,7 +18,11 @@ public class CameraInfo {
     private final ImageEncoding encoding;
 
     public enum ImageEncoding {
-        NV21(ImageFormat.NV21), YUV_420_888(ImageFormat.YUV_420_888), RGBA_8888(null);
+        NV21(ImageFormat.NV21),
+        YUV_420_888(ImageFormat.YUV_420_888),
+        RGBA_8888(null),
+        JPEG(ImageFormat.JPEG),
+        YV12(ImageFormat.YV12);
 
         @Getter
         private Integer imageFormat;

@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.media.Image;
 import android.media.MediaMetadataRetriever;
 import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
@@ -13,10 +14,9 @@ import android.support.v4.content.LocalBroadcastManager;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
-import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
-import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
@@ -62,12 +62,13 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
 
+    private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
     private long previousFrameSendTimeMs = 0;
     private byte[] finalFrameData = new byte[DEFAULT_STREAM_IMAGE_SIZE.getWidth() * DEFAULT_STREAM_IMAGE_SIZE.getHeight() * 3/2];
 
     @Override
-    @Timed
-    public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
+    //@Timed
+    public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
@@ -85,7 +86,13 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     byte[] byteArray = null;
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                        byteArray = convertYUV420888ToJPEGByteArrayMethod2(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                        if (data.getImage() != null) {
+                            byteArray = convertYUV420888ToJPEGByteArrayMethod2(data.getImage(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                        } else if (data.getBytes() != null) {
+                            byteArray = convertYUV420888ToJPEGByteArray(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                        }
+                    } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
+                        byteArray = convertNV21ToJPEGByteArray(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
                     } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.RGBA_8888) {
                         new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
@@ -105,7 +112,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private byte[] convertYUV420888ToJPEGByteArrayMethod2(
+    private byte[] convertYUV420888ToJPEGByteArray(
             final byte[] frameData,
             final int frameWidth,
             final int frameHeight,
@@ -117,6 +124,51 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         YuvImage yuvimage = new YuvImage(
                 finalFrameData,
                 ImageFormat.NV21, targetWidth, targetHeight, null);
+        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
+                STREAMING_COMPRESSION_QUALITY, stream);
+        return stream.toByteArray();
+    }
+
+    private byte[] convertYUV420888ToJPEGByteArrayMethod2(
+            final Image frameData,
+            final int frameWidth,
+            final int frameHeight,
+            final int targetWidth,
+            final int targetHeight) {
+        Image.Plane[] imagePlanes = frameData.getPlanes();
+        ColorConversionUtil.scaleAndConvertI420ToNV21Method2(
+                imagePlanes[0].getBuffer(), imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
+                finalFrameData, frameWidth, frameHeight, targetWidth, targetHeight);
+        YuvImage yuvimage = new YuvImage(
+                finalFrameData,
+                ImageFormat.NV21, targetWidth, targetHeight, null);
+        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
+                STREAMING_COMPRESSION_QUALITY, stream);
+        return stream.toByteArray();
+    }
+
+    private byte[] getPaddedFrameData(final byte[] frameData) {
+        int padding = 0;
+
+            padding = (cameraFrameSize.getWidth() * cameraFrameSize.getHeight()) % 2048;
+            log.info("padding = {}", padding);
+            byte[] frameDataWithPadding = new byte[padding + frameData.length];
+
+            System.arraycopy(frameData, 0, frameDataWithPadding, 0, frameData.length);
+            int offset = cameraFrameSize.getWidth() * cameraFrameSize.getHeight();
+            System.arraycopy(frameData, offset, frameDataWithPadding,
+                    offset + padding, frameData.length - offset);
+            return frameDataWithPadding;
+    }
+
+    private byte[] convertNV21ToJPEGByteArray(
+            final byte[] frameData,
+            final int frameWidth,
+            final int frameHeight,
+            final int targetWidth,
+            final int targetHeight) {
+        YuvImage yuvimage = new YuvImage(frameData, ImageFormat.NV21,
+                frameWidth, frameHeight, null);
         yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
                 STREAMING_COMPRESSION_QUALITY, stream);
         return stream.toByteArray();

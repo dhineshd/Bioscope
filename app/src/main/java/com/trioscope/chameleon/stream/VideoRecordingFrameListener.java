@@ -2,8 +2,10 @@ package com.trioscope.chameleon.stream;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
+import android.media.Image;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
 import android.media.MediaRecorder;
@@ -11,13 +13,13 @@ import android.os.AsyncTask;
 import android.os.Build;
 
 import com.trioscope.chameleon.ChameleonApplication;
-import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
-import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.util.ColorConversionUtil;
+import com.trioscope.chameleon.util.ImageUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -36,12 +38,12 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private static final String MIME_TYPE_VIDEO = "video/avc";
     private static final int AUDIO_SAMPLE_RATE = 22050;
     private static final int CHANNEL_COUNT = 1;
-    private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
+    private static final int CHANNEL_CONFIG = CHANNEL_COUNT == 1 ?
+            AudioFormat.CHANNEL_IN_MONO : AudioFormat.CHANNEL_IN_STEREO;
     private static final int AUDIO_BIT_RATE = 128000;
     private static final int AUDIO_SAMPLES_PER_FRAME = 1024; // AAC
-    private static final int AUDIO_FRAMES_PER_BUFFER = 24;
     private static final int VIDEO_FRAME_RATE = 30;
-    private static final int VIDEO_BIT_RATE = 6000000;
+    private static final int VIDEO_BIT_RATE = 5000000;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.DEFAULT;
     private static final int VIDEO_COLOR_FORMAT =
@@ -49,33 +51,36 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
-    private volatile boolean isRecording;
 
+    private volatile boolean isRecording;
     private volatile MediaCodec videoEncoder;
+    private volatile AsyncTask audioRecordTask;
+
     private volatile MediaMuxer mediaMuxer;
-    private AsyncTask audioRecordTask;
     private volatile boolean muxerStarted;
-    private int audioTrackIndex = -1;
-    private int videoTrackIndex = -1;
+    private volatile int audioTrackIndex = -1;
+    private volatile int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
-    private Size cameraFrameSize;
-    private volatile byte[] finalFrameData =
+
+    private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+    private byte[] finalFrameData =
             new byte[ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth() *
                     ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight() * 3 / 2];
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
-        setupAudioEncoder();
         setupVideoEncoder();
     }
 
     private void setupVideoEncoder() {
-        cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
-        //frameDataCopy = new byte[cameraFrameSize.getHeight() * cameraFrameSize.getWidth() * 3/2];
 
         // Setup video encoder
         try {
-            videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
+            String encoderName = selectEncoder(MIME_TYPE_VIDEO).getName();
+            log.info("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, encoderName);
+            createVideoDecoder();
+            videoEncoder = MediaCodec.createByCodecName(encoderName);
+            //videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
             for (int colorFormat : videoEncoder.getCodecInfo().getCapabilitiesForType(MIME_TYPE_VIDEO).colorFormats ) {
                 log.info("Supported color format = {}", colorFormat);
             }
@@ -84,6 +89,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
             mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+            //mediaFormat.setInteger("slice-height", 1088);
 
             // Special case for API 21 and Exynos encoder
             if (videoEncoder.getCodecInfo().getName().contains("OMX.Exynos") &&
@@ -93,7 +99,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             } else {
                 mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
             }
-
+            log.info("MediaFormat = {}", mediaFormat);
             videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             videoEncoder.start();
         } catch (IOException e) {
@@ -101,12 +107,52 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         }
     }
 
-    private MediaCodec setupAudioEncoder() {
+    private void createVideoDecoder() {
+        try {
+            MediaCodec videoDecoder = MediaCodec.createDecoderByType(MIME_TYPE_VIDEO);
+            MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO,
+                    cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
+            mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
+            mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+            videoDecoder.configure(mediaFormat, null, null, 0);
+            videoDecoder.start();
+            log.info("Decoder mediaFormat = {}", videoDecoder.getOutputFormat());
+        } catch (Exception e) {
+            log.error("Failed to create video decoder", e);
+
+        }
+    }
+
+    /**
+     * Returns the first codec capable of encoding the specified MIME type, or null if no
+     * match was found.
+     */
+    private MediaCodecInfo selectEncoder(String mimeType) {
+        int numCodecs = MediaCodecList.getCodecCount();
+        MediaCodecInfo validCodecInfo = null;
+        for (int i = 0; i < numCodecs; i++) {
+            MediaCodecInfo codecInfo = MediaCodecList.getCodecInfoAt(i);
+            if (!codecInfo.isEncoder()) {
+                continue;
+            }
+            String[] types = codecInfo.getSupportedTypes();
+            for (int j = 0; j < types.length; j++) {
+                if (types[j].equalsIgnoreCase(mimeType)) {
+                    log.info("Valid encoder found : {}", codecInfo.getName());
+                    return codecInfo;
+                }
+            }
+        }
+        return validCodecInfo;
+    }
+
+    private MediaCodec createAudioEncoder() {
         try {
             MediaCodec audioEncoder = MediaCodec.createEncoderByType(MIME_TYPE_AUDIO);
             MediaFormat mediaFormat  = MediaFormat.createAudioFormat(MIME_TYPE_AUDIO, AUDIO_SAMPLE_RATE, CHANNEL_COUNT);
             mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, AUDIO_BIT_RATE);
-            mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_OUT_MONO);
+            //mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_MASK, AudioFormat.CHANNEL_OUT_MONO);
             mediaFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
             audioEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             audioEncoder.start();
@@ -117,79 +163,82 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         return null;
     }
 
-
     @Override
-    @Timed
-    public void onFrameAvailable(CameraInfo cameraInfo, IntOrByteArray data, FrameInfo frameInfo) {
+    //@Timed
+    public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
         if (isRecording) {
-
             long frameReceiveTimeMillis = System.currentTimeMillis();
             long frameReceiveTimeNanos = System.nanoTime();
             long framePresentationTimeMicros = frameInfo.getTimestampNanos() / 1000;
+            long frameReceiveDelayMillis = (frameReceiveTimeNanos / 1000000)  - (framePresentationTimeMicros / 1000);
 
             log.debug("SystemClock.elapsedRealtimeNanos = {} ns, frame time = {} ns", System.nanoTime(), frameInfo.getTimestampNanos());
-            //log.info("Frame delay = {} ms, presentation time = {} us", frameReceiveDelayMillis, framePresentationTimeMicros);
+            log.debug("Frame delay = {} ms, presentation time = {} us", frameReceiveDelayMillis, framePresentationTimeMicros);
 
             if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                if (shouldRecordCurrentFrame()) {
-
                     try {
-                        long frameDelayMillis = (frameReceiveTimeNanos / 1000000)  - (framePresentationTimeMicros / 1000);
-                        long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameDelayMillis;
-                        processFrame(data.getBytes(), framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
+                        long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameReceiveDelayMillis;
+                        processFrame(data, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
                     } catch (Exception e) {
                         log.error("Failed to record frame", e);
                     }
-                }
             }
         }
     }
 
-    private boolean shouldRecordCurrentFrame() {
-//        return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
-//                (1000 / RECORDING_FRAMES_PER_SEC));
-        return true;
-    }
-
     private void processFrame(
-            final byte[] videoData,
+            final CameraFrameData frameData,
             final long presentationTimeMicros,
             final long adjustedFrameReceiveTimeMillis) {
 
         processVideo(
-                videoData,
+                frameData,
                 presentationTimeMicros,
                 adjustedFrameReceiveTimeMillis);
 
+
         // Start MediaMuxer when both audio and video tracks have been initialized
-        if (!muxerStarted
-                && videoTrackIndex != -1
-                && audioTrackIndex != -1
-                ) {
+        if (!muxerStarted &&
+                videoTrackIndex != -1 &&
+                audioTrackIndex != -1) {
             mediaMuxer.start();
             muxerStarted = true;
         }
     }
 
     private long processVideo(
-            final byte[] frameData,
+            final CameraFrameData frameData,
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
         log.info("Processing video..");
 
+        long actualPresentationTimeMicros = -1;
+
         // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)
         // doesn't support COLOR_FormatYUV420Planar, we need to convert
         // the frame data to COLOR_FormatYUV420SemiPlanar before handing it to MediaCodec.
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
-        if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-            log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
-            ColorConversionUtil.convertI420ToNV12(frameData, finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
-        } else {
-            finalFrameData = frameData;
-        }
+        if (frameData.getBytes() != null) {
+            if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
+                log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
+                ColorConversionUtil.convertI420ToNV12(frameData.getBytes(),
+                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            } else {
+                finalFrameData = frameData.getBytes();
+            }
 
-        long actualPresentationTimeMicros = -1;
+        } else if (frameData.getImage() != null) {
+            if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
+                log.info("Converting color format from YUV420Planar to YUV420SemiPlanar for image");
+                Image.Plane[] imagePlanes = frameData.getImage().getPlanes();
+                ColorConversionUtil.convertI420ToNV12Method2(imagePlanes[0].getBuffer(),
+                        imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
+                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+            } else {
+                ImageUtil.getDataFromImage(frameData.getImage(), finalFrameData);
+            }
+        }
 
         // Process video
         int videoInputBufferIndex = videoEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
@@ -316,56 +365,61 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                     chameleonApplication.getVideoFile().getAbsolutePath(),
                     MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 
+            startAudioProcessingTask();
+
             isRecording = true;
 
-            // Process audio in a separate thread
-            audioRecordTask = new AsyncTask<Void, Void, Void>(){
-
-                @Override
-                protected Void doInBackground(Void... voids) {
-
-                    MediaCodec audioEncoder = setupAudioEncoder();
-
-                    int iMinBufferSize = AudioRecord.getMinBufferSize(AUDIO_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-
-                    log.info("AudioRecord min buffer size = {}", iMinBufferSize);
-
-                    AudioRecord audioRecorder = new AudioRecord(
-                            AUDIO_SOURCE, // source
-                            AUDIO_SAMPLE_RATE, // sample rate, hz
-                            CHANNEL_CONFIG, // channels
-                            AUDIO_FORMAT, // audio format
-                            iMinBufferSize * 2 // buffer size (bytes)
-                    );
-
-                    log.info("AudioRecord state = {}", audioRecorder.getState());
-
-                    log.info("Async audio task started on thread = {}", Thread.currentThread());
-
-                    audioRecorder.startRecording();
-
-                    while (!isCancelled()) {
-                        try {
-                            processAudio(audioEncoder, audioRecorder, System.nanoTime() / 1000);
-                            Thread.sleep(20);
-                        } catch (Exception e) {
-                            log.error("Failed to process audio!", e);
-                        }
-                    }
-                    if (audioRecorder != null) {
-                        audioRecorder.stop();;
-                        audioRecorder.release();;
-                    }
-                    if (audioEncoder != null) {
-                        audioEncoder.stop();
-                        audioEncoder.release();
-                    }
-                    return null;
-                }
-            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         } catch (IOException e) {
-            log.error("MediaMuxer creation failed", e);
+            log.error("Failed to start recording!", e);
         }
+    }
+
+    private void startAudioProcessingTask() {
+
+        // Process audio in a separate thread
+        audioRecordTask = new AsyncTask<Void, Void, Void>(){
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+
+                MediaCodec audioEncoder = createAudioEncoder();
+
+                int iMinBufferSize = AudioRecord.getMinBufferSize(AUDIO_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
+
+                log.info("AudioRecord min buffer size = {}", iMinBufferSize);
+
+                AudioRecord audioRecorder = new AudioRecord(
+                        AUDIO_SOURCE, // source
+                        AUDIO_SAMPLE_RATE, // sample rate, hz
+                        CHANNEL_CONFIG, // channels
+                        AUDIO_FORMAT, // audio format
+                        iMinBufferSize * 2 // buffer size (bytes)
+                );
+
+                log.info("AudioRecord state = {}", audioRecorder.getState());
+
+                log.info("Async audio task started on thread = {}", Thread.currentThread());
+
+                audioRecorder.startRecording();
+
+                while (isRecording) {
+                    try {
+                        processAudio(audioEncoder, audioRecorder, System.nanoTime() / 1000);
+                        //Thread.sleep(20); // Avoid hogging CPU
+                    } catch (Exception e) {
+                        log.error("Failed to process audio!", e);
+                    }
+                }
+                // Stop recoder
+                audioRecorder.stop();
+                audioRecorder.release();
+
+                // Stop encoder
+                audioEncoder.stop();
+                audioEncoder.release();
+                return null;
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
 
@@ -377,12 +431,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             videoEncoder.release();
             videoEncoder = null;
         }
-        if (audioRecordTask != null) {
-            audioRecordTask.cancel(true);
-        }
         if (mediaMuxer != null) {
             mediaMuxer.stop();
-            mediaMuxer.release();;
+            mediaMuxer.release();
             mediaMuxer = null;
         }
         muxerStarted = false;

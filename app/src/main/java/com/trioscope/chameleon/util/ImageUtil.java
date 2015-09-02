@@ -7,9 +7,12 @@ import com.trioscope.chameleon.aop.Timed;
 
 import java.nio.ByteBuffer;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Created by phand on 8/6/15.
  */
+@Slf4j
 public class ImageUtil {
     @Timed
     public static byte[] getDataFromImage(Image image) {
@@ -49,10 +52,13 @@ public class ImageUtil {
                 ByteBuffer buffer = planes[i].getBuffer();
                 rowStride = planes[i].getRowStride();
                 pixelStride = planes[i].getPixelStride();
+                log.info("Plane {} : Row stride = {}, pixel stride = {}, offset = {}", i, rowStride, pixelStride, offset);
                 // For multi-planar yuv images, assuming yuv420 with 2x2 chroma subsampling.
                 int w = (i == 0) ? width : width / 2;
                 int h = (i == 0) ? height : height / 2;
                 for (int row = 0; row < h; row++) {
+                    boolean firstIterationForPlane = true;
+
                     int bytesPerPixel = ImageFormat.getBitsPerPixel(format) / 8;
                     if (pixelStride == bytesPerPixel) {
                         // Special case: optimized read of the entire row

@@ -8,7 +8,7 @@ import android.view.SurfaceView;
 
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
-import com.trioscope.chameleon.listener.IntOrByteArray;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.types.CameraInfo;
 
 import java.io.IOException;
@@ -128,7 +128,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
 
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
-        cameraFrameBuffer.frameAvailable(cameraInfo, new IntOrByteArray(data), null);
+        cameraFrameBuffer.frameAvailable(cameraInfo, new CameraFrameData(data), null);
         camera.addCallbackBuffer(data);
     }
 }

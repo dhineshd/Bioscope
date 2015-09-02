@@ -12,7 +12,7 @@ import java.util.List;
 public class CameraFrameBuffer {
     private List<CameraFrameAvailableListener> listeners = new ArrayList<>();
 
-    public void frameAvailable(CameraInfo cameraInfo, IntOrByteArray frameData, FrameInfo frameInfo) {
+    public void frameAvailable(CameraInfo cameraInfo, CameraFrameData frameData, FrameInfo frameInfo) {
         for (CameraFrameAvailableListener listener : listeners)
             listener.onFrameAvailable(cameraInfo, frameData, frameInfo);
     }
