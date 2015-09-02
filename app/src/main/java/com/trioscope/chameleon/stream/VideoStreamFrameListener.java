@@ -3,9 +3,7 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
-import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
@@ -52,7 +50,7 @@ import lombok.extern.slf4j.Slf4j;
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
     private static final int STREAMING_FRAMES_PER_SEC = 15;
     private static final int STREAMING_COMPRESSION_QUALITY = 30; // 0 worst - 100 best
-    private static final Size DEFAULT_STREAM_IMAGE_SIZE = new Size(1920, 1080);
+    private static final Size DEFAULT_STREAM_IMAGE_SIZE = new Size(480, 270); // 16 : 9
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
@@ -73,8 +71,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
-        int targetWidth = 480;//cameraInfos.getCaptureResolution().getWidth();
-        int targetHeight = 270;//cameraInfos.getCaptureResolution().getHeight();
+        int targetWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
+        int targetHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
 
         log.debug("Frame available to send across the stream on thread {}, frame timestamp = {}, currentTime = {}, uptime = {}",
                 Thread.currentThread(), frameInfo.getTimestampNanos() / 1000000, System.currentTimeMillis(), SystemClock.uptimeMillis());
@@ -87,8 +85,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     byte[] byteArray = null;
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-
-                        byteArray = convertYUV420888ToJPEGByteArrayMethod1(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                        byteArray = convertYUV420888ToJPEGByteArrayMethod2(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
                     } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.RGBA_8888) {
                         new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
@@ -108,42 +105,15 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private byte[] convertYUV420888ToJPEGByteArrayMethod1(
-            final byte[] frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight) {
-        finalFrameData = ColorConversionUtil.i420ScaleAndRotateBy90(frameData, frameWidth, frameHeight, targetWidth, targetHeight);
-        finalFrameData = ColorConversionUtil.convertI420ToNV21(finalFrameData, targetWidth, targetHeight);
-        YuvImage yuvimage = new YuvImage(
-                finalFrameData,
-                ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
     private byte[] convertYUV420888ToJPEGByteArrayMethod2(
             final byte[] frameData,
             final int frameWidth,
             final int frameHeight,
             final int targetWidth,
             final int targetHeight) {
-        finalFrameData = ColorConversionUtil.convertI420ToNV21(frameData, frameWidth, frameHeight);
-        YuvImage yuvimage = new YuvImage(finalFrameData, ImageFormat.NV21, frameWidth, frameHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight), STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
-    private byte[] convertYUV420888ToJPEGByteArrayMethod3(
-            final byte[] frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight) {
-        finalFrameData = ColorConversionUtil.i420ScaleAndRotateBy90(frameData, frameWidth, frameHeight, targetWidth, targetHeight);
-        //finalFrameData = ColorConversionUtil.convertI420ToNV21(finalFrameData, targetWidth, targetHeight);
+        ColorConversionUtil.scaleAndConvertI420ToNV21(
+                frameData, finalFrameData, frameWidth,
+                frameHeight, targetWidth, targetHeight);
         YuvImage yuvimage = new YuvImage(
                 finalFrameData,
                 ImageFormat.NV21, targetWidth, targetHeight, null);
@@ -152,39 +122,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         return stream.toByteArray();
     }
 
-    private static byte[] convertYUV420888ToNV21(
-            final byte[] input, final byte[] output, final int width, final int height) {
-
-        final int frameSize = width * height;
-        final int qFrameSize = frameSize / 4;
-
-        System.arraycopy(input, 0, output, 0, frameSize); // Y
-
-        for (int i = 0; i < qFrameSize; i++) {
-            output[frameSize + i * 2] = input[frameSize + i + qFrameSize]; // Cb (U)
-            output[frameSize + i * 2 + 1] = input[frameSize + i]; // Cr (V)
-        }
-
-        return output;
-    }
-
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
-    }
-
-    public static Bitmap createScaledBitmap(byte[] bitmapAsData, int width, int height, int rotateAngle) {
-        Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapAsData, 0, bitmapAsData.length);
-        Matrix matrix = new Matrix();
-        matrix.postRotate(rotateAngle);
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
-        return Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.getWidth(), scaledBitmap.getHeight(), matrix, true);
-    }
-
-    public static  byte[] bitmapToByteArray(final Bitmap bitmap) {
-        ByteArrayOutputStream blob = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, blob);
-        return blob.toByteArray();
     }
 
     private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {

@@ -43,7 +43,7 @@ public class VideoLibraryActivity extends EnableForegroundDispatchForNFCMessageA
         final ListView libListview = (ListView) findViewById(R.id.libListView);
 
 
-        File folder = new File(ChameleonApplication.STORAGE_LOCATION);
+        File folder = new File(((ChameleonApplication)getApplication()).getOutputMediaDirectory());
         File[] arrayOfFiles = folder.listFiles();
 
 

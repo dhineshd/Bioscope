@@ -132,8 +132,6 @@ public class ChameleonApplication extends Application {
     @Getter
     private static MetricsHelper metrics;
 
-    public static final String STORAGE_LOCATION = "/storage/emulated/0/DCIM/Chameleon";
-
     // Receivers
     private BroadcastReceiver enableWifiBroadcastReceiver;
     private IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver;
@@ -419,9 +417,10 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    /**
-     * Create a File using given file name.
-     */
+    public String getOutputMediaDirectory() {
+        return getMediaStorageDir().getPath();
+    }
+
     /**
      * Create a File using given file name.
      *
@@ -429,7 +428,7 @@ public class ChameleonApplication extends Application {
      * @return created file
      */
     public File getOutputMediaFile(final String filename) {
-        return new File(getMediaStorageDir().getPath() + File.separator + filename);
+        return new File(getOutputMediaDirectory()+ File.separator + filename);
     }
 
     /**
