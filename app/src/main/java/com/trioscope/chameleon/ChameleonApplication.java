@@ -419,9 +419,6 @@ public class ChameleonApplication extends Application {
 
     /**
      * Create a File using given file name.
-     */
-    /**
-     * Create a File using given file name.
      *
      * @param filename
      * @return created file
