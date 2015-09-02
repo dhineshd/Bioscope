@@ -225,8 +225,29 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                     @Override
                     public void onSeekComplete(MediaPlayer mediaPlayer) {
                         log.info("local video onSeek complete. Starting playback at {}", new Date());
+                        log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
+                        log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
+
+                        outerMediaPlayer.setOnInfoListener(new MediaPlayer.OnInfoListener() {
+                            @Override
+                            public boolean onInfo(MediaPlayer mp, int what, int extra) {
+                                log.info("outer mp : on info what = {}, extra = {}", what, extra);
+                                return false;
+                            }
+                        });
+
+                        innerMediaPlayer.setOnInfoListener(new MediaPlayer.OnInfoListener() {
+                            @Override
+                            public boolean onInfo(MediaPlayer mp, int what, int extra) {
+                                log.info("inner mp : on info what = {}, extra = {}", what, extra);
+                                return false;
+                            }
+                        });
+
                         outerMediaPlayer.start();
+                        log.info("outer mp started at {}", System.currentTimeMillis());
                         innerMediaPlayer.start();
+                        log.info("inner mp started at {}", System.currentTimeMillis());
                     }
                 });
                 outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis);
@@ -238,6 +259,8 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                     @Override
                     public void onSeekComplete(MediaPlayer mediaPlayer) {
                         log.info("remote video onSeek complete. Starting playback at {}", new Date());
+                        log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
+                        log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
                         outerMediaPlayer.start();
                         innerMediaPlayer.start();
                     }

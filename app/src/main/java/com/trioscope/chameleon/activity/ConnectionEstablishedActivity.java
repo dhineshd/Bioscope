@@ -498,6 +498,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.info("Remote filename = {}", remoteVideoFile.getName());
 
             Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
+            //Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
@@ -584,13 +585,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             Bitmap rotatedBitmap = Bitmap.createBitmap(
                                     scaledBitmap , 0, 0, scaledBitmap.getWidth(),
                                     scaledBitmap.getHeight(), matrix, true);
-                            scaledBitmap = null;
                             imageView.setImageBitmap(rotatedBitmap);
-//                            Matrix matrix = new Matrix();
-//                            matrix.setRotate(90, imageView.getDrawable().getBounds().width() / 2, imageView.getDrawable().getBounds().height() / 2);
-//                            imageView.setScaleType(ImageView.ScaleType.MATRIX);   //required
-//                            imageView.setImageMatrix(matrix);
-
                         }
                     }
                 });
@@ -600,7 +595,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     }
 
     private String getUserName() {
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this.chameleonApplication.getApplicationContext());
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(
+                this.chameleonApplication.getApplicationContext());
         return settings.getString(getString(R.string.pref_user_name_key), "");
     }
 
