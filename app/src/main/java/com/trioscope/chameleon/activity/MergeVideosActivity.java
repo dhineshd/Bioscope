@@ -164,8 +164,10 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
     public void onCompleted() {
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setVisibility(View.GONE);
-        log.info("FFMPEG Completed! Allowing user to share");
+        log.info("FFMPEG Completed! Going to video library now!");
 
+        Intent i = new Intent(MergeVideosActivity.this, VideoLibraryActivity.class);
+        startActivity(i);
     }
 
     @Override
