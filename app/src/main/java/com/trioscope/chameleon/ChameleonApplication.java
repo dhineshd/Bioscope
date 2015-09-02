@@ -132,6 +132,8 @@ public class ChameleonApplication extends Application {
     @Getter
     private static MetricsHelper metrics;
 
+    public static final String STORAGE_LOCATION = "/storage/emulated/0/DCIM/Chameleon";
+
     // Receivers
     private BroadcastReceiver enableWifiBroadcastReceiver;
     private IncomingPhoneCallBroadcastReceiver incomingPhoneCallBroadcastReceiver;

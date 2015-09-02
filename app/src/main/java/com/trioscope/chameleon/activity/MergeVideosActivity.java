@@ -20,6 +20,7 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.types.RecordingMetadata;
@@ -159,7 +160,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 log.info("User wants to share the video");
                 Intent shareIntent = new Intent();
                 shareIntent.setAction(Intent.ACTION_SEND);
-                File mergedFile = new File("/storage/emulated/0/DCIM/Camera/Merged.mp4");
+                File mergedFile = new File(ChameleonApplication.STORAGE_LOCATION +"/Merged.mp4");
                 shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(mergedFile));
                 shareIntent.setType("image/jpeg");
                 startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
@@ -315,7 +316,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                     localVideoStartedBeforeRemoteVideoOffsetMillis);
             File vid1 = new File(localRecordingMetadata.getAbsoluteFilePath());
             File vid2 = new File(remoteRecordingMetadata.getAbsoluteFilePath());
-            File output = new File("/storage/sdcard0/DCIM/Camera/Merged.mp4");
+            File output = new File(ChameleonApplication.STORAGE_LOCATION + "/Merged.mp4");
 
             videoMerger.setContext(currentContext);
             videoMerger.setProgressUpdatable(this);

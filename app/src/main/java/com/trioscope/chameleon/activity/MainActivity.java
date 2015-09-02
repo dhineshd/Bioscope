@@ -72,6 +72,17 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        final Button libraryButton = (Button) findViewById(R.id.library_button);
+
+        libraryButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
+                Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+                startActivity(i);
+            }
+        });
+
         chameleonApplication.preparePreview();
     }
 
