@@ -10,14 +10,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 
 import com.google.gson.Gson;
@@ -115,8 +113,6 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 mergeButton.setVisibility(View.INVISIBLE);
             }
         });
-
-
 
         // Local video will be shown on outer player and remote video on inner player
         outerMediaPlayer = new MediaPlayer();
@@ -224,33 +220,22 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                 outerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
                     @Override
                     public void onSeekComplete(MediaPlayer mediaPlayer) {
-                        log.info("local video onSeek complete. Starting playback at {}", new Date());
-                        log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
-                        log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
+                        log.info("local video onSeek complete");
 
-                        outerMediaPlayer.setOnInfoListener(new MediaPlayer.OnInfoListener() {
+                        innerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
                             @Override
-                            public boolean onInfo(MediaPlayer mp, int what, int extra) {
-                                log.info("outer mp : on info what = {}, extra = {}", what, extra);
-                                return false;
+                            public void onSeekComplete(MediaPlayer mp) {
+                                log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
+                                log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
+                                outerMediaPlayer.start();
+                                innerMediaPlayer.start();
                             }
                         });
-
-                        innerMediaPlayer.setOnInfoListener(new MediaPlayer.OnInfoListener() {
-                            @Override
-                            public boolean onInfo(MediaPlayer mp, int what, int extra) {
-                                log.info("inner mp : on info what = {}, extra = {}", what, extra);
-                                return false;
-                            }
-                        });
-
-                        outerMediaPlayer.start();
-                        log.info("outer mp started at {}", System.currentTimeMillis());
-                        innerMediaPlayer.start();
-                        log.info("inner mp started at {}", System.currentTimeMillis());
+                        // Perform seek to buffer data since other player has buffered data due to seek
+                        innerMediaPlayer.seekTo(1);
                     }
                 });
-                outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis);
+                outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis + 1);
 
             } else if (localVideoStartedBeforeRemoteVideoOffsetMillis < 0) {
 
@@ -259,13 +244,24 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
                     @Override
                     public void onSeekComplete(MediaPlayer mediaPlayer) {
                         log.info("remote video onSeek complete. Starting playback at {}", new Date());
-                        log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
-                        log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
-                        outerMediaPlayer.start();
-                        innerMediaPlayer.start();
+                        outerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+                            @Override
+                            public void onSeekComplete(MediaPlayer mp) {
+                                log.info("Out media player current position = {}", outerMediaPlayer.getCurrentPosition());
+                                log.info("Inner media player current position = {}", innerMediaPlayer.getCurrentPosition());
+                                outerMediaPlayer.start();
+                                innerMediaPlayer.start();
+                            }
+                        });
+                        // Perform seek to buffer data since other player has buffered data due to seek
+                        outerMediaPlayer.seekTo(1);
                     }
                 });
-                innerMediaPlayer.seekTo((int) Math.abs(localVideoStartedBeforeRemoteVideoOffsetMillis));
+                innerMediaPlayer.seekTo((int) Math.abs(localVideoStartedBeforeRemoteVideoOffsetMillis) + 1);
+            } else {
+                log.info("Both videos in sync. No seek necessary");
+                outerMediaPlayer.start();
+                innerMediaPlayer.start();
             }
         }
 

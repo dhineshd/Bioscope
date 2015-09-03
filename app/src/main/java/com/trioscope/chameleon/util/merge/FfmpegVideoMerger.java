@@ -95,7 +95,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-preset");
         params.add("ultrafast");
         params.add("-threads");
-        params.add("1");
+        params.add("auto");
         params.add("-strict");
         params.add("experimental");
         params.add(outputPath);
