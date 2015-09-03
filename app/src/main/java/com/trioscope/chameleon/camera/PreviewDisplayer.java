@@ -19,4 +19,6 @@ public interface PreviewDisplayer {
     SurfaceView createPreviewDisplay();
 
     void toggleFrontFacingCamera();
+
+    boolean isUsingFrontFacingCamera();
 }

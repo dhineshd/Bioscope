@@ -38,6 +38,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         LOG.info("Created main activity");
 
+        LOG.info("Preparing camera preview");
+        chameleonApplication.preparePreview();
+
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
@@ -72,15 +75,17 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        final Button toggleFrontFacingCamera = (Button) findViewById(R.id.switch_to_front_facing_button);
+        final Button toggleFrontFacingCameraBtn = (Button) findViewById(R.id.switch_to_front_facing_button);
 
-        toggleFrontFacingCamera.setOnClickListener(new OnClickListener() {
+        toggleFrontFacingCameraBtn.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 LOG.info("Clicked on front facing button for {}");
                 chameleonApplication.getPreviewDisplayer().toggleFrontFacingCamera();
+                updateFrontFacingText(toggleFrontFacingCameraBtn);
             }
-        }
+        });
+        updateFrontFacingText(toggleFrontFacingCameraBtn);
 
         final Button libraryButton = (Button) findViewById(R.id.library_button);
 
@@ -92,8 +97,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                 startActivity(i);
             }
         });
-
-        chameleonApplication.preparePreview();
 
         LOG.info("Getting preview displayer and attaching prepared callback {}", chameleonApplication.getPreviewDisplayer());
         // Tell the application we're ready to show preview whenever
@@ -107,6 +110,18 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         });
 
         LOG.info("Added prepared callback");
+    }
+
+    private void updateFrontFacingText(Button toggleFrontFacingCamera) {
+        if (chameleonApplication.getPreviewDisplayer() != null) {
+            if (chameleonApplication.getPreviewDisplayer().isUsingFrontFacingCamera()) {
+                toggleFrontFacingCamera.setText("Use Rear  Facing Camera");
+            } else {
+                toggleFrontFacingCamera.setText("Use Front Facing Camera");
+            }
+        } else {
+            toggleFrontFacingCamera.setText("Toggle Camera");
+        }
     }
 
     @Override
@@ -156,11 +171,11 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         chameleonApplication.startConnectionServerIfNotRunning();
 
-        if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
-
-            DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(
-                    mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
-            newFragment.show(getFragmentManager(), "dialog");
+        if (doesDeviceSupportNFC()) {
+            if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
+                DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
+                newFragment.show(getFragmentManager(), "dialog");
+            }
         }
     }
 

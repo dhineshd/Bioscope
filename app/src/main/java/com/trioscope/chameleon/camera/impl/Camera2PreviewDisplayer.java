@@ -53,7 +53,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
-    private int curLensFacing;
+    private int curLensFacing = -1;
 
 
     @Setter
@@ -188,7 +188,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                             log.info("Waiting for cameraDevice to become available.");
                             this.wait();
                         } catch (InterruptedException e) {
-                            log.error("Waiting for camera to open was interupted");
+                            log.error("Waiting for camera to open was interrupted");
                         }
                     }
                 }
@@ -199,6 +199,11 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         } catch (CameraAccessException e) {
             log.error("Unable to access camera information", e);
         }
+    }
+
+    @Override
+    public boolean isUsingFrontFacingCamera() {
+        return curLensFacing == CameraCharacteristics.LENS_FACING_FRONT;
     }
 
     private List<Size> getSupportedSizes(int format) {
@@ -251,13 +256,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         captureSession = session;
                         try {
                             // Auto focus should be continuous for camera preview.
-                            //requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                            //      CaptureRequest.CONTROL_AF_MODE_OFF);
 //                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
 //                                    Range.create(20, 20));
                             // Flash is automatically enabled when necessary.
-//                            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-//                                    CaptureRequest.CONTROL_AE_MODE_OFF);
 //                            requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE,
 //                                    CaptureRequest.CONTROL_AWB_MODE_OFF);
 
@@ -273,15 +274,11 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                                 public void uncaughtException(Thread thread, Throwable throwable) {
                                     log.error("Uncaught exception in the handling of the capture request {}", thread, throwable);
                                 }
-
-
                             });
 
-                            captureSession.capture(previewRequest,
+                            captureSession.setRepeatingRequest(previewRequest,
                                     new CameraCaptureSession.CaptureCallback() {
                                         long captureStartTime = System.currentTimeMillis();
-
-
 
                                         @Override
                                         public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
@@ -342,7 +339,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             }
 
         } catch (CameraAccessException e) {
-            log.error("Unable to access camera characterstics ", e);
+            log.error("Unable to access camera characteristics ", e);
         }
     }
 
