@@ -3,9 +3,7 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
-import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.MediaMetadataRetriever;
@@ -15,6 +13,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.activity.ConnectionEstablishedActivity;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.IntOrByteArray;
@@ -23,6 +22,8 @@ import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.Size;
+import com.trioscope.chameleon.util.ColorConversionUtil;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -47,8 +48,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
-    private static final int STREAMING_FRAMES_PER_SEC = 20;
-    private static final int STREAMING_COMPRESSION_QUALITY = 50; // 0 worst - 100 best
+    private static final int STREAMING_FRAMES_PER_SEC = 15;
+    private static final int STREAMING_COMPRESSION_QUALITY = 30; // 0 worst - 100 best
+    private static final Size DEFAULT_STREAM_IMAGE_SIZE = new Size(480, 270); // 16 : 9
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
@@ -57,20 +59,22 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private volatile OutputStream destOutputStream;
 
     private final ByteArrayOutputStream stream =
-            new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE);
+            new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
 
     private long previousFrameSendTimeMs = 0;
+    private byte[] finalFrameData = new byte[DEFAULT_STREAM_IMAGE_SIZE.getWidth() * DEFAULT_STREAM_IMAGE_SIZE.getHeight() * 3/2];
 
     @Override
+    @Timed
     public void onFrameAvailable(final CameraInfo cameraInfos, final IntOrByteArray data, FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
-        int targetWidth = 480;//cameraInfos.getCaptureResolution().getWidth();
-        int targetHeight = 270;//cameraInfos.getCaptureResolution().getHeight();
+        int targetWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
+        int targetHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
 
-        log.info("Frame available to send across the stream on thread {}, frame timestamp = {}, currentTime = {}, uptime = {}",
+        log.debug("Frame available to send across the stream on thread {}, frame timestamp = {}, currentTime = {}, uptime = {}",
                 Thread.currentThread(), frameInfo.getTimestampNanos() / 1000000, System.currentTimeMillis(), SystemClock.uptimeMillis());
         if (destOutputStream != null) {
 
@@ -78,52 +82,49 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 log.debug("Decided to send current frame across stream");
                 try {
                     stream.reset();
+                    byte[] byteArray = null;
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                        YuvImage yuvimage = new YuvImage(data.getBytes(), ImageFormat.NV21, cameraWidth, cameraHeight, null);
-                        yuvimage.compressToJpeg(new Rect(0, 0, cameraWidth, cameraHeight), STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = bitmapToByteArray(createScaledBitmap(stream.toByteArray(), targetWidth, targetHeight, 90));
-                        //byte[] byteArray = stream.toByteArray();
-                        log.info("Stream image size = {} bytes", byteArray.length);
-                        destOutputStream.write(byteArray, 0, byteArray.length);
-                    } else {
+                        byteArray = convertYUV420888ToJPEGByteArrayMethod2(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                    } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.RGBA_8888) {
                         new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
-                        byte[] byteArray = stream.toByteArray();
+                        byteArray = stream.toByteArray();
+                    }
+                    if (byteArray != null) {
+                        log.info("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     }
-
                     previousFrameSendTimeMs = System.currentTimeMillis();
-                    // log.info("Sending image to remote client.. bytes = {}, process latency = {}",
-                    // byteArray.length, System.currentTimeMillis() - frameProcessingStartTime);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     log.error("Failed to send data to client", e);
                     destOutputStream = null;
                     isStreamingStarted = false;
-                } catch (Exception e) {
-                    log.error("Failed to send data to client (unknown)", e);
                 }
             }
         }
     }
 
+    private byte[] convertYUV420888ToJPEGByteArrayMethod2(
+            final byte[] frameData,
+            final int frameWidth,
+            final int frameHeight,
+            final int targetWidth,
+            final int targetHeight) {
+        ColorConversionUtil.scaleAndConvertI420ToNV21(
+                frameData, finalFrameData, frameWidth,
+                frameHeight, targetWidth, targetHeight);
+        YuvImage yuvimage = new YuvImage(
+                finalFrameData,
+                ImageFormat.NV21, targetWidth, targetHeight, null);
+        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
+                STREAMING_COMPRESSION_QUALITY, stream);
+        return stream.toByteArray();
+    }
+
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
-    }
-
-    public static Bitmap createScaledBitmap(byte[] bitmapAsData, int width, int height, int rotateAngle) {
-        Bitmap bitmap = BitmapFactory.decodeByteArray(bitmapAsData, 0, bitmapAsData.length);
-        Matrix matrix = new Matrix();
-        matrix.postRotate(rotateAngle);
-        Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
-        return Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.getWidth(), scaledBitmap.getHeight(), matrix, true);
-    }
-
-    public static  byte[] bitmapToByteArray(final Bitmap bitmap) {
-        ByteArrayOutputStream blob = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, blob);
-        return blob.toByteArray();
     }
 
     private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
@@ -151,7 +152,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
         switch (messageFromClient.getType()) {
             case START_SESSION:
-                startStreaming(clientSocket);
+                String peerUserName = messageFromClient.getSenderUserName();
+                startStreaming(clientSocket, peerUserName);
                 break;
             case SESSION_HEARTBEAT:
                 updateConnectionHealth();
@@ -171,7 +173,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private void startStreaming(final Socket clientSocket) {
+    private void startStreaming(final Socket clientSocket, String peerUserName) {
         try {
             destOutputStream = clientSocket.getOutputStream();
             log.info("Destination output stream set in Thread = {}", Thread.currentThread());
@@ -187,6 +189,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     .ipAddress(clientSocket.getInetAddress())
                     .port(ChameleonApplication.SERVER_PORT)
                     .role(PeerInfo.Role.CREW_MEMBER)
+                    .userName(peerUserName)
                     .build();
             intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
             context.startActivity(intent);

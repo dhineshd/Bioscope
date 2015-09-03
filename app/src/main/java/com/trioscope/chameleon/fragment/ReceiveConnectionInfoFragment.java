@@ -119,7 +119,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                connectionStatusTextView.setText("Connecting to " + connectionInfo.getSSID() + "..");
+                connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName() + "..");
             }
         });
 
@@ -146,6 +146,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                                 .ipAddress(remoteIp)
                                 .port(connectionInfo.getServerPort())
                                 .role(PeerInfo.Role.DIRECTOR)
+                                .userName(connectionInfo.getUserName())
                                 .build();
 
                         Intent connectionEstablishedIntent =

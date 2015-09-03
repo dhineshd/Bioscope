@@ -32,6 +32,7 @@ import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
+import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
 
 import org.slf4j.Logger;
@@ -67,7 +68,13 @@ public class ChameleonApplication extends Application {
     public static final int MEDIA_TYPE_AUDIO = 3;
     public static final String START_RECORDING_ACTION = "START_RECORDING";
     public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
-    public static final int STREAM_IMAGE_BUFFER_SIZE = 1024 * 20;
+    // Stream image buffer size is set to be the same as minimum socket buffer size
+    // which ensures that each image can be transferred in a single send eliminating
+    // the need to maintain sequence numbers when sending data. So, we
+    // need to ensure that the compressed stream image size is less than this value.
+    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
+    public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
+
 
     public static final int SERVER_PORT = 7080;
 
@@ -149,14 +156,14 @@ public class ChameleonApplication extends Application {
             enableWifiAndPerformActionWhenEnabled(null);
         }
 
+        recordingFrameListener = new VideoRecordingFrameListener(this);
+        cameraFrameBuffer.addListener(recordingFrameListener);
+
         streamListener = new VideoStreamFrameListener(this);
-        //cameraFrameBuffer.addListener(streamListener);
+        cameraFrameBuffer.addListener(streamListener);
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
-
-        recordingFrameListener = new VideoRecordingFrameListener(this);
-        cameraFrameBuffer.addListener(recordingFrameListener);
 
         startup();
     }
@@ -416,9 +423,10 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    /**
-     * Create a File using given file name.
-     */
+    public String getOutputMediaDirectory() {
+        return getMediaStorageDir().getPath();
+    }
+
     /**
      * Create a File using given file name.
      *
@@ -426,7 +434,7 @@ public class ChameleonApplication extends Application {
      * @return created file
      */
     public File getOutputMediaFile(final String filename) {
-        return new File(getMediaStorageDir().getPath() + File.separator + filename);
+        return new File(getOutputMediaDirectory()+ File.separator + filename);
     }
 
     /**

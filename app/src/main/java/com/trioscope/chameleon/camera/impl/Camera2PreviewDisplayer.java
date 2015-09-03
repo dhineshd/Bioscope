@@ -20,6 +20,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.IntOrByteArray;
@@ -78,11 +79,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             encoding = CameraInfo.ImageEncoding.NV21;
             */
         encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
-
         //builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
         //builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
-        builder.cameraResolution(new Size(1920, 1080));
-        builder.captureResolution(new Size(1920, 1080));
+
+        List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
+        builder.cameraResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
+        builder.captureResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
         builder.encoding(encoding);
         cameraInfo = builder.build();
 
@@ -116,16 +118,18 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             for (int format : map.getOutputFormats()) {
-                if (format == ImageFormat.YUV_420_888)
+                if (format == ImageFormat.YUV_420_888) {
                     encodings.add(CameraInfo.ImageEncoding.YUV_420_888);
-                else if (format == ImageFormat.NV21)
+                } else if (format == ImageFormat.NV21) {
                     encodings.add(CameraInfo.ImageEncoding.NV21);
-                else
+                } else {
                     log.info("Unknown image format {}", format);
+                }
             }
         } catch (CameraAccessException e) {
             log.error("Unable to retrieve supported encodings", e);
         }
+        log.info("Supported image encoding formats = {}", encodings);
 
         return encodings;
     }

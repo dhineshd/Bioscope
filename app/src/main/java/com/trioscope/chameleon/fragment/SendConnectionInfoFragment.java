@@ -1,11 +1,13 @@
 package com.trioscope.chameleon.fragment;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -215,6 +217,7 @@ public class SendConnectionInfoFragment extends Fragment {
                                     .passPhrase(group.getPassphrase())
                                     .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
                                     .serverPort(ChameleonApplication.SERVER_PORT)
+                                    .userName(getUserName())
                                     .build();
 
                     // Connection info will be used in other components of the app
@@ -230,6 +233,12 @@ public class SendConnectionInfoFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private String getUserName() {
+
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(this.chameleonApplication.getApplicationContext());
+        return settings.getString(getString(R.string.pref_user_name_key), "");
     }
 
 
