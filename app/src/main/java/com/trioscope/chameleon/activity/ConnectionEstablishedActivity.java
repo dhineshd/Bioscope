@@ -497,8 +497,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.info("Local filename = {}", localVideoFile.getName());
             log.info("Remote filename = {}", remoteVideoFile.getName());
 
-            Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
-            //Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
+            //Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
+            Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);

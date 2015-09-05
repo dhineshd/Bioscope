@@ -69,6 +69,11 @@
             android:name=".activity.PreferencesActivity"
             android:label="PreferencesActivity" />
         <activity
+            android:name=".activity.PreviewMergeActivity"
+            android:label="PreviewMergeActivity"
+            android:noHistory="true"
+            android:screenOrientation="landscape" />
+        <activity
             android:name=".activity.MergeVideosActivity"
             android:label="MergeVideosActivity"
             android:noHistory="true"
