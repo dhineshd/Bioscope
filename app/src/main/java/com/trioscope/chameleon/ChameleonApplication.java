@@ -56,12 +56,13 @@ import javax.net.ssl.SSLServerSocketFactory;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Created by phand on 6/4/15.
  */
+@Slf4j
 public class ChameleonApplication extends Application {
-    private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
@@ -141,13 +142,13 @@ public class ChameleonApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        LOG.info("Starting application");
+        log.info("Starting application");
 
         metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
-        LOG.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
+        log.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
 
         // Enable Wifi to save time later and to avoid constantly turning on/off
         // which affects battery performance
@@ -203,7 +204,7 @@ public class ChameleonApplication extends Application {
                 KeyManagementException |
                 CertificateException |
                 UnrecoverableKeyException e) {
-            LOG.error("Failed to initialize SSL server socket factory", e);
+            log.error("Failed to initialize SSL server socket factory", e);
         }
         return sslServerSocketFactory;
     }
@@ -211,23 +212,23 @@ public class ChameleonApplication extends Application {
     public PreviewDisplayer getPreviewDisplayer() {
         synchronized (this) {
             if (previewDisplayer == null) {
-                LOG.info("Waiting on preview displayer to be available");
+                log.info("Waiting on preview displayer to be available");
                 try {
                     this.wait();
                 } catch (InterruptedException e) {
-                    LOG.error("Unable to wait on application", e);
+                    log.error("Unable to wait on application", e);
                 }
             }
 
 
-            LOG.info("Returning preview displayer");
+            log.info("Returning preview displayer");
             return previewDisplayer;
         }
     }
 
     public void preparePreview() {
         if (!previewStarted) {
-            LOG.info("Grabbing camera and starting preview");
+            log.info("Grabbing camera and starting preview");
 
 
             /*
@@ -238,38 +239,38 @@ public class ChameleonApplication extends Application {
 
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
 
-            LOG.info("CameraInfo for opened camera is {}", cameraInfo);
+            log.info("CameraInfo for opened camera is {}", cameraInfo);
             previewDisplayer = new SurfaceViewPreviewDisplayer(this, cameraOpener.getCamera(), cameraInfo);
             */
             final CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
                 ThreadWithHandler handlerThread = new ThreadWithHandler();
                 String[] cameras = manager.getCameraIdList();
-                LOG.info("Camera ids are {}, going to open first in list", cameras);
+                log.info("Camera ids are {}, going to open first in list", cameras);
                 manager.openCamera(cameras[0], new CameraDevice.StateCallback() {
                     @Override
                     public void onOpened(CameraDevice camera) {
-                        LOG.info("Found camera device callback {}", camera);
+                        log.info("Found camera device callback {}", camera);
 
                         previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
                         previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
 
                         synchronized (ChameleonApplication.this) {
-                            LOG.info("Notifying chameleon waiters");
+                            log.info("Notifying chameleon waiters");
                             ChameleonApplication.this.notifyAll();
                         }
                     }
 
                     @Override
                     public void onDisconnected(CameraDevice camera) {
-                        LOG.info("Camera is disconnected");
+                        log.info("Camera is disconnected");
                     }
 
                     @Override
                     public void onError(CameraDevice camera, int error) {
-                        LOG.info("CameraDevice errored on open, {} err = {}", camera, error);
+                        log.info("CameraDevice errored on open, {} err = {}", camera, error);
                         synchronized (ChameleonApplication.this) {
-                            LOG.info("Notifying chameleon waiters even though we errored");
+                            log.info("Notifying chameleon waiters even though we errored");
                             ChameleonApplication.this.notifyAll();
                         }
                     }
@@ -278,7 +279,7 @@ public class ChameleonApplication extends Application {
                 e.printStackTrace();
             }
         } else {
-            LOG.info("Preview already started");
+            log.info("Preview already started");
         }
     }
 
@@ -292,27 +293,27 @@ public class ChameleonApplication extends Application {
             });
             previewStarted = true;
         } else {
-            LOG.info("Preview already started");
+            log.info("Preview already started");
         }
     }
 
     public synchronized void updateOrientation() {
-        LOG.info("Updating current device orientation");
+        log.info("Updating current device orientation");
 
         int orientation = getResources().getConfiguration().orientation;
 
         boolean isLandscape = getResources().getConfiguration().ORIENTATION_LANDSCAPE == orientation;
-        LOG.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
+        log.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
         rotationState.setLandscape(isLandscape);
     }
 
     public void initializeWifiP2p() {
 
         if (wifiP2pManager == null) {
-            LOG.debug("Acquiring WifiP2pManager");
+            log.debug("Acquiring WifiP2pManager");
             wifiP2pManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
 
-            LOG.debug("Acquiring WifiChannel");
+            log.debug("Acquiring WifiChannel");
             wifiP2pChannel = wifiP2pManager.initialize(this, getMainLooper(), null);
         }
     }
@@ -321,14 +322,14 @@ public class ChameleonApplication extends Application {
         Convenience method for creationg a preview display through the PreviewDisplayer
      */
     public SurfaceView createPreviewDisplay() {
-        LOG.info("Creating preview display and stopping preview first");
+        log.info("Creating preview display and stopping preview first");
         previewDisplayer.stopPreview();
         previewStarted = false;
         return previewDisplayer.createPreviewDisplay();
     }
 
     public void startup() {
-        LOG.info("Starting up application resources..");
+        log.info("Starting up application resources..");
 
         startConnectionServerIfNotRunning();
 
@@ -337,7 +338,7 @@ public class ChameleonApplication extends Application {
         phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
         incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
         registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
-        LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
+        log.info("Registered IncomingPhoneCallBroadcastReceiver");
 
         // Reset session flags
         sessionStatus = SessionStatus.DISCONNECTED;
@@ -346,7 +347,7 @@ public class ChameleonApplication extends Application {
     }
 
     public void cleanupAndExit() {
-        LOG.info("Tearing down application resources..");
+        log.info("Tearing down application resources..");
 
         //  Tear down server
         if (connectionServer != null) {
@@ -382,7 +383,7 @@ public class ChameleonApplication extends Application {
 
     public void tearDownWifiHotspot() {
 
-        LOG.debug("Tearing down Wifi components..");
+        log.debug("Tearing down Wifi components..");
 
         // Initializing wifi p2p so that we can tear down hotspot hanging around
         // from previous sessions
@@ -390,7 +391,7 @@ public class ChameleonApplication extends Application {
 
         // Tear down Wifi p2p hotspot
         if (wifiP2pManager != null && wifiP2pChannel != null) {
-            LOG.info("Invoking removeGroup..");
+            log.info("Invoking removeGroup..");
             wifiP2pManager.removeGroup(wifiP2pChannel, null);
         }
         wifiP2pManager = null;
@@ -399,7 +400,7 @@ public class ChameleonApplication extends Application {
 
     private void tearDownWifiIfNecessary() {
 
-        LOG.debug("Tearing down Wifi components..");
+        log.debug("Tearing down Wifi components..");
 
         tearDownWifiHotspot();
 
@@ -410,7 +411,7 @@ public class ChameleonApplication extends Application {
         // Put Wifi back in original state
 
         if (isWifiEnabledInitially != null) {
-            LOG.info("Setting Wifi back to {}", isWifiEnabledInitially);
+            log.info("Setting Wifi back to {}", isWifiEnabledInitially);
             final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
             wifiManager.setWifiEnabled(isWifiEnabledInitially);
             isWifiEnabledInitially = null;
@@ -459,7 +460,7 @@ public class ChameleonApplication extends Application {
         }
 
         if (mediaFile != null) {
-            LOG.info("File name is {}", mediaFile.getAbsolutePath());
+            log.info("File name is {}", mediaFile.getAbsolutePath());
         }
         return mediaFile;
     }
@@ -468,11 +469,11 @@ public class ChameleonApplication extends Application {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
-        LOG.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
+        log.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM));
 
         if (!isExternalStorageWritable()) {
-            LOG.error("External Storage is not mounted for Read-Write");
+            log.error("External Storage is not mounted for Read-Write");
             return null;
         }
 
@@ -484,7 +485,7 @@ public class ChameleonApplication extends Application {
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
-                LOG.error("failed to create directory");
+                log.error("failed to create directory");
                 return null;
             }
         }
@@ -509,7 +510,7 @@ public class ChameleonApplication extends Application {
     public boolean prepareVideoRecorder() {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
-        LOG.info("Setting video file = {}", videoFile.getAbsolutePath());
+        log.info("Setting video file = {}", videoFile.getAbsolutePath());
         videoRecorder.setOutputFile(videoFile);
         videoRecorder.setCamera(cameraOpener.getCamera());
         return true;
@@ -544,7 +545,7 @@ public class ChameleonApplication extends Application {
         enableWifiBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                LOG.info("onReceive intent = {}, wifi enabled = {}",
+                log.info("onReceive intent = {}, wifi enabled = {}",
                         intent.getAction(), wifiManager.isWifiEnabled());
 
                 if (wifiManager.isWifiEnabled()) {
@@ -555,7 +556,7 @@ public class ChameleonApplication extends Application {
 
                     // Done with checking Wifi state
                     unregisterReceiverSafely(this);
-                    LOG.info("Wifi enabled!!");
+                    log.info("Wifi enabled!!");
 
                     // Perform action
                     if (runnable != null) {
@@ -570,7 +571,7 @@ public class ChameleonApplication extends Application {
 
         // Enable and wait for Wifi state change
         wifiManager.setWifiEnabled(true);
-        LOG.info("SetWifiEnabled to true");
+        log.info("SetWifiEnabled to true");
     }
 
     public void unregisterReceiverSafely(final BroadcastReceiver receiver) {
