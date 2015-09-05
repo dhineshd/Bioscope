@@ -20,10 +20,14 @@ import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
+import com.trioscope.chameleon.camera.impl.FrameInfo;
+import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.listener.IntOrByteArray;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.metrics.MetricsHelper;
+import com.trioscope.chameleon.service.FrameListener;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
 import com.trioscope.chameleon.stream.RecordingEventListener;
@@ -48,6 +52,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.net.ssl.KeyManagerFactory;
@@ -275,6 +280,44 @@ public class ChameleonApplication extends Application {
                         }
                     }
                 }, handlerThread.getHandler());
+
+                log.info("Opening second camera simultaneously");
+                manager.openCamera(cameras[1], new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(CameraDevice camera) {
+                        log.info("Successfully opened 2nd camera device {}", camera);
+
+                        Camera2PreviewDisplayer displayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
+                        CameraFrameBuffer cfb = new CameraFrameBuffer();
+                        displayer.setCameraFrameBuffer(cfb);
+
+                        cfb.addListener(new CameraFrameAvailableListener() {
+                            int framesSeen = 0;
+
+                            @Override
+                            public void onFrameAvailable(CameraInfo cameraInfo, IntOrByteArray data, FrameInfo frameInfo) {
+                                // Just print out the first few frames
+                                if (framesSeen++ < 25) {
+                                    log.info("Frame from second camera is available, hashcode is {}", Arrays.hashCode(data.getBytes()));
+                                }
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onDisconnected(CameraDevice camera) {
+                        log.info("Camera is disconnected");
+                    }
+
+                    @Override
+                    public void onError(CameraDevice camera, int error) {
+                        log.info("CameraDevice errored on open, {} err = {}", camera, error);
+
+                        if (error == ERROR_MAX_CAMERAS_IN_USE) {
+                            log.info("Error was MAX_CAMERAS_IN_USE");
+                        }
+                    }
+                }, handlerThread.getHandler());
             } catch (CameraAccessException e) {
                 e.printStackTrace();
             }
@@ -429,7 +472,7 @@ public class ChameleonApplication extends Application {
      * @return created file
      */
     public File getOutputMediaFile(final String filename) {
-        return new File(getOutputMediaDirectory()+ File.separator + filename);
+        return new File(getOutputMediaDirectory() + File.separator + filename);
     }
 
     /**
