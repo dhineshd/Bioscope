@@ -7,7 +7,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.MediaController;
 import android.widget.VideoView;
 
 import com.google.gson.Gson;
@@ -17,8 +16,7 @@ import com.trioscope.chameleon.types.RecordingMetadata;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
-        implements MediaController.MediaPlayerControl{
+public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private final Gson gson = new Gson();
     private VideoView majorVideoView;
     private VideoView minorVideoView;
@@ -96,7 +94,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         majorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
-            public void onPrepared(MediaPlayer mpMajor) {
+            public void onPrepared(final MediaPlayer mpMajor) {
 
                 minorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                     @Override
@@ -138,72 +136,5 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void start() {
-        if (majorVideoView != null && minorVideoView != null) {
-            startVideoViews(majorVideoViewVideoPath, minorVideoViewVideoPath,
-                    majorVideoAheadOfMinorVideoByMillis);
-        }
-    }
-
-    @Override
-    public void pause() {
-        if (majorVideoView != null && minorVideoView != null) {
-            majorVideoView.pause();
-            minorVideoView.pause();
-        }
-    }
-
-    @Override
-    public int getDuration() {
-        if (majorVideoView != null && minorVideoView != null) {
-            return Math.min(majorVideoView.getDuration(), minorVideoView.getDuration());
-        }
-        return 0;
-    }
-
-    @Override
-    public int getCurrentPosition() {
-        if (majorVideoView != null && minorVideoView != null) {
-            return Math.min(majorVideoView.getCurrentPosition(), minorVideoView.getCurrentPosition());
-        }
-        return 0;
-    }
-
-    @Override
-    public void seekTo(int pos) {
-
-    }
-
-    @Override
-    public boolean isPlaying() {
-        return (majorVideoView != null && majorVideoView.isPlaying());
-    }
-
-    @Override
-    public int getBufferPercentage() {
-        return 0;
-    }
-
-    @Override
-    public boolean canPause() {
-        return true;
-    }
-
-    @Override
-    public boolean canSeekBackward() {
-        return true;
-    }
-
-    @Override
-    public boolean canSeekForward() {
-        return true;
-    }
-
-    @Override
-    public int getAudioSessionId() {
-        return 0;
     }
 }

@@ -116,7 +116,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             }
         };
 
-        // Display camera preview
+        // Prepare camera preview
+        chameleonApplication.preparePreview();
+
         chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
             @Override
             public void run() {
@@ -203,8 +205,15 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         }
     }
 
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
     @Override
     protected void onResume() {
+
         // Register to listen for recording events
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
         IntentFilter filter = new IntentFilter();
@@ -614,6 +623,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
     @Override
     public void onBackPressed() {
+
         cleanup();
 
         //Re-use MainActivity instance if already present. If not, create new instance.

@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoRecordingFrameListener implements CameraFrameAvailableListener, RecordingEventListener {
-    private static final long TIMEOUT_MICROSECONDS = 1000;
+    private static final long TIMEOUT_MICROSECONDS = 5000;
     private static final String MIME_TYPE_AUDIO = "audio/mp4a-latm";
     private static final String MIME_TYPE_VIDEO = "video/avc";
     private static final int AUDIO_SAMPLE_RATE = 48000;
@@ -68,7 +68,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
-        setupVideoEncoder();
     }
 
     private void setupVideoEncoder() {
@@ -145,20 +144,26 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             final long presentationTimeMicros,
             final long adjustedFrameReceiveTimeMillis) {
 
+        // Start MediaMuxer when both audio and video tracks have been initialized
+        if (!muxerStarted &&
+                videoTrackIndex != -1 &&
+                audioTrackIndex != -1) {
+            mediaMuxer.start();
+            muxerStarted = true;
+        }
+
         processVideo(
                 frameData,
                 presentationTimeMicros,
                 adjustedFrameReceiveTimeMillis);
     }
 
-    private long processVideo(
+    private void processVideo(
             final CameraFrameData frameData,
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
         log.debug("Processing video..");
-
-        long actualPresentationTimeMicros = -1;
 
         // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)
         // doesn't support COLOR_FormatYUV420Planar, we need to convert
@@ -208,22 +213,13 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 videoBufferInfo.size = 0;
             }
 
-            // Start MediaMuxer when both audio and video tracks have been initialized
-            if (!muxerStarted &&
-                    videoTrackIndex != -1 &&
-                    audioTrackIndex != -1) {
-                mediaMuxer.start();
-                muxerStarted = true;
-            }
-
             if (videoBufferInfo.size != 0 && muxerStarted) {
                 mediaMuxer.writeSampleData(videoTrackIndex, outputBuffer, videoBufferInfo);
-
-                actualPresentationTimeMicros = videoBufferInfo.presentationTimeUs;
 
                 if (firstFrameReceivedForRecordingTimeMillis == null) {
                     firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis;
                     chameleonApplication.setRecordingStartTimeMillis(frameReceiveTimeMillis);
+                    log.debug("First video presentation time = {}", videoBufferInfo.presentationTimeUs);
                 }
 
                 log.debug("sent " + videoBufferInfo.size + " video bytes to muxer. " +
@@ -243,7 +239,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         } else {
             log.warn("unexpected result from video encoder.dequeueOutputBuffer: " + videoOutputBufferIndex);
         }
-        return actualPresentationTimeMicros;
+
     }
 
     private void processAudio(
@@ -300,6 +296,12 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     @Override
     public void onStartRecording(long recordingStartTimeMillis) {
+        firstFrameReceivedForRecordingTimeMillis = null;
+        videoTrackIndex = -1;
+        audioTrackIndex = -1;
+
+        setupVideoEncoder();
+
         //Setup MediaMuxer to save MediaCodec output to file
         try {
             File outputFile = chameleonApplication.getOutputMediaFile("LocalVideo.mp4");
@@ -317,6 +319,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
         } catch (IOException e) {
             log.error("Failed to start recording!", e);
+            mediaMuxer = null;
         }
     }
 
@@ -383,7 +386,5 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             mediaMuxer.release();
             mediaMuxer = null;
         }
-        videoTrackIndex = -1;
-        audioTrackIndex = -1;
     }
 }

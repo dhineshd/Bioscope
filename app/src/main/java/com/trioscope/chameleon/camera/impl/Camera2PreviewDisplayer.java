@@ -171,14 +171,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         try {
                             // Auto focus should be continuous for camera preview.
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_OFF);
-//                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-//                                    Range.create(20, 20));
-                            // Flash is automatically enabled when necessary.
-//                            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-//                                    CaptureRequest.CONTROL_AE_MODE_OFF);
-//                            requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE,
-//                                    CaptureRequest.CONTROL_AWB_MODE_OFF);
+                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
 
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
@@ -197,7 +190,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
                                     }, null);
                         } catch (CameraAccessException e) {
-                            e.printStackTrace();
+                            log.warn("Failure during capture session", e);
                         }
                     }
 

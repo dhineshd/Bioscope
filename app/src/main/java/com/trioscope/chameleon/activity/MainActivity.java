@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
-import android.app.FragmentManager;
 import android.content.Intent;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
@@ -10,33 +9,21 @@ import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
 
-import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-
-import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
-import com.trioscope.chameleon.types.RecordingMetadata;
-
 import com.trioscope.chameleon.types.SessionStatus;
-import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import static android.view.View.OnClickListener;
 
+@Slf4j
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
-    private SurfaceView previewDisplay;
     private ChameleonApplication chameleonApplication;
-    private Gson gson = new Gson();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,14 +35,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         setContentView(R.layout.activity_main);
 
-        LOG.info("Created main activity");
+        log.info("Created main activity");
 
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("Start sesion button pressed");
+                log.info("Start sesion button pressed");
                 chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
@@ -67,7 +54,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         editSettingsButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("Clicked on preferences button for {}", PreferencesActivity.class);
+                log.info("Clicked on preferences button for {}", PreferencesActivity.class);
                 Intent i = new Intent(MainActivity.this, PreferencesActivity.class);
                 startActivity(i);
             }
@@ -78,13 +65,12 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         libraryButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                LOG.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
+                log.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
                 Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
                 startActivity(i);
             }
         });
 
-        chameleonApplication.preparePreview();
     }
 
     @Override
@@ -111,23 +97,21 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     protected void onPause() {
-        LOG.info("onPause: Activity is no longer in foreground");
+        log.info("onPause: Activity is no longer in foreground");
 
 
-        if (chameleonApplication.getPreviewDisplayer() != null)
-            chameleonApplication.getPreviewDisplayer().stopPreview();
 
 
 
         super.onPause();
-        LOG.info("Activity has been paused");
+        log.info("Activity has been paused");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        LOG.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
+        log.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
 
         chameleonApplication.startConnectionServerIfNotRunning();
 
@@ -148,7 +132,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     public void onNewIntent(Intent intent) {
-        LOG.info("new intent received {}", intent);
+        log.info("new intent received {}", intent);
         // onResume gets called after this to handle the intent
         setIntent(intent);
     }
@@ -174,23 +158,20 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     protected void onStop() {
-        LOG.info("onStop: Activity is no longer visible to user");
-        if (chameleonApplication.getPreviewDisplayer() != null)
-            chameleonApplication.getPreviewDisplayer().stopPreview();
+        log.info("onStop: Activity is no longer visible to user");
 
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
-            LOG.info("Teardown initiated from MainActivity");
+            log.info("Teardown initiated from MainActivity");
             chameleonApplication.cleanupAndExit();
         }
-
         super.onStop();
     }
 
 
     @Override
     public void onBackPressed() {
-        LOG.info("User pressed back");
+        log.info("User pressed back");
 
         //Disable NFC Foreground dispatch
         super.disableForegroundDispatch();
@@ -198,15 +179,5 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.onBackPressed();
 
         ((ChameleonApplication) getApplication()).cleanupAndExit();
-    }
-
-    private void addCameraPreviewSurface() {
-        LOG.info("Creating surfaceView on thread {}", Thread.currentThread());
-
-        ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
-        RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
-        previewDisplay = chameleonApplication.createPreviewDisplay();
-        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
-        layout.addView(previewDisplay, layoutParams);
     }
 }
