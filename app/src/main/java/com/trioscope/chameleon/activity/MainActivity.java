@@ -15,7 +15,6 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import org.slf4j.Logger;
@@ -83,26 +82,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                 LOG.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
                 Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
                 startActivity(i);
-            }
-        });
-
-        final Button mergePreviewButton = (Button) findViewById(R.id.button_main_merge_preview);
-
-        mergePreviewButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
-                        .absoluteFilePath("/storage/sdcard0/DCIM/Chameleon/LocalVideo.mp4")
-                        .startTimeMillis(System.currentTimeMillis())
-                        .build();
-                RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
-                        .absoluteFilePath("/storage/sdcard0/DCIM/Chameleon/PeerVideo.mp4")
-                        .startTimeMillis(System.currentTimeMillis())
-                        .build();
-                Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
-                intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
-                intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
-                startActivity(intent);
             }
         });
 
