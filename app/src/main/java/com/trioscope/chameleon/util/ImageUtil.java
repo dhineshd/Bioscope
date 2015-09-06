@@ -52,7 +52,6 @@ public class ImageUtil {
                 ByteBuffer buffer = planes[i].getBuffer();
                 rowStride = planes[i].getRowStride();
                 pixelStride = planes[i].getPixelStride();
-                log.info("Plane {} : Row stride = {}, pixel stride = {}, offset = {}", i, rowStride, pixelStride, offset);
                 // For multi-planar yuv images, assuming yuv420 with 2x2 chroma subsampling.
                 int w = (i == 0) ? width : width / 2;
                 int h = (i == 0) ? height : height / 2;
