@@ -101,6 +101,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             minorVideoView.stopPlayback();
         }
 
+        majorVideoViewVideoPath = majorVideoPath;
+        majorVideoView.setVideoPath(majorVideoViewVideoPath);
+        minorVideoViewVideoPath = minorVideoPath;
+        minorVideoView.setVideoPath(minorVideoViewVideoPath);
+
         majorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(final MediaPlayer mpMajor) {
@@ -114,11 +119,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 });
             }
         });
-
-        majorVideoViewVideoPath = majorVideoPath;
-        majorVideoView.setVideoPath(majorVideoViewVideoPath);
-        minorVideoViewVideoPath = minorVideoPath;
-        minorVideoView.setVideoPath(minorVideoViewVideoPath);
     }
 
     @Override
