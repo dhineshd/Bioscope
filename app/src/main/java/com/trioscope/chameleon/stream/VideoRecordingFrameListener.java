@@ -33,19 +33,19 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoRecordingFrameListener implements CameraFrameAvailableListener, RecordingEventListener {
-    private static final long TIMEOUT_MICROSECONDS = 5000;
+    private static final long TIMEOUT_MICROSECONDS = 1000;
     private static final String MIME_TYPE_AUDIO = "audio/mp4a-latm";
     private static final String MIME_TYPE_VIDEO = "video/avc";
     private static final int AUDIO_SAMPLE_RATE = 48000;
     private static final int CHANNEL_COUNT = 2;
     private static final int CHANNEL_CONFIG = CHANNEL_COUNT == 1 ?
             AudioFormat.CHANNEL_IN_MONO : AudioFormat.CHANNEL_IN_STEREO;
-    private static final int AUDIO_BIT_RATE = 256000;
+    private static final int AUDIO_BIT_RATE = 256 * 1024;
     private static final int AUDIO_SAMPLES_PER_FRAME = 2 * 1024; // AAC
     private static final int VIDEO_FRAME_RATE = 30;
     private static final int VIDEO_BIT_RATE = 5000000;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
-    private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.DEFAULT;
+    private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.CAMCORDER;
     private static final int VIDEO_COLOR_FORMAT =
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible;
 
@@ -332,11 +332,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                         (presentationTimeMicros - audioBufferInfo.presentationTimeUs) / 1000);
             }
             audioEncoder.releaseOutputBuffer(audioOutputBufferIndex, false);
-
-            if ((audioBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                log.warn("audio reached end of stream unexpectedly");
-            }
-
         } else if (audioOutputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             MediaFormat newFormat = audioEncoder.getOutputFormat();
             log.debug("audio encoder output format changed: " + newFormat);
