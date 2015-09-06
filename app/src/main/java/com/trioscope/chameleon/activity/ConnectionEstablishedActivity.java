@@ -29,9 +29,6 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.camera.VideoRecorder;
-import com.trioscope.chameleon.stream.RecordingEventListener;
-import com.trioscope.chameleon.stream.messages.HandshakeMessage;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
@@ -71,8 +68,6 @@ import lombok.extern.slf4j.Slf4j;
 public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
-    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
-            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
@@ -99,45 +94,21 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        chameleonApplication.createBackgroundRecorder(new RecordingEventListener() {
-            @Override
-            public void onStartRecording(final long recordingStartTimeMillis) {
-                // chameleonApplication.setRecordingStartTimeMillis(recordingStartTimeMillis);
-            }
-
-            @Override
-            public void onStopRecording() {
-                // Nothing for now
-            }
-        });
-
         recordEventReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                VideoRecorder videoRecorder = chameleonApplication.getVideoRecorder();
                 if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
                     log.info("Start recording event received!!");
-                    if (videoRecorder != null) {
-                        // initialize video camera
-//                        if (chameleonApplication.prepareVideoRecorder()) {
-//                            videoRecorder.startRecording();
-//                            isRecording = true;
-//                            log.info("isRecording is {}", isRecording);
-//                            Toast.makeText(getApplicationContext(), "Video recording started..", Toast.LENGTH_LONG).show();
-//                        }
-                        // Also, start recording using MediaCodec method
-                        chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
-                    }
+                    // Start recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
+                    log.debug("Video recording started");
+                    Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG).show();
                 } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
                     log.info("Stop recording event received!!");
-//                    if (videoRecorder != null) {
-//                        chameleonApplication.finishVideoRecording();
-//                        isRecording = false;
-//                        Toast.makeText(getApplicationContext(), "Video recording stopped..", Toast.LENGTH_LONG).show();
-//                    }
                     // Stop recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStopRecording();
-
+                    log.debug("Video recording stopped");
+                    Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG).show();
                 }
             }
         };
@@ -479,7 +450,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             remoteRecordingStartTimeMillis -= clockAdjustmentMs;
 
             log.info("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
-            Toast.makeText(getApplicationContext(), "Clock diff : " + (clockAdjustmentMs / 1000.0), Toast.LENGTH_LONG).show();
             log.info("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
             log.info("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
@@ -501,7 +471,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.info("Local filename = {}", localVideoFile.getName());
             log.info("Remote filename = {}", remoteVideoFile.getName());
 
-            //Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
@@ -559,7 +528,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 
         PrintWriter pw = new PrintWriter(socket.getOutputStream());
-        HandshakeMessage handshakeMessage = HandshakeMessage.builder().info("blah").build();
         PeerMessage peerMsg = PeerMessage.builder()
                 .type(PeerMessage.Type.START_SESSION)
                 .contents("abc")
