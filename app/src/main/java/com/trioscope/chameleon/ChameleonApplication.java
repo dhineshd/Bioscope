@@ -5,26 +5,22 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.PixelFormat;
-import android.hardware.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
-import android.opengl.EGL14;
-import android.opengl.GLSurfaceView;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
 import android.telephony.TelephonyManager;
-import android.view.Gravity;
-import android.view.WindowManager;
+import android.view.SurfaceView;
 
-import com.trioscope.chameleon.activity.MainActivity;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.BackgroundRecorder;
+import com.trioscope.chameleon.camera.CameraOpener;
+import com.trioscope.chameleon.camera.PreviewDisplayer;
+import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
-import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
-import com.trioscope.chameleon.listener.RenderRequestFrameListener;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.metrics.MetricsHelper;
@@ -34,13 +30,10 @@ import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
-import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
-import com.trioscope.chameleon.types.factory.CameraInfoFactory;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.trioscope.chameleon.types.Size;
+import com.trioscope.chameleon.types.ThreadWithHandler;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,28 +46,32 @@ import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
-import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.egl.EGLContext;
-import javax.microedition.khronos.egl.EGLDisplay;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Created by phand on 6/4/15.
  */
+@Slf4j
 public class ChameleonApplication extends Application {
-    private final static Logger LOG = LoggerFactory.getLogger(ChameleonApplication.class);
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
     public static final String START_RECORDING_ACTION = "START_RECORDING";
     public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
-    public static final int STREAM_IMAGE_BUFFER_SIZE = 1024 * 20;
+    // Stream image buffer size is set to be the same as minimum socket buffer size
+    // which ensures that each image can be transferred in a single send eliminating
+    // the need to maintain sequence numbers when sending data. So, we
+    // need to ensure that the compressed stream image size is less than this value.
+    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
+    public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
+
 
     public static final int SERVER_PORT = 7080;
 
@@ -85,15 +82,6 @@ public class ChameleonApplication extends Application {
 
     @Getter
     @Setter
-    private EGLContextAvailableMessage globalEglContextInfo;
-    @Getter
-    @Setter
-    private GLSurfaceView.EGLContextFactory eglContextFactory;
-
-    private MainActivity eglCallback;
-    private final Object eglCallbackLock = new Object();
-    @Getter
-    @Setter
     private volatile File videoFile;
     @Getter
     @Setter
@@ -102,24 +90,23 @@ public class ChameleonApplication extends Application {
     @Setter
     private volatile Long recordingStartTimeMillis;
 
-    // For background image recording
-    private WindowManager windowManager;
-    private SystemOverlayGLSurface surfaceView;
     @Getter
-    private Camera camera;
+    private CameraOpener cameraOpener;
+
     @Getter
     private CameraInfo cameraInfo;
-    @Getter
-    private CameraPreviewTextureListener cameraPreviewFrameListener = new CameraPreviewTextureListener();
+
     @Getter
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
-    private EGLContextAvailableHandler eglContextAvailHandler;
+
     @Getter
     @Setter
     private EGLConfig eglConfig;
 
+    @Getter
+    private PreviewDisplayer previewDisplayer;
 
     @Getter
     private WifiP2pManager wifiP2pManager;
@@ -152,13 +139,14 @@ public class ChameleonApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        LOG.info("Starting application");
+        log.info("Starting application");
 
-        metrics = new MetricsHelper(this);
+        // Disabling metrics for now
+        //metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
-        LOG.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
+        log.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
 
         // Enable Wifi to save time later and to avoid constantly turning on/off
         // which affects battery performance
@@ -166,41 +154,26 @@ public class ChameleonApplication extends Application {
             enableWifiAndPerformActionWhenEnabled(null);
         }
 
-        // Create new SurfaceView, set its size to 1x1, move it to the top left corner and set this service as a callback
-        windowManager = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
-        eglContextAvailHandler = new EGLContextAvailableHandler();
-        surfaceView = new SystemOverlayGLSurface(this, eglContextAvailHandler);
-        surfaceView.setCameraFrameBuffer(cameraFrameBuffer);
-        WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams(
-                1, 1,
-                WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
-                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-                PixelFormat.TRANSLUCENT
-        );
-        layoutParams.gravity = Gravity.LEFT | Gravity.TOP;
-        windowManager.addView(surfaceView, layoutParams);
-        LOG.info("Created system overlay SurfaceView {}", surfaceView);
-
-        // Add FPS listener to CameraBuffer
-        cameraFrameBuffer.addListener(new UpdateRateListener());
+        recordingFrameListener = new VideoRecordingFrameListener(this);
+        cameraFrameBuffer.addListener(recordingFrameListener);
 
         streamListener = new VideoStreamFrameListener(this);
         cameraFrameBuffer.addListener(streamListener);
 
-        recordingFrameListener = new VideoRecordingFrameListener(this);
-        cameraFrameBuffer.addListener(recordingFrameListener);
+        // Add FPS listener to CameraBuffer
+        cameraFrameBuffer.addListener(new UpdateRateListener());
 
         startup();
     }
 
-
-    public void createBackgroundRecorder(final RecordingEventListener recordingEventListener) {
+    public void createBackgroundRecorder(
+            final RecordingEventListener recordingEventListener) {
         videoRecorder = new BackgroundRecorder(this, recordingEventListener);
     }
 
-    public void startConnectionServerIfNotRunning(){
+    public void startConnectionServerIfNotRunning() {
         // Setup connection server to receive connections from client
-        if (connectionServer == null){
+        if (connectionServer == null) {
             connectionServer = new ConnectionServer(
                     ChameleonApplication.SERVER_PORT,
                     streamListener,
@@ -209,12 +182,12 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    private SSLServerSocketFactory getInitializedSSLServerSocketFactory(){
+    private SSLServerSocketFactory getInitializedSSLServerSocketFactory() {
         SSLServerSocketFactory sslServerSocketFactory = null;
         try {
             // Load the keyStore that includes self-signed cert as a "trusted" entry.
             KeyStore keyStore = KeyStore.getInstance("BKS");
-            InputStream keyStoreInputStream =  getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
+            InputStream keyStoreInputStream = getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
             char[] password = "poiuyt".toCharArray();
             keyStore.load(keyStoreInputStream, password);
             keyStoreInputStream.close();
@@ -229,126 +202,132 @@ public class ChameleonApplication extends Application {
                 KeyManagementException |
                 CertificateException |
                 UnrecoverableKeyException e) {
-            LOG.error("Failed to initialize SSL server socket factory", e);
+            log.error("Failed to initialize SSL server socket factory", e);
         }
         return sslServerSocketFactory;
     }
 
-    public void setEglContextCallback(MainActivity mainActivity) {
-        synchronized (eglCallbackLock) {
-            LOG.info("Adding EGLContextCallback for when EGLContext is available");
-            if (globalEglContextInfo != null) {
-                LOG.info("EGLContext immediately available, calling now");
-                mainActivity.eglContextAvailable(globalEglContextInfo);
-                startPreview();
-            } else {
-                LOG.info("EGLContext not immediately available, going to call later");
-                eglCallback = mainActivity;
+    public PreviewDisplayer getPreviewDisplayer() {
+        synchronized (this) {
+            if (previewDisplayer == null) {
+                log.info("Waiting on preview displayer to be available");
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                    log.error("Unable to wait on application", e);
+                }
             }
+
+
+            log.info("Returning preview displayer");
+            return previewDisplayer;
         }
     }
 
-    private void startPreview() {
+    public void preparePreview() {
         if (!previewStarted) {
-            LOG.info("Grabbing camera and starting preview");
-            camera = Camera.open();
+            log.info("Grabbing camera and starting preview");
 
-            Camera.Parameters params = camera.getParameters();
+
+            /*
+            cameraOpener = new CameraOpener();
+            cameraOpener.openCamera();
+
+            Camera.Parameters params = cameraOpener.getCamera().getParameters();
 
             cameraInfo = CameraInfoFactory.createCameraInfo(params);
-            surfaceView.setCameraInfo(cameraInfo);
-            LOG.info("CameraInfo for opened camera is {}", cameraInfo);
 
+            log.info("CameraInfo for opened camera is {}", cameraInfo);
+            previewDisplayer = new SurfaceViewPreviewDisplayer(this, cameraOpener.getCamera(), cameraInfo);
+            */
+            final CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
-                cameraPreviewFrameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));
-                globalEglContextInfo.getSurfaceTexture().setOnFrameAvailableListener(cameraPreviewFrameListener);
-                camera.setPreviewTexture(globalEglContextInfo.getSurfaceTexture());
-                camera.startPreview();
-            } catch (IOException e) {
-                LOG.error("Error starting camera preview", e);
+                ThreadWithHandler handlerThread = new ThreadWithHandler();
+                String[] cameras = manager.getCameraIdList();
+                log.info("Camera ids are {}, going to open first in list", cameras);
+                manager.openCamera(cameras[0], new CameraDevice.StateCallback() {
+                    @Override
+                    public void onOpened(CameraDevice camera) {
+                        log.info("Found camera device callback {}", camera);
+
+                        previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
+                        previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
+
+                        synchronized (ChameleonApplication.this) {
+                            log.info("Notifying chameleon waiters");
+                            ChameleonApplication.this.notifyAll();
+                        }
+                    }
+
+                    @Override
+                    public void onDisconnected(CameraDevice camera) {
+                        log.info("Camera is disconnected");
+                    }
+
+                    @Override
+                    public void onError(CameraDevice camera, int error) {
+                        log.info("CameraDevice errored on open, {} err = {}", camera, error);
+                        synchronized (ChameleonApplication.this) {
+                            log.info("Notifying chameleon waiters even though we errored");
+                            ChameleonApplication.this.notifyAll();
+                        }
+                    }
+                }, handlerThread.getHandler());
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
             }
+        } else {
+            log.info("Preview already started");
+        }
+    }
+
+    public void startPreview() {
+        if (!previewStarted) {
+            previewDisplayer.addOnPreparedCallback(new Runnable() {
+                @Override
+                public void run() {
+                    previewDisplayer.startPreview();
+                }
+            });
             previewStarted = true;
         } else {
-            LOG.info("Preview already started");
+            log.info("Preview already started");
         }
     }
 
     public synchronized void updateOrientation() {
-        LOG.info("Updating current device orientation");
+        log.info("Updating current device orientation");
 
         int orientation = getResources().getConfiguration().orientation;
 
         boolean isLandscape = getResources().getConfiguration().ORIENTATION_LANDSCAPE == orientation;
-        LOG.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
+        log.info("Device is in {} mode", isLandscape ? "landscape" : "portrait");
         rotationState.setLandscape(isLandscape);
-    }
-
-    public class EGLContextAvailableHandler extends Handler {
-        public static final int EGL_CONTEXT_AVAILABLE = 1;
-
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == EGL_CONTEXT_AVAILABLE) {
-                synchronized (eglCallbackLock) {
-                    LOG.info("EGL context is created and available");
-                    globalEglContextInfo = (EGLContextAvailableMessage) msg.obj;
-                    startPreview();
-
-                    if (eglCallback != null) {
-                        LOG.info("Now calling eglCallback since EGLcontext is available");
-                        eglCallback.eglContextAvailable(globalEglContextInfo);
-                    }
-                }
-            } else {
-                super.handleMessage(msg);
-            }
-        }
     }
 
     public void initializeWifiP2p() {
 
-        if(wifiP2pManager == null) {
-            LOG.debug("Acquiring WifiP2pManager");
+        if (wifiP2pManager == null) {
+            log.debug("Acquiring WifiP2pManager");
             wifiP2pManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
 
-            LOG.debug("Acquiring WifiChannel");
+            log.debug("Acquiring WifiChannel");
             wifiP2pChannel = wifiP2pManager.initialize(this, getMainLooper(), null);
         }
     }
 
-    public SurfaceTextureDisplay generatePreviewDisplay(final EGLContextAvailableMessage contextMessage){
-        SurfaceTextureDisplay previewDisplay = new SurfaceTextureDisplay(this);
-        previewDisplay.setEGLContextFactory(new GLSurfaceView.EGLContextFactory() {
-            @Override
-            public javax.microedition.khronos.egl.EGLContext createContext(EGL10 egl, EGLDisplay display, EGLConfig eglConfig) {
-                LOG.info("Creating shared EGLContext");
-                int[] attrib2_list = {
-                        EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
-                        EGL14.EGL_NONE
-                };
-
-                EGLContext newContext = ((EGL10) EGLContext.getEGL()).eglCreateContext(
-                        display, eglConfig, contextMessage.getEglContext(), attrib2_list);
-                LOG.info("Created a shared EGL context: {}", newContext);
-                return newContext;
-            }
-
-            @Override
-            public void destroyContext(EGL10 egl, EGLDisplay display, javax.microedition.khronos.egl.EGLContext context) {
-                LOG.info("EGLContext is being destroyed");
-                egl.eglDestroyContext(display, context);
-            }
-        });
-
-        previewDisplay.setTextureId(contextMessage.getGlTextureId());
-        previewDisplay.setToDisplay(contextMessage.getSurfaceTexture());
-        //previewDisplay.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-        previewDisplay.setRenderer(previewDisplay.new SurfaceTextureRenderer(rotationState));
-        return previewDisplay;
+    /*
+        Convenience method for creationg a preview display through the PreviewDisplayer
+     */
+    public SurfaceView createPreviewDisplay() {
+        log.info("Creating preview display and stopping preview first");
+        previewDisplayer.stopPreview();
+        previewStarted = false;
+        return previewDisplayer.createPreviewDisplay();
     }
 
-    public void startup(){
-        LOG.info("Starting up application resources..");
+    public void startup() {
+        log.info("Starting up application resources..");
 
         startConnectionServerIfNotRunning();
 
@@ -357,7 +336,7 @@ public class ChameleonApplication extends Application {
         phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
         incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
         registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
-        LOG.info("Registered IncomingPhoneCallBroadcastReceiver");
+        log.info("Registered IncomingPhoneCallBroadcastReceiver");
 
         // Reset session flags
         sessionStatus = SessionStatus.DISCONNECTED;
@@ -365,11 +344,11 @@ public class ChameleonApplication extends Application {
 
     }
 
-    public void cleanupAndExit(){
-        LOG.info("Tearing down application resources..");
+    public void cleanupAndExit() {
+        log.info("Tearing down application resources..");
 
         //  Tear down server
-        if (connectionServer != null){
+        if (connectionServer != null) {
             connectionServer.stop();
             connectionServer = null;
         }
@@ -393,9 +372,8 @@ public class ChameleonApplication extends Application {
         }
 
         // Release camera
-        if (camera != null){
-            camera.release();
-            camera = null;
+        if (cameraOpener != null && cameraOpener.getCamera() != null) {
+            cameraOpener.release();
         }
 
         System.exit(0);
@@ -403,15 +381,15 @@ public class ChameleonApplication extends Application {
 
     public void tearDownWifiHotspot() {
 
-        LOG.debug("Tearing down Wifi components..");
+        log.debug("Tearing down Wifi components..");
 
         // Initializing wifi p2p so that we can tear down hotspot hanging around
         // from previous sessions
         initializeWifiP2p();
 
         // Tear down Wifi p2p hotspot
-        if (wifiP2pManager != null && wifiP2pChannel != null){
-            LOG.info("Invoking removeGroup..");
+        if (wifiP2pManager != null && wifiP2pChannel != null) {
+            log.info("Invoking removeGroup..");
             wifiP2pManager.removeGroup(wifiP2pChannel, null);
         }
         wifiP2pManager = null;
@@ -420,7 +398,7 @@ public class ChameleonApplication extends Application {
 
     private void tearDownWifiIfNecessary() {
 
-        LOG.debug("Tearing down Wifi components..");
+        log.debug("Tearing down Wifi components..");
 
         tearDownWifiHotspot();
 
@@ -430,28 +408,31 @@ public class ChameleonApplication extends Application {
 
         // Put Wifi back in original state
 
-        if (isWifiEnabledInitially != null){
-            LOG.info("Setting Wifi back to {}", isWifiEnabledInitially);
+        if (isWifiEnabledInitially != null) {
+            log.info("Setting Wifi back to {}", isWifiEnabledInitially);
             final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
             wifiManager.setWifiEnabled(isWifiEnabledInitially);
             isWifiEnabledInitially = null;
         }
     }
 
+    public String getOutputMediaDirectory() {
+        return getMediaStorageDir().getPath();
+    }
+
     /**
      * Create a File using given file name.
-     */
-    /**
-     * Create a File using given file name.
+     *
      * @param filename
      * @return created file
      */
     public File getOutputMediaFile(final String filename) {
-        return new File(getMediaStorageDir().getPath() + File.separator + filename);
+        return new File(getOutputMediaDirectory()+ File.separator + filename);
     }
 
     /**
      * Create a file for saving given media type.
+     *
      * @param type
      * @return created file
      */
@@ -477,20 +458,20 @@ public class ChameleonApplication extends Application {
         }
 
         if (mediaFile != null) {
-            LOG.info("File name is {}", mediaFile.getAbsolutePath());
+            log.info("File name is {}", mediaFile.getAbsolutePath());
         }
         return mediaFile;
     }
 
-    private File getMediaStorageDir(){
+    private File getMediaStorageDir() {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
-        LOG.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
+        log.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_DCIM));
 
         if (!isExternalStorageWritable()) {
-            LOG.error("External Storage is not mounted for Read-Write");
+            log.error("External Storage is not mounted for Read-Write");
             return null;
         }
 
@@ -502,7 +483,7 @@ public class ChameleonApplication extends Application {
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
             if (!mediaStorageDir.mkdirs()) {
-                LOG.error("failed to create directory");
+                log.error("failed to create directory");
                 return null;
             }
         }
@@ -527,9 +508,9 @@ public class ChameleonApplication extends Application {
     public boolean prepareVideoRecorder() {
         //Create a file for storing the recorded video
         videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
-        LOG.info("Setting video file = {}", videoFile.getAbsolutePath());
+        log.info("Setting video file = {}", videoFile.getAbsolutePath());
         videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCamera(camera);
+        videoRecorder.setCamera(cameraOpener.getCamera());
         return true;
     }
 
@@ -551,7 +532,7 @@ public class ChameleonApplication extends Application {
      *
      * @param runnable (null if no action required when wifi enabled)
      */
-    public void enableWifiAndPerformActionWhenEnabled(final Runnable runnable){
+    public void enableWifiAndPerformActionWhenEnabled(final Runnable runnable) {
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 
@@ -562,10 +543,10 @@ public class ChameleonApplication extends Application {
         enableWifiBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                LOG.info("onReceive intent = {}, wifi enabled = {}",
+                log.info("onReceive intent = {}, wifi enabled = {}",
                         intent.getAction(), wifiManager.isWifiEnabled());
 
-                if(wifiManager.isWifiEnabled()) {
+                if (wifiManager.isWifiEnabled()) {
 
                     //Publish time for wifi to be enabled
                     metrics.sendTime(MetricNames.Category.WIFI.getName(),
@@ -573,10 +554,10 @@ public class ChameleonApplication extends Application {
 
                     // Done with checking Wifi state
                     unregisterReceiverSafely(this);
-                    LOG.info("Wifi enabled!!");
+                    log.info("Wifi enabled!!");
 
                     // Perform action
-                    if (runnable != null){
+                    if (runnable != null) {
                         runnable.run();
                     }
 
@@ -588,12 +569,12 @@ public class ChameleonApplication extends Application {
 
         // Enable and wait for Wifi state change
         wifiManager.setWifiEnabled(true);
-        LOG.info("SetWifiEnabled to true");
+        log.info("SetWifiEnabled to true");
     }
 
-    public void unregisterReceiverSafely(final BroadcastReceiver receiver){
+    public void unregisterReceiverSafely(final BroadcastReceiver receiver) {
         if (receiver != null) {
-            try{
+            try {
                 unregisterReceiver(receiver);
             } catch (IllegalArgumentException e) {
                 // ignoring this since this can happen due to some race conditions

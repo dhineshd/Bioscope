@@ -1,5 +1,6 @@
 package com.trioscope.chameleon.listener;
 
+import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.types.CameraInfo;
 
 import java.util.ArrayList;
@@ -11,10 +12,12 @@ import java.util.List;
 public class CameraFrameBuffer {
     private List<CameraFrameAvailableListener> listeners = new ArrayList<>();
 
-    public void frameAvailable(CameraInfo cameraInfo, int[] frameData) {
-        for(CameraFrameAvailableListener listener : listeners)
-            listener.onFrameAvailable(cameraInfo, frameData);
+    public void frameAvailable(CameraInfo cameraInfo, CameraFrameData frameData, FrameInfo frameInfo) {
+        for (CameraFrameAvailableListener listener : listeners)
+            listener.onFrameAvailable(cameraInfo, frameData, frameInfo);
     }
+
+
 
     public void addListener(CameraFrameAvailableListener listener) {
         listeners.add(listener);

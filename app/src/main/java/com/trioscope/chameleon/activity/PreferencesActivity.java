@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
+import android.preference.PreferenceGroup;
 import android.preference.PreferenceManager;
 
 import com.trioscope.chameleon.R;
@@ -47,6 +48,11 @@ public class PreferencesActivity extends Activity {
 
             // Load the preferences from an XML resource
             addPreferencesFromResource(R.xml.preferences);
+
+            //Initialize the values
+            Preference connectionPref = findPreference(getString(R.string.pref_user_name_key));
+            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            connectionPref.setSummary(settings.getString(getString(R.string.pref_user_name_key), ""));
         }
 
         @Override
@@ -57,9 +63,23 @@ public class PreferencesActivity extends Activity {
                 if (connectionPref != null){
                     connectionPref.setSummary(sharedPreferences.getString(key, ""));
                 }
+            } else if (getString(R.string.pref_user_name_key).equals(key)) {
+
+                Preference connectionPref = findPreference(key);
+                // Set summary to be the user-description for the selected value
+                if (connectionPref != null) {
+                    connectionPref.setSummary(sharedPreferences.getString(key, ""));
+                }
             } else {
                 log.info("Preferences changed from {} not {}", key, getString(R.string.pref_stream_resolution));
             }
+            log.info("Preferences changed for {}", key);
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+
         }
     }
 }

@@ -29,4 +29,6 @@ public class PeerMessage {
     @NonNull
     private Type type;
     private String contents;
+
+    private String senderUserName;
 }

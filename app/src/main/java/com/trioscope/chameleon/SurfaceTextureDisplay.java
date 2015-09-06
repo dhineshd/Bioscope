@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.Setter;
 
 /**
- * Class used with interanal OpenGL Renderer to display a given surfaceTexture.
+ * Class used with internal OpenGL Renderer to display a given surfaceTexture.
  * <p/>
  * GLSurfaceView already implements SurfaceHolder.Callback; declaring it explicitly.
  * <p/>

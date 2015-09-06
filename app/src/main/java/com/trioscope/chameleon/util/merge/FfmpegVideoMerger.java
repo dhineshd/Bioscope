@@ -91,9 +91,11 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-i");
         params.add(minorVidPath);
         params.add("-filter_complex");
-        params.add("[0] scale=iw*2/3:-1 [0new]; [1] scale=iw*2/3:-1 [1new]; [1new]scale=iw/2:ih/2 [pip]; [0new][pip] overlay=main_w-overlay_w-10:main_h-overlay_h-10");
+        params.add("[0] transpose=1,scale=iw:-1 [0new]; [1] transpose=1,scale=iw:-1 [1new]; [1new]scale=iw/3:ih/3 [pip]; [0new][pip] overlay=0:main_h-overlay_h");
         params.add("-preset");
         params.add("ultrafast");
+        params.add("-threads");
+        params.add("auto");
         params.add("-strict");
         params.add("experimental");
         params.add(outputPath);
@@ -104,12 +106,13 @@ public class FfmpegVideoMerger implements VideoMerger {
     private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {
         private long start, end;
         private double maxInputTime = 0;
+        private File majorVideo, minorVideo;
 
         @Override
         protected Boolean doInBackground(VideoMergeTaskParams... params) {
             start = System.currentTimeMillis();
-            File majorVideo = params[0].getFile1();
-            File minorVideo = params[0].getFile2();
+            majorVideo = params[0].getFile1();
+            minorVideo = params[0].getFile2();
             File outputFile = params[0].getOutputFile();
 
             log.info("Running ffmpeg to merge {} and {} into {}", majorVideo, minorVideo, outputFile);
@@ -127,7 +130,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                     outputFile.delete();
                     log.info("Existing file at {} is deleted", outputFile);
                 }
-                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(), minorVideo.getAbsolutePath(), outputFile.getAbsolutePath(), params[0].getConfiguration());
+                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(),
+                        minorVideo.getAbsolutePath(), outputFile.getAbsolutePath(), params[0].getConfiguration());
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
                 log.info("Ffmpeg parameters are {}", cmdParams);
                 ProcessBuilder builder = new ProcessBuilder(cmdParams);
@@ -194,6 +198,14 @@ public class FfmpegVideoMerger implements VideoMerger {
             end = System.currentTimeMillis();
 
             log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
+
+            // Delete input videos since we no have merged video
+            if (majorVideo.exists()) {
+                majorVideo.delete();
+            }
+            if (minorVideo.exists()) {
+                minorVideo.delete();
+            }
 
             progressUpdatable.onCompleted();
         }

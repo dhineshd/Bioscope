@@ -25,16 +25,6 @@
             android:orientation="horizontal"
             android:weightSum="3">
 
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
             <LinearLayout
                 android:layout_width="0px"
                 android:layout_height="match_parent"
@@ -52,6 +42,13 @@
                     android:layout_height="0dp"
                     android:layout_weight="1" />
 
+                <TextView
+                    android:id="@+id/peer_user_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:layout_weight="0" />
+
                 <ImageView
                     android:id="@+id/imageView_stream_remote"
                     android:layout_width="match_parent"
@@ -61,9 +58,19 @@
 
             </LinearLayout>
 
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
         </LinearLayout>
 
-        <ProgressBar
+       <ProgressBar
             android:id="@+id/progressBar_file_transfer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

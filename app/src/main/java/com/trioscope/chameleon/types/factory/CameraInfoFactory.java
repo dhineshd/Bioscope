@@ -21,6 +21,7 @@ public class CameraInfoFactory {
 
         builder.cameraResolution(new Size(previewSize.width, previewSize.height));
         builder.captureResolution(generateCaptureResolution(previewSize));
+        builder.encoding(CameraInfo.ImageEncoding.NV21);
 
         return builder.build();
     }

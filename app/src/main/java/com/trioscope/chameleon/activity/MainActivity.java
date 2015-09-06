@@ -3,22 +3,18 @@ package com.trioscope.chameleon.activity;
 import android.app.DialogFragment;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
+import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.listener.RenderRequestFrameListener;
-import com.trioscope.chameleon.types.EGLContextAvailableMessage;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import org.slf4j.Logger;
@@ -28,9 +24,9 @@ import static android.view.View.OnClickListener;
 
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
-    public MainThreadHandler mainThreadHandler;
-    private SurfaceTextureDisplay previewDisplay;
+    private SurfaceView previewDisplay;
     private ChameleonApplication chameleonApplication;
+    private Gson gson = new Gson();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,8 +35,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         chameleonApplication = (ChameleonApplication) getApplication();
 
         chameleonApplication.updateOrientation();
-
-        mainThreadHandler = new MainThreadHandler(Looper.getMainLooper());
 
         setContentView(R.layout.activity_main);
 
@@ -80,10 +74,19 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        // Tell the application we're ready to show preview whenever
-        chameleonApplication.setEglContextCallback(this);
-    }
+        final Button libraryButton = (Button) findViewById(R.id.library_button);
 
+        libraryButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LOG.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
+                Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+                startActivity(i);
+            }
+        });
+
+        chameleonApplication.preparePreview();
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -110,11 +113,10 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onPause() {
         LOG.info("onPause: Activity is no longer in foreground");
-        if (previewDisplay != null) {
-            previewDisplay.onPause();
-        }
-
         super.onPause();
+
+        if (chameleonApplication.getPreviewDisplayer() != null)
+            chameleonApplication.getPreviewDisplayer().stopPreview();
 
         // If we are not connected, we can release network resources
         if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
@@ -122,6 +124,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             chameleonApplication.cleanupAndExit();
         }
 
+        LOG.info("Activity has been paused");
     }
 
     @Override
@@ -130,9 +133,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         LOG.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
 
-        if (previewDisplay != null) {
-            previewDisplay.onResume();
-        }
         chameleonApplication.startConnectionServerIfNotRunning();
 
         if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
@@ -146,6 +146,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onStop() {
         LOG.info("onStop: Activity is no longer visible to user");
+        if (chameleonApplication.getPreviewDisplayer() != null)
+            chameleonApplication.getPreviewDisplayer().stopPreview();
         super.onStop();
     }
 
@@ -162,40 +164,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         ((ChameleonApplication) getApplication()).cleanupAndExit();
     }
 
-    private void createSurfaceTextureWithSharedEglContext(final EGLContextAvailableMessage contextMessage) {
-        LOG.info("Creating surface texture with shared EGL Context on thread {}", Thread.currentThread());
+    private void addCameraPreviewSurface() {
+        LOG.info("Creating surfaceView on thread {}", Thread.currentThread());
 
         ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
         RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_main_preview);
-        previewDisplay = chameleonApplication.generatePreviewDisplay(contextMessage);
-        layout.addView(previewDisplay);
-        chameleonApplication.getCameraPreviewFrameListener().addFrameListener(new RenderRequestFrameListener(previewDisplay));
-
-    }
-
-    public void eglContextAvailable(EGLContextAvailableMessage eglContextMsg) {
-        LOG.info("EGLContext is now available, going to display preview, thread {}", Thread.currentThread());
-        createSurfaceTextureWithSharedEglContext(eglContextMsg);
-    }
-
-    public class MainThreadHandler extends Handler {
-        public static final int EGL_CONTEXT_AVAILABLE = 1;
-
-        public MainThreadHandler(Looper looper) {
-            super(looper);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case EGL_CONTEXT_AVAILABLE:
-                    LOG.info("EGL Context is available, parameters {}", msg.obj);
-                    createSurfaceTextureWithSharedEglContext((EGLContextAvailableMessage) msg.obj);
-                    break;
-                default:
-                    super.handleMessage(msg);
-            }
-            super.handleMessage(msg);
-        }
+        previewDisplay = chameleonApplication.createPreviewDisplay();
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+        layout.addView(previewDisplay, layoutParams);
     }
 }

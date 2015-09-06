@@ -18,3 +18,4 @@ chameleon.iml
 .idea/inspectionProfiles/
 .idea/
 app/src/main/gen/
+*.apk

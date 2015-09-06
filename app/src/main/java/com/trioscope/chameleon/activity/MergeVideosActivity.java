@@ -8,18 +8,16 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.types.RecordingMetadata;
@@ -30,7 +28,6 @@ import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -40,23 +37,24 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class MergeVideosActivity extends AppCompatActivity implements ProgressUpdatable, SurfaceHolder.Callback {
-    public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
-    public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
-    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
-            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
+    public static final String MAJOR_VIDEO_METADATA_KEY = "MAJOR_VIDEO_METADATA";
+    public static final String MINOR_VIDEO_METADATA_KEY = "MINOR_VIDEO_METADATA";
+    private static final String MAJOR_BEFORE_MINOR_VIDEO_START_OFFSET_MILLIS_KEY =
+            "MAJOR_BEFORE_MINOR_VIDEO_START_OFFSET_MILLIS";
+    private static final String OUTPUT_FILENAME_KEY = "OUTPUT_FILENAME";
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
     private FfmpegTaskFragment taskFragment;
-    private MediaPlayer outerMediaPlayer, innerMediaPlayer;
+    private MediaPlayer majorVideoMediaPlayer, minorVideoMediaPlayer;
     private Gson gson = new Gson();
-    private RecordingMetadata localRecordingMetadata;
-    private RecordingMetadata remoteRecordingMetadata;
-    private long localVideoStartedBeforeRemoteVideoOffsetMillis;
+    private RecordingMetadata majorVideoMetadata;
+    private RecordingMetadata minorVideoMetadata;
+    private long majorVideoStartedBeforeMinorVideoOffsetMillis;
 
-    private SurfaceHolder outerVideoHolder, innerVideoHolder;
-    private SurfaceView innerSurfaceView;
-    private boolean outerMediaPlayerPrepared, innerMediaPlayerPrepared;
+    private SurfaceHolder majorVideoHolder, minorVideoHolder;
+    private SurfaceView minorVideoSurfaceView;
+    private boolean majorVideoMediaPlayerPrepared, minorVideoMediaPlayerPrepared;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,20 +70,21 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
         log.info("Activity is created");
 
-        Intent intent = getIntent();
+        final Intent intent = getIntent();
 
-        localRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
-        remoteRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+        majorVideoMetadata = gson.fromJson(
+                intent.getStringExtra(MAJOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
+        minorVideoMetadata = gson.fromJson(
+                intent.getStringExtra(MINOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
 
         // We will use this to adjust local and remote videos to show/merge them in sync
-        localVideoStartedBeforeRemoteVideoOffsetMillis =
-                (int) (remoteRecordingMetadata.getStartTimeMillis()
-                        - localRecordingMetadata.getStartTimeMillis());
+        majorVideoStartedBeforeMinorVideoOffsetMillis =
+                (int) (minorVideoMetadata.getStartTimeMillis()
+                        - majorVideoMetadata.getStartTimeMillis());
+
+        final ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
 
         printArchInfo();
-        runFfmpeg();
 
         FragmentManager fm = getFragmentManager();
         taskFragment = (FfmpegTaskFragment) fm.findFragmentByTag(TASK_FRAGMENT_TAG);
@@ -94,32 +93,30 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         // retained across a configuration change.
         if (taskFragment == null) {
             taskFragment = FfmpegTaskFragment.newInstance(
-                    intent.getStringExtra(LOCAL_RECORDING_METADATA_KEY),
-                    intent.getStringExtra(REMOTE_RECORDING_METADATA_KEY),
-                    localVideoStartedBeforeRemoteVideoOffsetMillis);
+                    intent.getStringExtra(MAJOR_VIDEO_METADATA_KEY),
+                    intent.getStringExtra(MINOR_VIDEO_METADATA_KEY),
+                    majorVideoStartedBeforeMinorVideoOffsetMillis,
+                    chameleonApplication.getOutputMediaFile("Merged.mp4").getAbsolutePath());
             fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
         } else {
             log.info("Task fragment exists - reusing (device rotated)");
         }
 
-
         // Local video will be shown on outer player and remote video on inner player
-        outerMediaPlayer = new MediaPlayer();
+        majorVideoMediaPlayer = new MediaPlayer();
         SurfaceView surfaceView = (SurfaceView) findViewById(R.id.outerVideoMerge);
-        outerVideoHolder = surfaceView.getHolder();
-        outerVideoHolder.addCallback(this);
-        innerMediaPlayer = new MediaPlayer();
-        innerSurfaceView = (SurfaceView) findViewById(R.id.innerVideoMerge);
-        innerVideoHolder = innerSurfaceView.getHolder();
-        innerVideoHolder.addCallback(this);
+        majorVideoHolder = surfaceView.getHolder();
+        majorVideoHolder.addCallback(this);
+
+        minorVideoMediaPlayer = new MediaPlayer();
+        minorVideoSurfaceView = (SurfaceView) findViewById(R.id.innerVideoMerge);
+        minorVideoHolder = minorVideoSurfaceView.getHolder();
+        minorVideoHolder.addCallback(this);
     }
 
     private void printArchInfo() {
         String sysArch = System.getProperty("os.arch");
         log.info("System architecture is {}", sysArch);
-    }
-
-    private void runFfmpeg() {
     }
 
     private void printDir(String dir) {
@@ -136,6 +133,9 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
     public void onProgress(double progress, double outOf) {
         int progressPerc = getPercent(progress, outOf);
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
+        if (View.VISIBLE != bar.getVisibility()) {
+            bar.setVisibility(View.VISIBLE);
+        }
         bar.setProgress(progressPerc);
 
         log.info("Now {}% done", progressPerc);
@@ -147,24 +147,12 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
     @Override
     public void onCompleted() {
-        log.info("FFMPEG Completed! Allowing user to share");
+        ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
+        bar.setVisibility(View.GONE);
+        log.info("FFMPEG Completed! Going to video library now!");
 
-        // Make share button available
-        ImageButton shareButton = (ImageButton) findViewById(R.id.share_button);
-        shareButton.setVisibility(View.VISIBLE);
-
-        shareButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                log.info("User wants to share the video");
-                Intent shareIntent = new Intent();
-                shareIntent.setAction(Intent.ACTION_SEND);
-                File mergedFile = new File("/storage/emulated/0/DCIM/Camera/Merged.mp4");
-                shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(mergedFile));
-                shareIntent.setType("image/jpeg");
-                startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
-            }
-        });
+        Intent i = new Intent(MergeVideosActivity.this, VideoLibraryActivity.class);
+        startActivity(i);
     }
 
     @Override
@@ -172,75 +160,55 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
         // TODO : Consider prepareAsync() if following code hogs UI thread
 
-        if (holder == outerVideoHolder) {
-            innerSurfaceView.setZOrderOnTop(true);
+        if (holder == majorVideoHolder) {
+            minorVideoSurfaceView.setZOrderOnTop(true);
 
-            if (outerMediaPlayer.isPlaying()) {
-                outerMediaPlayer.reset();
+            if (majorVideoMediaPlayer.isPlaying()) {
+                majorVideoMediaPlayer.reset();
             }
 
-            outerMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            outerMediaPlayer.setDisplay(outerVideoHolder);
+            //majorVideoMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            majorVideoMediaPlayer.setDisplay(majorVideoHolder);
 
             try {
-                outerMediaPlayer.setDataSource(localRecordingMetadata.getAbsoluteFilePath());
-                outerMediaPlayer.prepare();
-                outerMediaPlayerPrepared = true;
+                majorVideoMediaPlayer.setDataSource(majorVideoMetadata.getAbsoluteFilePath());
+                majorVideoMediaPlayer.prepare();
+                majorVideoMediaPlayerPrepared = true;
             } catch (IllegalArgumentException | IllegalStateException | IOException e) {
                 log.error("Failed to start outer media player", e);
             }
         }
 
-        if (holder == innerVideoHolder) {
+        if (holder == minorVideoHolder) {
             log.info("Starting inner video holder");
-            if (innerMediaPlayer.isPlaying()) {
-                innerMediaPlayer.reset();
+            if (minorVideoMediaPlayer.isPlaying()) {
+                minorVideoMediaPlayer.reset();
             }
 
-            innerMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            innerMediaPlayer.setDisplay(innerVideoHolder);
+            //minorVideoMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            minorVideoMediaPlayer.setDisplay(minorVideoHolder);
 
             try {
-                innerMediaPlayer.setDataSource(remoteRecordingMetadata.getAbsoluteFilePath());
-                innerMediaPlayer.prepare();
-                innerMediaPlayerPrepared = true;
+                minorVideoMediaPlayer.setDataSource(minorVideoMetadata.getAbsoluteFilePath());
+                minorVideoMediaPlayer.prepare();
+                minorVideoMediaPlayerPrepared = true;
             } catch (IllegalArgumentException | IllegalStateException | IOException e) {
                 log.error("Failed to start inner media player", e);
             }
         }
 
         // Begin both playback at same time when they are ready
-        if (innerMediaPlayerPrepared && outerMediaPlayerPrepared) {
+        if (minorVideoMediaPlayerPrepared && majorVideoMediaPlayerPrepared) {
+
+            log.info("mediaplayer prepared : currentThread = {}", Thread.currentThread());
+
+            // Playback already done in PreviewMergeActivity.
+            // TODO : Remove all mediaplayer code later
+//            majorVideoMediaPlayer.start();
+//            minorVideoMediaPlayer.start();
 
             log.info("local started before remote by {} ms",
-                    localVideoStartedBeforeRemoteVideoOffsetMillis);
-
-            if (localVideoStartedBeforeRemoteVideoOffsetMillis > 0) {
-
-                // Advance playback for local video if it started before the remote video
-                outerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-                    @Override
-                    public void onSeekComplete(MediaPlayer mediaPlayer) {
-                        log.info("local video onSeek complete. Starting playback at {}", new Date());
-                        outerMediaPlayer.start();
-                        innerMediaPlayer.start();
-                    }
-                });
-                outerMediaPlayer.seekTo((int) localVideoStartedBeforeRemoteVideoOffsetMillis);
-
-            } else if (localVideoStartedBeforeRemoteVideoOffsetMillis < 0) {
-
-                // Advance playback for remote video if it started before the local video
-                innerMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-                    @Override
-                    public void onSeekComplete(MediaPlayer mediaPlayer) {
-                        log.info("remote video onSeek complete. Starting playback at {}", new Date());
-                        outerMediaPlayer.start();
-                        innerMediaPlayer.start();
-                    }
-                });
-                innerMediaPlayer.seekTo((int) Math.abs(localVideoStartedBeforeRemoteVideoOffsetMillis));
-            }
+                    majorVideoStartedBeforeMinorVideoOffsetMillis);
         }
 
     }
@@ -264,18 +232,22 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         private RecordingMetadata localRecordingMetadata;
         private RecordingMetadata remoteRecordingMetadata;
         private long localVideoStartedBeforeRemoteVideoOffsetMillis;
+        private String outputFilename;
+
         private Gson gson = new Gson();
 
         public static FfmpegTaskFragment newInstance(
                 final String serializedLocalRecordingMetadata,
                 final String serializedRemoteRecordingMetadata,
-                final long localVideoStartedBeforeRemoteVideoOffsetMillis) {
+                final long localVideoStartedBeforeRemoteVideoOffsetMillis,
+                final String outputFilename) {
             FfmpegTaskFragment f = new FfmpegTaskFragment();
             Bundle args = new Bundle();
-            args.putString(LOCAL_RECORDING_METADATA_KEY, serializedLocalRecordingMetadata);
-            args.putString(REMOTE_RECORDING_METADATA_KEY, serializedRemoteRecordingMetadata);
-            args.putLong(LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY,
+            args.putString(MAJOR_VIDEO_METADATA_KEY, serializedLocalRecordingMetadata);
+            args.putString(MINOR_VIDEO_METADATA_KEY, serializedRemoteRecordingMetadata);
+            args.putLong(MAJOR_BEFORE_MINOR_VIDEO_START_OFFSET_MILLIS_KEY,
                     localVideoStartedBeforeRemoteVideoOffsetMillis);
+            args.putString(OUTPUT_FILENAME_KEY, outputFilename);
             f.setArguments(args);
             return f;
         }
@@ -306,12 +278,17 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
 
             videoMerger = new FfmpegVideoMerger();
             localRecordingMetadata = gson.fromJson(
-                    args.getString(LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                    args.getString(MAJOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
             remoteRecordingMetadata = gson.fromJson(
-                    args.getString(REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+                    args.getString(MINOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
+            localVideoStartedBeforeRemoteVideoOffsetMillis =
+                    args.getLong(MAJOR_BEFORE_MINOR_VIDEO_START_OFFSET_MILLIS_KEY);
+            outputFilename = args.getString(OUTPUT_FILENAME_KEY);
+            log.info("Local video started before remote video offset millis = {}",
+                    localVideoStartedBeforeRemoteVideoOffsetMillis);
             File vid1 = new File(localRecordingMetadata.getAbsoluteFilePath());
             File vid2 = new File(remoteRecordingMetadata.getAbsoluteFilePath());
-            File output = new File("/storage/emulated/0/DCIM/Camera/Merged_" + System.currentTimeMillis() + ".mp4");
+            File output = new File(outputFilename);
 
             videoMerger.setContext(currentContext);
             videoMerger.setProgressUpdatable(this);

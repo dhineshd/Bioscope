@@ -7,7 +7,9 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 
+import com.trioscope.chameleon.camera.impl.FBOPreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
+import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.opengl.DirectVideo;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.EGLContextAvailableMessage;
@@ -74,7 +76,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             // Redraw background color
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
             surfaceTexture.updateTexImage();
-            LOG.debug("Drawing surfaceView frame");
+            LOG.debug("Drawing surfaceView frame using textureId {}, directVideo {}", textureId, directVideo);
 
             if (textureId != -1) {
                 if (directVideo == null) {
@@ -159,7 +161,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
                 // TODO: Reading at high resolutions causes lots of memory usage and slows FPS down.
                 GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, ib);
                 LOG.debug("IntBuffer: {}", b);
-                cameraFrameBuffer.frameAvailable(cameraInfo, ib.array());
+                cameraFrameBuffer.frameAvailable(cameraInfo, new CameraFrameData(ib.array()), null);
             }
         }
 
@@ -175,7 +177,7 @@ public class SystemOverlayGLSurface extends GLSurfaceView {
             msg.setEglContext(eglContext);
             msg.setGlTextureId(textureId);
             msg.setSurfaceTexture(surfaceTexture);
-            eglContextHandler.sendMessage(eglContextHandler.obtainMessage(ChameleonApplication.EGLContextAvailableHandler.EGL_CONTEXT_AVAILABLE, msg));
+            eglContextHandler.sendMessage(eglContextHandler.obtainMessage(FBOPreviewDisplayer.EGLContextAvailableHandler.EGL_CONTEXT_AVAILABLE, msg));
         }
 
         private void createSurfaceTexture() {
