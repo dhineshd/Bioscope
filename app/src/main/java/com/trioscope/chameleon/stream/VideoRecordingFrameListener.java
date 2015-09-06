@@ -36,12 +36,12 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private static final long TIMEOUT_MICROSECONDS = 5000;
     private static final String MIME_TYPE_AUDIO = "audio/mp4a-latm";
     private static final String MIME_TYPE_VIDEO = "video/avc";
-    private static final int AUDIO_SAMPLE_RATE = 22050;
-    private static final int CHANNEL_COUNT = 1;
+    private static final int AUDIO_SAMPLE_RATE = 48000;
+    private static final int CHANNEL_COUNT = 2;
     private static final int CHANNEL_CONFIG = CHANNEL_COUNT == 1 ?
             AudioFormat.CHANNEL_IN_MONO : AudioFormat.CHANNEL_IN_STEREO;
-    private static final int AUDIO_BIT_RATE = 128000;
-    private static final int AUDIO_SAMPLES_PER_FRAME = 1024; // AAC
+    private static final int AUDIO_BIT_RATE = 256000;
+    private static final int AUDIO_SAMPLES_PER_FRAME = 2 * 1024; // AAC
     private static final int VIDEO_FRAME_RATE = 30;
     private static final int VIDEO_BIT_RATE = 5000000;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
@@ -77,12 +77,12 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         // Setup video encoder
         try {
             String encoderName = selectEncoder(MIME_TYPE_VIDEO).getName();
-            log.info("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, encoderName);
+            log.debug("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, encoderName);
             createVideoDecoder();
             videoEncoder = MediaCodec.createByCodecName(encoderName);
             //videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
             for (int colorFormat : videoEncoder.getCodecInfo().getCapabilitiesForType(MIME_TYPE_VIDEO).colorFormats ) {
-                log.info("Supported color format = {}", colorFormat);
+                log.debug("Supported color format = {}", colorFormat);
             }
             MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO,
                     cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
@@ -99,7 +99,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             } else {
                 mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
             }
-            log.info("MediaFormat = {}", mediaFormat);
+            log.debug("MediaFormat = {}", mediaFormat);
             videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             videoEncoder.start();
         } catch (IOException e) {
@@ -117,7 +117,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
             videoDecoder.configure(mediaFormat, null, null, 0);
             videoDecoder.start();
-            log.info("Decoder mediaFormat = {}", videoDecoder.getOutputFormat());
+            log.debug("Decoder mediaFormat = {}", videoDecoder.getOutputFormat());
         } catch (Exception e) {
             log.error("Failed to create video decoder", e);
 
@@ -139,7 +139,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             String[] types = codecInfo.getSupportedTypes();
             for (int j = 0; j < types.length; j++) {
                 if (types[j].equalsIgnoreCase(mimeType)) {
-                    log.info("Valid encoder found : {}", codecInfo.getName());
+                    log.debug("Valid encoder found : {}", codecInfo.getName());
                     return codecInfo;
                 }
             }
@@ -211,7 +211,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
-        log.info("Processing video..");
+        log.debug("Processing video..");
 
         long actualPresentationTimeMicros = -1;
 
@@ -221,7 +221,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.info("Converting color format from YUV420Planar to YUV420SemiPlanar");
+                log.debug("Converting color format from YUV420Planar to YUV420SemiPlanar");
                 ColorConversionUtil.convertI420ToNV12(frameData.getBytes(),
                         finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             } else {
@@ -230,7 +230,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
         } else if (frameData.getImage() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.info("Converting color format from YUV420Planar to YUV420SemiPlanar for image");
+                log.debug("Converting color format from YUV420Planar to YUV420SemiPlanar for image");
                 Image.Plane[] imagePlanes = frameData.getImage().getPlanes();
                 ColorConversionUtil.convertI420ToNV12Method2(imagePlanes[0].getBuffer(),
                         imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
@@ -244,7 +244,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int videoInputBufferIndex = videoEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (videoInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = videoEncoder.getInputBuffer(videoInputBufferIndex);
-            log.info("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), finalFrameData.length);
+            log.debug("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), finalFrameData.length);
             inputBuffer.put(finalFrameData);
             videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, finalFrameData.length, presentationTimeMicros, 0);
         }
@@ -253,13 +253,13 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int videoOutputBufferIndex = videoEncoder.dequeueOutputBuffer(videoBufferInfo, TIMEOUT_MICROSECONDS);
         if (videoOutputBufferIndex >= 0) {
             ByteBuffer outputBuffer = videoEncoder.getOutputBuffer(videoOutputBufferIndex);
-            log.info("Encoded frame available! size = {}", outputBuffer.limit());
+            log.debug("Encoded frame available! size = {}", outputBuffer.limit());
             // outputBuffer is ready to be processed or rendered.
 
             if ((videoBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                 // The codec config data was pulled out and fed to the muxer when we got
                 // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
-                log.info("ignoring BUFFER_FLAG_CODEC_CONFIG");
+                log.debug("ignoring BUFFER_FLAG_CODEC_CONFIG");
                 videoBufferInfo.size = 0;
             }
 
@@ -273,7 +273,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                     chameleonApplication.setRecordingStartTimeMillis(frameReceiveTimeMillis);
                 }
 
-                log.info("sent " + videoBufferInfo.size + " video bytes to muxer. " +
+                log.debug("sent " + videoBufferInfo.size + " video bytes to muxer. " +
                                 "pts input = {} ms, output = {} ms, difference = {} ms",
                         presentationTimeMicros / 1000, videoBufferInfo.presentationTimeUs / 1000,
                         (presentationTimeMicros - videoBufferInfo.presentationTimeUs) / 1000);
@@ -282,7 +282,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             videoEncoder.releaseOutputBuffer(videoOutputBufferIndex, false);
         } else if (videoOutputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             MediaFormat newFormat = videoEncoder.getOutputFormat();
-            log.info("video encoder output format changed: " + newFormat);
+            log.debug("video encoder output format changed: " + newFormat);
 
             // now that we have the Magic Goodies, start the muxer
             videoTrackIndex = mediaMuxer.addTrack(newFormat);
@@ -297,14 +297,14 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             final AudioRecord audioRecorder,
             final long presentationTimeMicros) {
         long actualPresentationTimeMicros = -1;
-        log.info("Processing audio..");
+        log.debug("Processing audio..");
 
         // Process audio
         int audioInputBufferIndex = audioEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (audioInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = audioEncoder.getInputBuffer(audioInputBufferIndex);
             int audioBytesRead = audioRecorder.read(inputBuffer, AUDIO_SAMPLES_PER_FRAME * 2);
-            log.info("audio bytebuffer size = {}, bytes read = {}",
+            log.debug("audio bytebuffer size = {}, bytes read = {}",
                     inputBuffer.capacity(), audioBytesRead);
             audioEncoder.queueInputBuffer(audioInputBufferIndex, 0, audioBytesRead, presentationTimeMicros, 0);
         }
@@ -312,13 +312,13 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         int audioOutputBufferIndex = audioEncoder.dequeueOutputBuffer(audioBufferInfo, TIMEOUT_MICROSECONDS);
         if (audioOutputBufferIndex >= 0) {
             ByteBuffer outputBuffer = audioEncoder.getOutputBuffer(audioOutputBufferIndex);
-            log.info("Encoded audio data available! size = {}", outputBuffer.limit());
+            log.debug("Encoded audio data available! size = {}", outputBuffer.limit());
             // outputBuffer is ready to be processed or rendered.
 
             if ((audioBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                 // The codec config data was pulled out and fed to the muxer when we got
                 // the INFO_OUTPUT_FORMAT_CHANGED status.  Ignore it.
-                log.info("ignoring BUFFER_FLAG_CODEC_CONFIG");
+                log.debug("ignoring BUFFER_FLAG_CODEC_CONFIG");
                 audioBufferInfo.size = 0;
             }
 
@@ -328,7 +328,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
                 actualPresentationTimeMicros = audioBufferInfo.presentationTimeUs;
 
-                log.info("sent " + audioBufferInfo.size + " audio bytes to muxer " +
+                log.debug("sent " + audioBufferInfo.size + " audio bytes to muxer " +
                                 "pts input = {} ms, output = {} ms, difference = {} ms",
                         presentationTimeMicros / 1000, audioBufferInfo.presentationTimeUs / 1000,
                         (presentationTimeMicros - audioBufferInfo.presentationTimeUs) / 1000);
@@ -341,7 +341,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
         } else if (audioOutputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
             MediaFormat newFormat = audioEncoder.getOutputFormat();
-            log.info("audio encoder output format changed: " + newFormat);
+            log.debug("audio encoder output format changed: " + newFormat);
 
             // now that we have the Magic Goodies, start the muxer
             audioTrackIndex = mediaMuxer.addTrack(newFormat);
@@ -386,7 +386,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
                 int iMinBufferSize = AudioRecord.getMinBufferSize(AUDIO_SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
 
-                log.info("AudioRecord min buffer size = {}", iMinBufferSize);
+                log.debug("AudioRecord min buffer size = {}", iMinBufferSize);
 
                 AudioRecord audioRecorder = new AudioRecord(
                         AUDIO_SOURCE, // source
@@ -396,9 +396,9 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                         iMinBufferSize * 2 // buffer size (bytes)
                 );
 
-                log.info("AudioRecord state = {}", audioRecorder.getState());
+                log.debug("AudioRecord state = {}", audioRecorder.getState());
 
-                log.info("Async audio task started on thread = {}", Thread.currentThread());
+                log.debug("Async audio task started on thread = {}", Thread.currentThread());
 
                 audioRecorder.startRecording();
 
