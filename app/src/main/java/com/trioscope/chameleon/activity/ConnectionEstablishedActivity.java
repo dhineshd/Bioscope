@@ -69,6 +69,10 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
+    public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
+    public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
+    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
+            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
@@ -499,8 +503,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
             //Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
-            intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
-            intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+            intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+            intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
         }
 

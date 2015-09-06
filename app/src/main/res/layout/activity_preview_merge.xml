@@ -77,21 +77,26 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
         android:orientation="vertical">
 
         <Button
-            android:id="@+id/button_preview_and_merge"
+            android:id="@+id/button_play_merge_preview"
+            android:text="Play"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/button_merge"
             android:text="Merge"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center"/>
+            android:layout_height="wrap_content" />
 
         <Button
             android:id="@+id/button_swap_merge_preview"
             android:text="Swap"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"/>
+            android:layout_height="wrap_content" />
 
     </LinearLayout>
 

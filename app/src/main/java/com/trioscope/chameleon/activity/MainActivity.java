@@ -100,8 +100,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                         .startTimeMillis(System.currentTimeMillis())
                         .build();
                 Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
-                intent.putExtra(MergeVideosActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
-                intent.putExtra(MergeVideosActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+                intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
+                intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
                 startActivity(intent);
             }
         });

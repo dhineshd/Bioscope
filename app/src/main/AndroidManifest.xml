@@ -77,7 +77,7 @@
             android:name=".activity.MergeVideosActivity"
             android:label="MergeVideosActivity"
             android:noHistory="true"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="portrait" />
 
         <meta-data
             android:name="android.nfc.disable_beam_default"
