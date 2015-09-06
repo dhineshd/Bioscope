@@ -94,31 +94,28 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         log.info("outer video ahead of local videos = {} ms", majorVideoAheadOfMinorVideoByTimeMillis);
 
-        if (majorVideoView.isPlaying()) {
-            majorVideoView.stopPlayback();
-        }
-        if (minorVideoView.isPlaying()) {
-            minorVideoView.stopPlayback();
-        }
-
-        majorVideoViewVideoPath = majorVideoPath;
-        majorVideoView.setVideoPath(majorVideoViewVideoPath);
-        minorVideoViewVideoPath = minorVideoPath;
-        minorVideoView.setVideoPath(minorVideoViewVideoPath);
-
         majorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
-            public void onPrepared(final MediaPlayer mpMajor) {
+            public void onPrepared(MediaPlayer mpMajor) {
+
                 minorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                     @Override
                     public void onPrepared(MediaPlayer mpMinor) {
                         mpMinor.setVolume(0.0f, 0.0f);
-                        mpMajor.start();
-                        mpMinor.start();
+
+                        majorVideoView.start();
+                        minorVideoView.start();
                     }
                 });
+
+                minorVideoViewVideoPath = minorVideoPath;
+                minorVideoView.setVideoPath(minorVideoViewVideoPath);
             }
         });
+
+        majorVideoViewVideoPath = majorVideoPath;
+        majorVideoView.setVideoPath(majorVideoViewVideoPath);
+
     }
 
     @Override
