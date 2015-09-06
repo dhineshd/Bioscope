@@ -3,7 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,12 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
         implements MediaController.MediaPlayerControl{
     private final Gson gson = new Gson();
-    private MediaController mediaController;
-    private VideoView outerVideoView;
-    private VideoView innerVideoView;
-    private String innerVideoViewVideoPath, outerVideoViewVideoPath;
-    private int outerVideoAheadOfInnerVideoByMillis;
-    private Handler handler = new Handler();
+    private VideoView majorVideoView;
+    private VideoView minorVideoView;
+    private String majorVideoViewVideoPath, minorVideoViewVideoPath;
+    private int majorVideoAheadOfMinorVideoByMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,23 +36,26 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         final RecordingMetadata remoteRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
 
-        outerVideoAheadOfInnerVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
+        majorVideoAheadOfMinorVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
                 localRecordingMetadata.getStartTimeMillis());
 
-        outerVideoView = (VideoView) findViewById(R.id.videoView_local_video);
-        innerVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
-        innerVideoView.setZOrderMediaOverlay(true);
+        majorVideoView = (VideoView) findViewById(R.id.videoView_local_video);
+        minorVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
+        minorVideoView.setZOrderMediaOverlay(true);
 
         startVideoViews(
                 localRecordingMetadata.getAbsoluteFilePath(),
                 remoteRecordingMetadata.getAbsoluteFilePath(),
-                outerVideoAheadOfInnerVideoByMillis);
+                majorVideoAheadOfMinorVideoByMillis);
 
         Button playMergePreviewButton = (Button) findViewById(R.id.button_play_merge_preview);
         playMergePreviewButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startVideoViews(outerVideoViewVideoPath, innerVideoViewVideoPath, outerVideoAheadOfInnerVideoByMillis);
+                startVideoViews(
+                        majorVideoViewVideoPath,
+                        minorVideoViewVideoPath,
+                        majorVideoAheadOfMinorVideoByMillis);
             }
         });
 
@@ -65,7 +65,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
                 // Decide which is major video depending on user's latest choice of preview playback
-                if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(outerVideoViewVideoPath)) {
+                if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoViewVideoPath)) {
                     intent.putExtra(MergeVideosActivity.MAJOR_VIDEO_METADATA_KEY, gson.toJson(localRecordingMetadata));
                     intent.putExtra(MergeVideosActivity.MINOR_VIDEO_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
                 } else {
@@ -81,38 +81,44 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onClick(View view) {
                 // swapping the video paths
-                outerVideoAheadOfInnerVideoByMillis = -outerVideoAheadOfInnerVideoByMillis;
-                startVideoViews(innerVideoViewVideoPath, outerVideoViewVideoPath, outerVideoAheadOfInnerVideoByMillis);
+                majorVideoAheadOfMinorVideoByMillis = -majorVideoAheadOfMinorVideoByMillis;
+                startVideoViews(minorVideoViewVideoPath, majorVideoViewVideoPath, majorVideoAheadOfMinorVideoByMillis);
             }
         });
     }
 
     private void startVideoViews(
-            final String outerVideoPath,
-            final String innerVideoPath,
-            final int outerVideoAheadOfInnerVideoByTimeMillis) {
+            final String majorVideoPath,
+            final String minorVideoPath,
+            final int majorVideoAheadOfMinorVideoByTimeMillis) {
 
-        log.info("outer video ahead of local videos = {} ms", outerVideoAheadOfInnerVideoByTimeMillis);
+        log.info("outer video ahead of local videos = {} ms", majorVideoAheadOfMinorVideoByTimeMillis);
 
-        if (outerVideoView.isPlaying()) {
-            outerVideoView.stopPlayback();
+        if (majorVideoView.isPlaying()) {
+            majorVideoView.stopPlayback();
         }
-        if (innerVideoView.isPlaying()) {
-            innerVideoView.stopPlayback();
+        if (minorVideoView.isPlaying()) {
+            minorVideoView.stopPlayback();
         }
 
-        outerVideoViewVideoPath = outerVideoPath;
-        outerVideoView.setVideoPath(outerVideoViewVideoPath);
-        innerVideoViewVideoPath = innerVideoPath;
-        innerVideoView.setVideoPath(innerVideoViewVideoPath);
-        innerVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        majorVideoViewVideoPath = majorVideoPath;
+        majorVideoView.setVideoPath(majorVideoViewVideoPath);
+        minorVideoViewVideoPath = minorVideoPath;
+        minorVideoView.setVideoPath(minorVideoViewVideoPath);
+
+        majorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
-            public void onPrepared(MediaPlayer mp) {
-                mp.setVolume(0.0f, 0.0f);
+            public void onPrepared(final MediaPlayer mpMajor) {
+                minorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                    @Override
+                    public void onPrepared(MediaPlayer mpMinor) {
+                        mpMinor.setVolume(0.0f, 0.0f);
+                        mpMajor.start();
+                        mpMinor.start();
+                    }
+                });
             }
         });
-        outerVideoView.start();
-        innerVideoView.start();
     }
 
     @Override
@@ -139,32 +145,32 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     @Override
     public void start() {
-        if (outerVideoView != null && innerVideoView != null) {
-            startVideoViews(outerVideoViewVideoPath, innerVideoViewVideoPath,
-                    outerVideoAheadOfInnerVideoByMillis);
+        if (majorVideoView != null && minorVideoView != null) {
+            startVideoViews(majorVideoViewVideoPath, minorVideoViewVideoPath,
+                    majorVideoAheadOfMinorVideoByMillis);
         }
     }
 
     @Override
     public void pause() {
-        if (outerVideoView != null && innerVideoView != null) {
-            outerVideoView.pause();
-            innerVideoView.pause();
+        if (majorVideoView != null && minorVideoView != null) {
+            majorVideoView.pause();
+            minorVideoView.pause();
         }
     }
 
     @Override
     public int getDuration() {
-        if (outerVideoView != null && innerVideoView != null) {
-            return Math.min(outerVideoView.getDuration(), innerVideoView.getDuration());
+        if (majorVideoView != null && minorVideoView != null) {
+            return Math.min(majorVideoView.getDuration(), minorVideoView.getDuration());
         }
         return 0;
     }
 
     @Override
     public int getCurrentPosition() {
-        if (outerVideoView != null && innerVideoView != null) {
-            return Math.min(outerVideoView.getCurrentPosition(), innerVideoView.getCurrentPosition());
+        if (majorVideoView != null && minorVideoView != null) {
+            return Math.min(majorVideoView.getCurrentPosition(), minorVideoView.getCurrentPosition());
         }
         return 0;
     }
@@ -176,7 +182,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     @Override
     public boolean isPlaying() {
-        return (outerVideoView != null && outerVideoView.isPlaying());
+        return (majorVideoView != null && majorVideoView.isPlaying());
     }
 
     @Override

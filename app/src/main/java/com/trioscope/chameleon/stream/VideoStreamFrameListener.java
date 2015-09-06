@@ -99,7 +99,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                         byteArray = stream.toByteArray();
                     }
                     if (byteArray != null) {
-                        log.info("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
+                        log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     }
                     previousFrameSendTimeMs = System.currentTimeMillis();
@@ -151,7 +151,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         int padding = 0;
 
             padding = (cameraFrameSize.getWidth() * cameraFrameSize.getHeight()) % 2048;
-            log.info("padding = {}", padding);
+            log.debug("padding = {}", padding);
             byte[] frameDataWithPadding = new byte[padding + frameData.length];
 
             System.arraycopy(frameData, 0, frameDataWithPadding, 0, frameData.length);
@@ -199,7 +199,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
-        log.info("onClientRequest invoked for client = {}, isStreamingStarted = {}",
+        log.debug("onClientRequest invoked for client = {}, isStreamingStarted = {}",
                 clientSocket.getInetAddress().getHostAddress(), isStreamingStarted);
 
         switch (messageFromClient.getType()) {
@@ -220,7 +220,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 sendRecordedVideo(clientSocket);
                 break;
             default:
-                log.info("Unknown message received from client. Type = {}",
+                log.debug("Unknown message received from client. Type = {}",
                         messageFromClient.getType());
         }
     }
@@ -228,7 +228,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private void startStreaming(final Socket clientSocket, String peerUserName) {
         try {
             destOutputStream = clientSocket.getOutputStream();
-            log.info("Destination output stream set in Thread = {}", Thread.currentThread());
+            log.debug("Destination output stream set in Thread = {}", Thread.currentThread());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -256,7 +256,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     }
 
     private void startRecording(final Socket clientSocket) {
-        log.info("Received message to start recording!");
+        log.debug("Received message to start recording!");
         try {
             PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
             StartRecordingResponse response = StartRecordingResponse.builder()
@@ -264,7 +264,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             PeerMessage responseMsg = PeerMessage.builder()
                     .type(PeerMessage.Type.START_RECORDING_RESPONSE)
                     .contents(gson.toJson(response)).build();
-            log.info("Sending file size msg = {}", gson.toJson(responseMsg));
+            log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
             pw.println(gson.toJson(responseMsg));
             pw.close();
         } catch (IOException e) {
@@ -275,13 +275,13 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     }
 
     private void stopRecording() {
-        log.info("Received message to stop recording!");
+        log.debug("Received message to stop recording!");
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
         manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
     }
 
     private void sendRecordedVideo(final Socket clientSocket) {
-        log.info("Received message to send recorded video!");
+        log.debug("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
         if (videoFile != null && recordingStartTimeMillis != null) {
@@ -296,14 +296,14 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                         .contents(gson.toJson(response)).build();
-                log.info("Sending file size msg = {}", gson.toJson(responseMsg));
+                log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
 
                 // Get recording time
                 MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
                 metadataRetriever.setDataSource(videoFile.getAbsolutePath());
-                log.info("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+                log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
                 clientSocket.setSendBufferSize(65536);
                 clientSocket.setReceiveBufferSize(65536);
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
@@ -311,10 +311,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                 byte[] buffer = new byte[65536];
                 int bytesRead = 0;
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    log.info("Sending recorded file.. bytes = {}", bytesRead);
+                    log.debug("Sending recorded file.. bytes = {}", bytesRead);
                     outputStream.write(buffer, 0, bytesRead);
                 }
-                log.info("Successfully sent recorded file!");
+                log.debug("Successfully sent recorded file!");
             } catch (IOException e) {
                 log.error("Failed to send recorded video file", e);
             } finally {
