@@ -292,17 +292,17 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         return actualPresentationTimeMicros;
     }
 
-    private long processAudio(
+    private void processAudio(
             final MediaCodec audioEncoder,
             final AudioRecord audioRecorder,
             final long presentationTimeMicros) {
-        long actualPresentationTimeMicros = -1;
         log.debug("Processing audio..");
 
         // Process audio
         int audioInputBufferIndex = audioEncoder.dequeueInputBuffer(TIMEOUT_MICROSECONDS);
         if (audioInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = audioEncoder.getInputBuffer(audioInputBufferIndex);
+            // PCM 16-bit samples
             int audioBytesRead = audioRecorder.read(inputBuffer, AUDIO_SAMPLES_PER_FRAME * 2);
             log.debug("audio bytebuffer size = {}, bytes read = {}",
                     inputBuffer.capacity(), audioBytesRead);
@@ -326,8 +326,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
                 mediaMuxer.writeSampleData(audioTrackIndex, outputBuffer, audioBufferInfo);
 
-                actualPresentationTimeMicros = audioBufferInfo.presentationTimeUs;
-
                 log.debug("sent " + audioBufferInfo.size + " audio bytes to muxer " +
                                 "pts input = {} ms, output = {} ms, difference = {} ms",
                         presentationTimeMicros / 1000, audioBufferInfo.presentationTimeUs / 1000,
@@ -349,7 +347,6 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             log.warn("unexpected result from audio encoder.dequeueOutputBuffer: " + audioOutputBufferIndex);
         }
 
-        return actualPresentationTimeMicros;
     }
 
     @Override
