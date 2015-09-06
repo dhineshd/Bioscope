@@ -78,6 +78,8 @@ public class ChameleonApplication extends Application {
 
     public static final int SERVER_PORT = 7080;
 
+
+
     @Getter
     private BackgroundRecorder videoRecorder;
     @Getter

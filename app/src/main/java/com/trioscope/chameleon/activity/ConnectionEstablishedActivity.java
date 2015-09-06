@@ -71,6 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
+    public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
             "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     public static final String PEER_INFO = "PEER_INFO";

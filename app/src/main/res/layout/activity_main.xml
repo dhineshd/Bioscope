@@ -29,13 +29,6 @@
             android:text="Start Session" />
 
         <Button
-            android:id="@+id/button_main_join_session"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="20dp"
-            android:text="Join Session" />
-
-        <Button
             android:id="@+id/app_settings_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
