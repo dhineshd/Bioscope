@@ -10,7 +10,7 @@ import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
@@ -37,7 +37,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         log.info("Created main activity");
 
-        final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
+        final ImageButton startSessionButton = (ImageButton) findViewById(R.id.button_main_start_session);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -45,28 +45,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                 log.info("Start sesion button pressed");
                 chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
-                startActivity(i);
-            }
-        });
-
-        final Button editSettingsButton = (Button) findViewById(R.id.app_settings_button);
-
-        editSettingsButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                log.info("Clicked on preferences button for {}", PreferencesActivity.class);
-                Intent i = new Intent(MainActivity.this, PreferencesActivity.class);
-                startActivity(i);
-            }
-        });
-
-        final Button libraryButton = (Button) findViewById(R.id.library_button);
-
-        libraryButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                log.info("Clicked on preferences button for {}", VideoLibraryActivity.class);
-                Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
                 startActivity(i);
             }
         });
