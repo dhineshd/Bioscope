@@ -9,6 +9,7 @@ import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageButton;
 
@@ -49,6 +50,19 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
+        final ImageButton showLibraryButton = (ImageButton) findViewById(R.id.button_main_library);
+
+        showLibraryButton.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (MotionEvent.ACTION_UP == event.getAction()) {
+                    Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+                    startActivity(i);
+                }
+                return true;
+            }
+        });
+
     }
 
     @Override
@@ -76,10 +90,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onPause() {
         log.info("onPause: Activity is no longer in foreground");
-
-
-
-
 
         super.onPause();
         log.info("Activity has been paused");
