@@ -19,7 +19,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.types.SessionStatus;
-import com.trioscope.chameleon.ui.GestureUtils;
+import com.trioscope.chameleon.util.ui.GestureUtils;
 
 import lombok.extern.slf4j.Slf4j;
 

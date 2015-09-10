@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.ui;
+package com.trioscope.chameleon.util.ui;
 
 import android.view.MotionEvent;
 

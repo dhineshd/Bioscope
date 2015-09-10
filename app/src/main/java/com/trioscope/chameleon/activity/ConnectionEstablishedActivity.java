@@ -19,7 +19,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
@@ -138,12 +138,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         log.info("PeerInfo = {}", peerInfo);
 
-        peerUserNameTextView.setText(peerInfo.getUserName());
+        peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
 
         connectToServerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         connectToServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        final Button recordSessionButton = (Button) findViewById(R.id.button_record_session);
+        final ImageButton recordSessionButton = (ImageButton) findViewById(R.id.button_record_session);
         recordSessionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -160,7 +160,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                     // Stopping local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
-                    recordSessionButton.setText("Record");
+                    recordSessionButton.setImageResource(R.drawable.start_recording);
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
@@ -178,7 +178,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     // Starting local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
 
-                    recordSessionButton.setText("Stop");
+                    recordSessionButton.setImageResource(R.drawable.stop_recording);
                     isRecording = true;
                 }
             }
