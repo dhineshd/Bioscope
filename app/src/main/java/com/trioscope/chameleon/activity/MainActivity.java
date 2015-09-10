@@ -7,6 +7,8 @@ import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.preference.PreferenceManager;
+import android.support.v4.view.GestureDetectorCompat;
+import android.view.GestureDetector;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -17,6 +19,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.types.SessionStatus;
+import com.trioscope.chameleon.ui.GestureUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +28,7 @@ import static android.view.View.OnClickListener;
 @Slf4j
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private ChameleonApplication chameleonApplication;
+    private GestureDetectorCompat gestureDetector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +40,17 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         setContentView(R.layout.activity_main);
 
+        gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener(){
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (GestureUtils.isSwipeUp(e1, e2, velocityX, velocityY)) {
+                    showLibraryActivity();
+                    return true;
+                }
+                return super.onFling(e1, e2, velocityX, velocityY);
+            }
+        });
+
         log.info("Created main activity");
 
         final ImageButton startSessionButton = (ImageButton) findViewById(R.id.button_main_start_session);
@@ -44,25 +59,30 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             @Override
             public void onClick(View v) {
                 log.info("Start sesion button pressed");
-                chameleonApplication.setSessionStatus(SessionStatus.STARTED);
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
             }
         });
 
         final ImageButton showLibraryButton = (ImageButton) findViewById(R.id.button_main_library);
-
-        showLibraryButton.setOnTouchListener(new View.OnTouchListener() {
+        showLibraryButton.setOnClickListener(new OnClickListener() {
             @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (MotionEvent.ACTION_UP == event.getAction()) {
-                    Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
-                    startActivity(i);
-                }
-                return true;
+            public void onClick(View v) {
+                showLibraryActivity();
             }
         });
 
+    }
+
+    private void showLibraryActivity(){
+        Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+        startActivity(i);
+        overridePendingTransition(R.anim.abc_slide_in_bottom, R.anim.abc_slide_out_top);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return gestureDetector.onTouchEvent(event);
     }
 
     @Override
@@ -85,14 +105,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    protected void onPause() {
-        log.info("onPause: Activity is no longer in foreground");
-
-        super.onPause();
-        log.info("Activity has been paused");
     }
 
     @Override
@@ -145,19 +157,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     }
 
     @Override
-    protected void onStop() {
-        log.info("onStop: Activity is no longer visible to user");
-
-        // If we are not connected, we can release network resources
-        if (SessionStatus.DISCONNECTED.equals(chameleonApplication.getSessionStatus())) {
-            log.info("Teardown initiated from MainActivity");
-            chameleonApplication.cleanupAndExit();
-        }
-        super.onStop();
-    }
-
-
-    @Override
     public void onBackPressed() {
         log.info("User pressed back");
 
@@ -168,4 +167,5 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         ((ChameleonApplication) getApplication()).cleanupAndExit();
     }
+
 }
