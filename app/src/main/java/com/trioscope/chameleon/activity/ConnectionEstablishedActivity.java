@@ -40,6 +40,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,6 +49,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.net.InetAddress;
+import java.net.Socket;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -489,6 +491,79 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             startActivity(intent);
         }
 
+    }
+
+    @RequiredArgsConstructor
+    class SendVideoToPeerTask extends AsyncTask<Void, Integer, Void> {
+
+        private final Socket clientSocket;
+
+        private final File fileToSend;
+
+        private final Long recordingStartTimeMillis;
+
+        @Override
+        protected void onPreExecute() {
+            progressBar.setVisibility(View.VISIBLE);
+            log.info("Progress bar set to be visible = {}", progressBar.getVisibility());
+            progressBar.setProgress(0);
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+
+            if (fileToSend != null && recordingStartTimeMillis != null) {
+                OutputStream outputStream = null;
+                InputStream inputStream = null;
+                long fileSizeBytes = fileToSend.length();
+                try {
+                    PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
+                    SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
+                            .fileSizeBytes(fileToSend.length())
+                            .recordingStartTimeMillis(recordingStartTimeMillis)
+                            .currentTimeMillis(System.currentTimeMillis()).build();
+                    PeerMessage responseMsg = PeerMessage.builder()
+                            .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
+                            .contents(gson.toJson(response)).build();
+                    log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+                    pw.println(gson.toJson(responseMsg));
+                    pw.close();
+
+                    // Get recording time
+                    MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+                    metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
+                    log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+                    clientSocket.setSendBufferSize(65536);
+                    clientSocket.setReceiveBufferSize(65536);
+                    outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+                    inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
+                    byte[] buffer = new byte[65536];
+                    int bytesRead = 0;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        log.debug("Sending recorded file.. bytes = {}", bytesRead);
+                        outputStream.write(buffer, 0, bytesRead);
+                    }
+                    log.debug("Successfully sent recorded file!");
+                } catch (IOException e) {
+                    log.error("Failed to send recorded video file", e);
+                } finally {
+                    try {
+                        if (outputStream != null) {
+                            outputStream.close();
+                        }
+                        if (inputStream != null) {
+                            inputStream.close();
+                        }
+                        clientSocket.close();
+                    } catch (IOException e) {
+                        log.warn("Failed to close streams when sending recorded video", e);
+                    }
+                }
+            }
+
+            return null;
+        }
     }
 
     class StreamFromPeerTask extends AsyncTask<Void, Void, Void> {
