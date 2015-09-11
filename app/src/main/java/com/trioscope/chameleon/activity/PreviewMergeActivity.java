@@ -1,27 +1,38 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.VideoView;
+import android.widget.ImageButton;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.RecordingMetadata;
+
+import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private final Gson gson = new Gson();
-    private VideoView majorVideoView;
-    private VideoView minorVideoView;
-    private String majorVideoViewVideoPath, minorVideoViewVideoPath;
+    private String majorVideoPath, minorVideoPath;
     private int majorVideoAheadOfMinorVideoByMillis;
+    private TextureView majorVideoTextureView;
+    private TextureView minorVideoTextureView;
+    private MediaPlayer majorVideoMediaPlayer;
+    private MediaPlayer minorVideoMediaPlayer;
+    private boolean majorVideoSurfaceReady;
+    private boolean minorVideoSurfaceReady;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,23 +48,67 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoAheadOfMinorVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
                 localRecordingMetadata.getStartTimeMillis());
 
-        majorVideoView = (VideoView) findViewById(R.id.videoView_local_video);
-        minorVideoView = (VideoView) findViewById(R.id.videoView_remote_video);
-        minorVideoView.setZOrderMediaOverlay(true);
+        majorVideoMediaPlayer = new MediaPlayer();
+        minorVideoMediaPlayer = new MediaPlayer();
 
-        startVideoViews(
-                localRecordingMetadata.getAbsoluteFilePath(),
-                remoteRecordingMetadata.getAbsoluteFilePath(),
-                majorVideoAheadOfMinorVideoByMillis);
+        majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
+        minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
 
-        Button playMergePreviewButton = (Button) findViewById(R.id.button_play_merge_preview);
-        playMergePreviewButton.setOnClickListener(new View.OnClickListener() {
+        majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
+
+        majorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
-            public void onClick(View view) {
-                startVideoViews(
-                        majorVideoViewVideoPath,
-                        minorVideoViewVideoPath,
-                        majorVideoAheadOfMinorVideoByMillis);
+            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+
+                majorVideoMediaPlayer.setSurface(new Surface(surface));
+                majorVideoSurfaceReady = true;
+                if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
+                    startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                }
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                return false;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+            }
+        });
+
+        minorVideoTextureView = (TextureView) findViewById(R.id.textureview_minor_video);
+        minorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+
+                minorVideoMediaPlayer.setSurface(new Surface(surface));
+                minorVideoSurfaceReady = true;
+
+                if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
+                    startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                }
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+
+            }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                return false;
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
             }
         });
 
@@ -63,7 +118,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             public void onClick(View view) {
                 Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
                 // Decide which is major video depending on user's latest choice of preview playback
-                if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoViewVideoPath)) {
+                if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
                     intent.putExtra(MergeVideosActivity.MAJOR_VIDEO_METADATA_KEY, gson.toJson(localRecordingMetadata));
                     intent.putExtra(MergeVideosActivity.MINOR_VIDEO_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
                 } else {
@@ -74,46 +129,89 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             }
         });
 
-        Button swapMergePreviewButton = (Button) findViewById(R.id.button_swap_merge_preview);
+        ImageButton swapMergePreviewButton = (ImageButton) findViewById(R.id.button_swap_merge_preview);
         swapMergePreviewButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // swapping the video paths
                 majorVideoAheadOfMinorVideoByMillis = -majorVideoAheadOfMinorVideoByMillis;
-                startVideoViews(minorVideoViewVideoPath, majorVideoViewVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                //startVideoViews(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                startVideos(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
             }
         });
     }
 
-    private void startVideoViews(
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+        return true;
+    }
+
+    /**
+     * Sets the TextureView transform to preserve the aspect ratio of the video.
+     */
+    private void adjustAspectRatio(TextureView textureView, int videoWidth, int videoHeight) {
+        int viewWidth = textureView.getWidth();
+        int viewHeight = textureView.getHeight();
+        double aspectRatio = (double) videoHeight / videoWidth;
+
+        log.info("view width = {}, height = {}", videoWidth, viewHeight);
+        log.info("video width = {}, height = {}", videoWidth, videoHeight);
+
+        int newWidth, newHeight;
+        if (viewHeight > (int) (viewWidth * aspectRatio)) {
+            // limited by narrow width; restrict height
+            newWidth = viewWidth;
+            newHeight = (int) (viewWidth * aspectRatio);
+        } else {
+            // limited by short height; restrict width
+            newWidth = (int) (viewHeight / aspectRatio);
+            newHeight = viewHeight;
+        }
+        int xoff = (viewWidth - newWidth) / 2;
+        int yoff = (viewHeight - newHeight) / 2;
+
+        log.info("x off = {}, y off = {}", xoff, yoff);
+        log.info("new width = {}, height = {}", newWidth, newHeight);
+
+        Matrix txform = new Matrix();
+        textureView.getTransform(txform);
+        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
+        txform.postTranslate(xoff, yoff);
+        textureView.setTransform(txform);
+    }
+
+    private void startVideos(
             final String majorVideoPath,
             final String minorVideoPath,
-            final int majorVideoAheadOfMinorVideoByTimeMillis) {
+            final int majorVideoAheadOfMinorVideoByMillis) {
 
-        log.info("outer video ahead of local videos = {} ms", majorVideoAheadOfMinorVideoByTimeMillis);
+        // Local video will be shown on outer player and remote video on inner player
 
-        majorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-            @Override
-            public void onPrepared(final MediaPlayer mpMajor) {
+        // TextureView
 
-                minorVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                    @Override
-                    public void onPrepared(MediaPlayer mpMinor) {
-                        mpMinor.setVolume(0.0f, 0.0f);
+        majorVideoMediaPlayer.reset();
+        minorVideoMediaPlayer.reset();
 
-                        majorVideoView.start();
-                        minorVideoView.start();
-                    }
-                });
+        this.majorVideoPath = majorVideoPath;
+        this.minorVideoPath = minorVideoPath;
 
-                minorVideoViewVideoPath = minorVideoPath;
-                minorVideoView.setVideoPath(minorVideoViewVideoPath);
-            }
-        });
+        try {
+            majorVideoMediaPlayer.setDataSource(majorVideoPath);
+            majorVideoMediaPlayer.prepare();
+        } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+            log.error("Failed to start major media player", e);
+        }
 
-        majorVideoViewVideoPath = majorVideoPath;
-        majorVideoView.setVideoPath(majorVideoViewVideoPath);
+        try {
+            minorVideoMediaPlayer.setDataSource(minorVideoPath);
+            minorVideoMediaPlayer.prepare();
+        } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+            log.error("Failed to start minor media player", e);
+        }
 
+        majorVideoMediaPlayer.start();
+        minorVideoMediaPlayer.start();
     }
 
     @Override

@@ -11,94 +11,47 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="match_parent">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        <TextureView
+            android:id="@+id/textureview_major_video"
+            android:layout_width="640dp"
+            android:layout_height="360dp"
+            android:layout_gravity="center"
+            android:rotation="90"/>
 
-            <VideoView
-                android:id="@+id/videoView_local_video"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_alignParentRight="true"
-                android:layout_alignParentLeft="true"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentBottom="true" />
 
-        </RelativeLayout>
+        <TextureView
+            android:id="@+id/textureview_minor_video"
+            android:layout_width="186dp"
+            android:layout_height="109dp"
+            android:layout_margin="18dp"
+            android:layout_gravity="bottom"
+            android:translationX="-40dp"
+            android:translationY="-60dp"
+            android:rotation="90"/>
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="3">
+            android:layout_gravity="bottom|center">
 
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+            <ImageButton
+                android:id="@+id/button_swap_merge_preview"
+                android:src="@drawable/swap_videos"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@null" />
 
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <LinearLayout
-                android:layout_width="0px"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:weightSum="3">
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <VideoView
-                    android:id="@+id/videoView_remote_video"
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-            </LinearLayout>
+            <Button
+                android:id="@+id/button_merge"
+                android:text="Save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
 
         </LinearLayout>
 
     </FrameLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
-        android:orientation="vertical">
-
-        <Button
-            android:id="@+id/button_play_merge_preview"
-            android:text="Play"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/button_merge"
-            android:text="Merge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/button_swap_merge_preview"
-            android:text="Swap"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-    </LinearLayout>
-
 
 </RelativeLayout>

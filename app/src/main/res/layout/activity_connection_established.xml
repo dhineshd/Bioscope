@@ -21,12 +21,12 @@
 
         <ImageView
             android:id="@+id/imageView_stream_remote"
-            android:layout_width="135dp"
-            android:layout_height="240dp"
+            android:layout_width="109dp"
+            android:layout_height="186dp"
             android:background="@drawable/border_image"
             android:layout_gravity="bottom|left"
-            android:layout_marginBottom="10dp"
-            android:layout_marginLeft="10dp"
+            android:layout_marginBottom="48dp"
+            android:layout_marginLeft="18dp"
             android:adjustViewBounds="true" />
 
        <ProgressBar
@@ -50,17 +50,19 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_centerHorizontal="true"
-                android:padding="5dp"
+                android:padding="12dp"
                 android:background="@null"
-                android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textColor="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/button_record_session"
-                android:src="@drawable/start_recording"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:src="@drawable/start_recording_button_enabled"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:scaleType="fitCenter"
                 android:layout_below="@+id/textview_recording_timer"
+                android:background="@null"
+                android:layout_marginBottom="36dp"
                 android:enabled="false" />
 
         </RelativeLayout>

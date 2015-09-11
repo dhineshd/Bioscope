@@ -191,4 +191,46 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
 	}
 }
 
+JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_rotateI420By90Degrees(
+		JNIEnv* env, jobject thiz, jbyteArray inputArray, jbyteArray outputArray, int w, int h) {
+
+	// Not working !!!
+
+	int length = w * h * 3 / 2;
+	unsigned char* inputBuf = new unsigned char[length];
+	env->GetByteArrayRegion(inputArray, 0, length, reinterpret_cast<jbyte*>(inputBuf));
+
+	int Ysize = w * h;
+
+	unsigned char* outputBuf = new unsigned char[length * 2];
+
+	unsigned char* src_y = inputBuf;
+	unsigned char* src_u = inputBuf + Ysize;
+	unsigned char* src_v = src_u + (Ysize / 4);
+
+	unsigned char* dst_y = outputBuf;
+	unsigned char* dst_u = outputBuf + Ysize;
+    unsigned char* dst_v = dst_u + (Ysize / 4);
+
+	libyuv::I420Rotate(
+			(uint8*) src_y, w,
+			(uint8*) src_u, w / 2,
+			(uint8*) src_v, w / 2,
+			(uint8*) dst_y, h,
+			(uint8*) dst_u, h,
+            (uint8*) dst_v, h,
+			w, h,
+            libyuv::kRotate90);
+
+	env->SetByteArrayRegion(outputArray, 0, length, reinterpret_cast<jbyte*>(outputBuf));
+
+	if (inputBuf) {
+		delete[] inputBuf;
+	}
+
+	if (outputBuf) {
+		delete[] outputBuf;
+	}
+}
+
 }

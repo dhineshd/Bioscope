@@ -134,7 +134,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     log.debug("Video recording started");
                     Toast startRecordingToast = Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG);
-                    startRecordingToast.setGravity(Gravity.CENTER, 0, 0);
+                    startRecordingToast.setGravity(Gravity.TOP, 0, 0);
                     startRecordingToast.show();
                     recordingStartTime = System.currentTimeMillis();
                     timerHandler.postDelayed(timerRunnable, 500);
@@ -144,7 +144,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     chameleonApplication.getRecordingFrameListener().onStopRecording();
                     log.debug("Video recording stopped");
                     Toast stopRecordingToast = Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG);
-                    stopRecordingToast.setGravity(Gravity.CENTER, 0, 0);
+                    stopRecordingToast.setGravity(Gravity.TOP, 0, 0);
                     stopRecordingToast.show();
                     timerHandler.removeCallbacks(timerRunnable);
                     recordingTimerTextView.setVisibility(View.INVISIBLE);
@@ -196,7 +196,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                     // Stopping local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
-                    recordSessionButton.setImageResource(R.drawable.start_recording);
+                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
@@ -214,7 +214,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     // Starting local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
 
-                    recordSessionButton.setImageResource(R.drawable.stop_recording);
+                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
                     isRecording = true;
                 }
             }

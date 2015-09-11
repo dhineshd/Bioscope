@@ -175,6 +175,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 ColorConversionUtil.convertI420ToNV12(frameData.getBytes(),
                         finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             } else {
+//                ColorConversionUtil.rotateI420By90Degrees(frameData.getBytes(),
+//                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
                 finalFrameData = frameData.getBytes();
             }
 
@@ -376,6 +378,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     public void onStopRecording() {
         isRecording = false;
         muxerStarted = false;
+        audioRecordTask.cancel(true);
+
         if (videoEncoder != null) {
             videoEncoder.stop();
             videoEncoder.release();

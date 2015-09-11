@@ -58,8 +58,7 @@
             android:name=".activity.ReceiveConnectionInfoNFCActivity"
             android:label="ReceiveConnectionInfoActivity"
             android:noHistory="true"
-            android:screenOrientation="portrait" >
-        </activity>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activity.ConnectionEstablishedActivity"
             android:label="ConnectionEstablishedActivity"
@@ -72,7 +71,7 @@
             android:name=".activity.PreviewMergeActivity"
             android:label="PreviewMergeActivity"
             android:noHistory="true"
-            android:screenOrientation="landscape" />
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activity.MergeVideosActivity"
             android:label="MergeVideosActivity"
