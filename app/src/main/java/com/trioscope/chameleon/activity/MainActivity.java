@@ -2,6 +2,7 @@ package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
@@ -13,6 +14,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 
 import com.trioscope.chameleon.ChameleonApplication;
@@ -53,7 +55,12 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         log.info("Created main activity");
 
-        final ImageButton startSessionButton = (ImageButton) findViewById(R.id.button_main_start_session);
+        final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
+
+        Typeface comicReliefTypeface = Typeface.createFromAsset(getAssets(),
+                "fonts/comic-relief/ComicRelief.ttf");
+
+        startSessionButton.setTypeface(comicReliefTypeface);
 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
