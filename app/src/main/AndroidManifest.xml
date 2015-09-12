@@ -45,7 +45,6 @@
 
                 <data android:mimeType="@string/mime_type_nfc_connect_wifi" />
             </intent-filter>
-
         </activity>
 
         <service android:name=".service.BackgroundRecorderService" />
@@ -110,15 +109,19 @@
         <activity
             android:name=".activity.UserLoginActivity"
             android:label="@string/app_name" >
+        </activity>
+        <activity
+            android:name=".activity.VideoLibraryActivity"
+            android:label="@string/title_activity_video_library" >
+        </activity>
+        <activity
+            android:name=".activity.SplashScreenActivity"
+            android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <activity
-            android:name=".activity.VideoLibraryActivity"
-            android:label="@string/title_activity_video_library" >
         </activity>
     </application>
 

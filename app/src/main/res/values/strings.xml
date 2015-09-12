@@ -34,6 +34,7 @@
     <string name="pref_user_name_title">Name</string>
     <string name="title_activity_user_login">UserLoginActivity</string>
     <string name="title_activity_video_library">VideoLibraryActivity</string>
+    <string name="title_activity_splash_screen">SplashScreen</string>
 
 
 </resources>
