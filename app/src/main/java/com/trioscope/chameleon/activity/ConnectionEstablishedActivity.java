@@ -13,8 +13,10 @@ import android.graphics.Matrix;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
@@ -83,6 +85,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SurfaceView previewDisplay;
     private long clockDifferenceMs;
     private TextView peerUserNameTextView;
+    private TextView recordingTimerTextView;
+    private long recordingStartTime;
+    private Handler timerHandler;
+    private Runnable timerRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,7 +97,29 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
 
-        peerUserNameTextView = (TextView) findViewById(R.id.peer_user_name);
+        peerUserNameTextView = (TextView) findViewById(R.id.textview_peer_user_name);
+
+        recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
+
+        //runs without a timer by reposting this handler at the end of the runnable
+        timerHandler = new Handler();
+
+        timerRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                long millis = System.currentTimeMillis() - recordingStartTime;
+                int seconds = (int) (millis / 1000);
+                int minutes = seconds / 60;
+                seconds = seconds % 60;
+
+                recordingTimerTextView.setVisibility(View.VISIBLE);
+                log.info("Recording timer text view visible = {}", View.VISIBLE == recordingTimerTextView.getVisibility());
+                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
+
+                timerHandler.postDelayed(this, 500);
+            }
+        };
 
         sslSocketFactory = getInitializedSSLSocketFactory();
 
@@ -105,13 +133,21 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     // Start recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     log.debug("Video recording started");
-                    Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG).show();
+                    Toast startRecordingToast = Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG);
+                    startRecordingToast.setGravity(Gravity.CENTER, 0, 0);
+                    startRecordingToast.show();
+                    recordingStartTime = System.currentTimeMillis();
+                    timerHandler.postDelayed(timerRunnable, 500);
                 } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
                     log.info("Stop recording event received!!");
                     // Stop recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStopRecording();
                     log.debug("Video recording stopped");
-                    Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG).show();
+                    Toast stopRecordingToast = Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG);
+                    stopRecordingToast.setGravity(Gravity.CENTER, 0, 0);
+                    stopRecordingToast.show();
+                    timerHandler.removeCallbacks(timerRunnable);
+                    recordingTimerTextView.setVisibility(View.INVISIBLE);
                 }
             }
         };
@@ -183,11 +219,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 }
             }
         });
-        recordSessionButton.setVisibility(View.INVISIBLE);
+        recordSessionButton.setEnabled(false);
         if (!PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
             // If peer is not director, then I am the director
             // So, should be able to start/stop recording.
-            recordSessionButton.setVisibility(View.VISIBLE);
+            recordSessionButton.setEnabled(true);
         }
     }
 
@@ -209,6 +245,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
+        timerHandler.removeCallbacks(timerRunnable);
     }
 
     @Override

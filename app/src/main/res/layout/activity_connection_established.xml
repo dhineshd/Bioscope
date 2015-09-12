@@ -38,13 +38,32 @@
             android:max="100"
             style="@android:style/Widget.ProgressBar.Horizontal"/>
 
-        <ImageButton
-            android:id="@+id/button_record_session"
-            android:src="@drawable/start_recording"
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center"
-            android:visibility="invisible"/>
+            android:layout_gravity="bottom|center">
+
+            <TextView
+                android:id="@+id/textview_recording_timer"
+                android:visibility="invisible"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_centerHorizontal="true"
+                android:padding="5dp"
+                android:background="@null"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:textColor="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/button_record_session"
+                android:src="@drawable/start_recording"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/textview_recording_timer"
+                android:enabled="false" />
+
+        </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -52,7 +71,7 @@
             android:background="#CC808080">
 
             <TextView
-                android:id="@+id/peer_user_name"
+                android:id="@+id/textview_peer_user_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/white"
