@@ -82,6 +82,39 @@
 
         </RelativeLayout>
 
+        <RelativeLayout
+            android:id="@+id/relativeLayout_end_session"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/button_continue_session"
+                android:background="@drawable/large_size_button"
+                android:stateListAnimator="@anim/lift_up"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="248dp"
+                android:text="Continue"
+                android:textSize="28sp"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/button_retake_video"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/button_continue_session"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="42dp"
+                android:background="@null"
+                android:text="Retake"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"/>
+
+        </RelativeLayout>
+
     </FrameLayout>
 
 </RelativeLayout>

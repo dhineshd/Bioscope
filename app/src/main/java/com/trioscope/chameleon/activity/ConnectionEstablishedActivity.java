@@ -1,9 +1,7 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -20,6 +18,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -70,8 +69,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
-    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
-            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
@@ -88,6 +85,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private long recordingStartTime;
     private Handler timerHandler;
     private Runnable timerRunnable;
+    private RelativeLayout endSessionLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +111,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 seconds = seconds % 60;
 
                 recordingTimerTextView.setVisibility(View.VISIBLE);
-                log.info("Recording timer text view visible = {}", View.VISIBLE == recordingTimerTextView.getVisibility());
                 recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
 
                 timerHandler.postDelayed(this, 500);
@@ -193,7 +190,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
-                    showRetakeOrMergeVideoDialog(peerInfo);
+                    recordSessionButton.setEnabled(false);
+                    endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
 
@@ -218,6 +216,36 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
         }
+
+        // Buttons for ending/continuing session
+        endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
+
+        Button continueButton = (Button) findViewById(R.id.button_continue_session);
+        continueButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
+
+                endSessionLayout.setVisibility(View.INVISIBLE);
+
+                new ReceiveVideoFromPeerTask(
+                        chameleonApplication.getVideoFile(),
+                        peerVideoFile,
+                        peerInfo.getIpAddress(),
+                        peerInfo.getPort())
+                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        });
+
+        Button retakeButton = (Button) findViewById(R.id.button_retake_video);
+        retakeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                endSessionLayout.setVisibility(View.INVISIBLE);
+
+                recordSessionButton.setEnabled(true);
+            }
+        });
     }
 
     private void addCameraPreviewSurface() {
@@ -275,33 +303,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.error("Failed to initialize SSL socket factory", e);
         }
         return sslSocketFactory;
-    }
-
-    private void showRetakeOrMergeVideoDialog(final PeerInfo peerInfo) {
-        final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
-
-        new AlertDialog.Builder(this)
-                .setPositiveButton("Merge videos",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-
-                                new ReceiveVideoFromPeerTask(
-                                        chameleonApplication.getVideoFile(),
-                                        peerVideoFile,
-                                        peerInfo.getIpAddress(),
-                                        peerInfo.getPort())
-                                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                            }
-                        }
-                )
-                .setNegativeButton("Retake videos",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                // do nothing.
-                            }
-                        }
-                )
-                .create().show();
     }
 
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
