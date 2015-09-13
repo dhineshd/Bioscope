@@ -28,4 +28,7 @@ public class ColorConversionUtil {
     public static native void scaleAndConvertI420ToNV21Method2(
             ByteBuffer y_plane, ByteBuffer u_plane, ByteBuffer v_plane,
             byte[] output, int oldWidth, int oldHeight, int newWidth, int newHeight);
+
+    public static native void rotateI420By90Degrees(byte[] input, byte[] output, int width, int height);
+
 }

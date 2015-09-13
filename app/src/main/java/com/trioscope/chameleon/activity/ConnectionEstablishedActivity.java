@@ -1,9 +1,7 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -16,11 +14,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -71,8 +69,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
-    private static final String LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS_KEY =
-            "LOCAL_BEFORE_REMOTE_VIDEO_START_OFFSET_MILLIS";
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
@@ -89,6 +85,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private long recordingStartTime;
     private Handler timerHandler;
     private Runnable timerRunnable;
+    private RelativeLayout endSessionLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,7 +111,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 seconds = seconds % 60;
 
                 recordingTimerTextView.setVisibility(View.VISIBLE);
-                log.info("Recording timer text view visible = {}", View.VISIBLE == recordingTimerTextView.getVisibility());
                 recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
 
                 timerHandler.postDelayed(this, 500);
@@ -129,23 +125,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.info("Start recording event received!!");
+                    log.debug("Start recording event received!!");
                     // Start recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     log.debug("Video recording started");
-                    Toast startRecordingToast = Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG);
-                    startRecordingToast.setGravity(Gravity.CENTER, 0, 0);
-                    startRecordingToast.show();
                     recordingStartTime = System.currentTimeMillis();
                     timerHandler.postDelayed(timerRunnable, 500);
                 } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.info("Stop recording event received!!");
+                    log.debug("Stop recording event received!!");
                     // Stop recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStopRecording();
                     log.debug("Video recording stopped");
-                    Toast stopRecordingToast = Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG);
-                    stopRecordingToast.setGravity(Gravity.CENTER, 0, 0);
-                    stopRecordingToast.show();
                     timerHandler.removeCallbacks(timerRunnable);
                     recordingTimerTextView.setVisibility(View.INVISIBLE);
                 }
@@ -187,6 +177,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getApplicationContext());
 
                 if (isRecording) {
+                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
+
                     // Sending message to peer to stop recording
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.STOP_RECORDING)
@@ -196,13 +188,15 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                     // Stopping local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
-                    recordSessionButton.setImageResource(R.drawable.start_recording);
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
-                    showRetakeOrMergeVideoDialog(peerInfo);
+                    recordSessionButton.setEnabled(false);
+                    endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
+
+                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Sending message to peer to start remote recording
                     PeerMessage peerMsg = PeerMessage.builder()
@@ -214,7 +208,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     // Starting local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
 
-                    recordSessionButton.setImageResource(R.drawable.stop_recording);
                     isRecording = true;
                 }
             }
@@ -225,6 +218,36 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
         }
+
+        // Buttons for ending/continuing session
+        endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
+
+        Button continueButton = (Button) findViewById(R.id.button_continue_session);
+        continueButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
+
+                endSessionLayout.setVisibility(View.INVISIBLE);
+
+                new ReceiveVideoFromPeerTask(
+                        chameleonApplication.getVideoFile(),
+                        peerVideoFile,
+                        peerInfo.getIpAddress(),
+                        peerInfo.getPort())
+                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        });
+
+        Button retakeButton = (Button) findViewById(R.id.button_retake_video);
+        retakeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                endSessionLayout.setVisibility(View.INVISIBLE);
+
+                recordSessionButton.setEnabled(true);
+            }
+        });
     }
 
     private void addCameraPreviewSurface() {
@@ -282,33 +305,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.error("Failed to initialize SSL socket factory", e);
         }
         return sslSocketFactory;
-    }
-
-    private void showRetakeOrMergeVideoDialog(final PeerInfo peerInfo) {
-        final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
-
-        new AlertDialog.Builder(this)
-                .setPositiveButton("Merge videos",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-
-                                new ReceiveVideoFromPeerTask(
-                                        chameleonApplication.getVideoFile(),
-                                        peerVideoFile,
-                                        peerInfo.getIpAddress(),
-                                        peerInfo.getPort())
-                                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                            }
-                        }
-                )
-                .setNegativeButton("Retake videos",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                // do nothing.
-                            }
-                        }
-                )
-                .create().show();
     }
 
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
@@ -601,12 +597,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     public void run() {
                         if (imageView != null && bmpRef.get() != null) {
                             // TODO : Rotate image without using bitmap
-                            Bitmap scaledBitmap = Bitmap.createScaledBitmap(
-                                    bmpRef.get(), bmpRef.get().getWidth(), bmpRef.get().getHeight(), true);
                             Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                    scaledBitmap , 0, 0, scaledBitmap.getWidth(),
-                                    scaledBitmap.getHeight(), matrix, true);
+                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
+                                    bmpRef.get().getHeight(), matrix, true);
                             imageView.setImageBitmap(rotatedBitmap);
+                            imageView.setVisibility(View.VISIBLE);
                         }
                     }
                 });

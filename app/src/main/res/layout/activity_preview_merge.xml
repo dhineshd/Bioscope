@@ -11,94 +11,57 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="match_parent">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        <TextureView
+            android:id="@+id/textureview_major_video"
+            android:layout_width="640dp"
+            android:layout_height="360dp"
+            android:layout_gravity="center"
+            android:rotation="90"/>
 
-            <VideoView
-                android:id="@+id/videoView_local_video"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_alignParentRight="true"
-                android:layout_alignParentLeft="true"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentBottom="true" />
+        <TextureView
+            android:id="@+id/textureview_minor_video"
+            android:layout_width="186dp"
+            android:layout_height="109dp"
+            android:layout_marginLeft="18dp"
+            android:layout_marginBottom="48dp"
+            android:layout_gravity="bottom"
+            android:translationX="-37dp"
+            android:translationY="-39dp"
+            android:rotation="90"/>
 
-        </RelativeLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:weightSum="3">
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <LinearLayout
-                android:layout_width="0px"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:weightSum="3">
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <VideoView
-                    android:id="@+id/videoView_remote_video"
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-    </FrameLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
-        android:orientation="vertical">
-
-        <Button
-            android:id="@+id/button_play_merge_preview"
-            android:text="Play"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+        <ImageView
+            android:layout_width="112dp"
+            android:layout_height="189dp"
+            android:layout_marginLeft="18dp"
+            android:layout_marginBottom="48dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/border_image"
+            android:visibility="visible" />
 
         <Button
             android:id="@+id/button_merge"
-            android:text="Merge"
+            android:background="@drawable/medium_size_button"
+            android:stateListAnimator="@anim/lift_up"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center"
+            android:layout_marginBottom="36dp"
+            android:text="Save"
+            android:textSize="20sp"
+            android:textColor="@android:color/white" />
 
-        <Button
+        <ImageButton
             android:id="@+id/button_swap_merge_preview"
-            android:text="Swap"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:src="@drawable/swap_videos"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_margin="36dp"
+            android:scaleType="fitCenter"
+            android:layout_gravity="bottom|right"
+            android:background="@null" />
 
-    </LinearLayout>
-
+    </FrameLayout>
 
 </RelativeLayout>

@@ -19,15 +19,28 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <ImageView
-            android:id="@+id/imageView_stream_remote"
-            android:layout_width="135dp"
-            android:layout_height="240dp"
-            android:background="@drawable/border_image"
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="bottom|left"
-            android:layout_marginBottom="10dp"
-            android:layout_marginLeft="10dp"
-            android:adjustViewBounds="true" />
+            android:layout_marginBottom="48dp"
+            android:layout_marginLeft="18dp">
+
+            <ImageView
+                android:id="@+id/imageView_stream_remote"
+                android:layout_width="109dp"
+                android:layout_height="186dp"
+                android:layout_gravity="center"
+                android:visibility="invisible"/>
+
+            <ImageView
+                android:layout_width="110dp"
+                android:layout_height="187dp"
+                android:layout_gravity="center"
+                android:background="@drawable/border_image"
+                android:visibility="visible" />
+
+        </FrameLayout>
 
        <ProgressBar
             android:id="@+id/progressBar_file_transfer"
@@ -50,17 +63,19 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_centerHorizontal="true"
-                android:padding="5dp"
+                android:padding="12dp"
                 android:background="@null"
-                android:textAppearance="?android:attr/textAppearanceMedium"
                 android:textColor="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/button_record_session"
-                android:src="@drawable/start_recording"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:src="@drawable/start_recording_button_enabled"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:scaleType="fitCenter"
                 android:layout_below="@+id/textview_recording_timer"
+                android:background="@null"
+                android:layout_marginBottom="36dp"
                 android:enabled="false" />
 
         </RelativeLayout>
@@ -77,6 +92,39 @@
                 android:textColor="@android:color/white"
                 android:gravity="center"
                 android:layout_centerInParent="true"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/relativeLayout_end_session"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/button_continue_session"
+                android:background="@drawable/large_size_button"
+                android:stateListAnimator="@anim/lift_up"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="248dp"
+                android:text="Continue"
+                android:textSize="20sp"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/button_retake_video"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/button_continue_session"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="42dp"
+                android:background="@null"
+                android:text="Retake"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"/>
 
         </RelativeLayout>
 
