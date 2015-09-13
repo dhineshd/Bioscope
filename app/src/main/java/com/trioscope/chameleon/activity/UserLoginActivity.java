@@ -43,36 +43,14 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
             }
         });
 
-        if(!EMPTY_STRING.equals(getUserName())) {
-            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
-            finish();// close this activity; so we can never navigate back here
-        }
+//        if(!EMPTY_STRING.equals(getUserName())) {
+//            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
+//            finish();// close this activity; so we can never navigate back here
+//        }
     }
 
      private String getUserName() {
          SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(UserLoginActivity.this);
          return settings.getString(getString(R.string.pref_user_name_key), EMPTY_STRING);
      }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_user_login, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 }
