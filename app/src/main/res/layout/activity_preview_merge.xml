@@ -20,16 +20,25 @@
             android:layout_gravity="center"
             android:rotation="90"/>
 
-
         <TextureView
             android:id="@+id/textureview_minor_video"
             android:layout_width="186dp"
             android:layout_height="109dp"
-            android:layout_margin="18dp"
+            android:layout_marginLeft="18dp"
+            android:layout_marginBottom="48dp"
             android:layout_gravity="bottom"
-            android:translationX="-40dp"
-            android:translationY="-60dp"
+            android:translationX="-37dp"
+            android:translationY="-39dp"
             android:rotation="90"/>
+
+        <ImageView
+            android:layout_width="112dp"
+            android:layout_height="189dp"
+            android:layout_marginLeft="18dp"
+            android:layout_marginBottom="48dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/border_image"
+            android:visibility="visible" />
 
         <Button
             android:id="@+id/button_merge"
@@ -39,8 +48,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center"
             android:layout_marginBottom="36dp"
-            android:text="SAVE"
-            android:textSize="12sp"
+            android:text="Save"
+            android:textSize="20sp"
             android:textColor="@android:color/white" />
 
         <ImageButton
@@ -49,7 +58,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_margin="36dp"
-            android:scaleType="fitXY"
+            android:scaleType="fitCenter"
             android:layout_gravity="bottom|right"
             android:background="@null" />
 

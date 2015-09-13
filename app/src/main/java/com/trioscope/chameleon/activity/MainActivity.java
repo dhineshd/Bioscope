@@ -83,6 +83,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     private void showLibraryActivity(){
         Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+        i.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(i);
         overridePendingTransition(R.anim.abc_slide_in_bottom, R.anim.abc_slide_out_top);
     }

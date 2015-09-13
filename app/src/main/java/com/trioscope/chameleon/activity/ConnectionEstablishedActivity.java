@@ -177,6 +177,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getApplicationContext());
 
                 if (isRecording) {
+                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
+
                     // Sending message to peer to stop recording
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.STOP_RECORDING)
@@ -186,7 +188,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                     // Stopping local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
-                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
@@ -194,6 +195,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
+
+                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Sending message to peer to start remote recording
                     PeerMessage peerMsg = PeerMessage.builder()
@@ -205,7 +208,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     // Starting local video recording
                     manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
 
-                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
                     isRecording = true;
                 }
             }
@@ -595,12 +597,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     public void run() {
                         if (imageView != null && bmpRef.get() != null) {
                             // TODO : Rotate image without using bitmap
-                            Bitmap scaledBitmap = Bitmap.createScaledBitmap(
-                                    bmpRef.get(), bmpRef.get().getWidth(), bmpRef.get().getHeight(), true);
                             Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                    scaledBitmap , 0, 0, scaledBitmap.getWidth(),
-                                    scaledBitmap.getHeight(), matrix, true);
+                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
+                                    bmpRef.get().getHeight(), matrix, true);
                             imageView.setImageBitmap(rotatedBitmap);
+                            imageView.setVisibility(View.VISIBLE);
                         }
                     }
                 });

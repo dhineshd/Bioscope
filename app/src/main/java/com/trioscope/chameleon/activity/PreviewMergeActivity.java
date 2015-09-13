@@ -89,6 +89,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
 
                 minorVideoMediaPlayer.setSurface(new Surface(surface));
+                minorVideoMediaPlayer.setVolume(0, 0);
                 minorVideoSurfaceReady = true;
 
                 if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
