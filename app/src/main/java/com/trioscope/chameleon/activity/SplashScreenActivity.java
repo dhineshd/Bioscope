@@ -12,7 +12,7 @@ import com.trioscope.chameleon.R;
 public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageActivity {
 
     /** Duration of wait **/
-    private final int SPLASH_DISPLAY_LENGTH = 3000;
+    private final int SPLASH_DISPLAY_LENGTH = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
