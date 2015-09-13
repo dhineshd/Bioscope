@@ -27,7 +27,7 @@
 
         <Button
             android:id="@+id/button_main_start_session"
-            android:background="@drawable/round_button"
+            android:background="@drawable/large_size_button"
             android:stateListAnimator="@anim/lift_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -36,8 +36,7 @@
             android:layout_marginTop="248dp"
             android:text="DIRECT\nVIDEO"
             android:textSize="28sp"
-            android:textColor="#ffffff"
-            />
+            android:textColor="@android:color/white" />
 
         <ImageButton
             android:id="@+id/button_main_library"

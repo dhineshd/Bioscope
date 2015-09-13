@@ -16,7 +16,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
@@ -129,23 +128,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.info("Start recording event received!!");
+                    log.debug("Start recording event received!!");
                     // Start recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
                     log.debug("Video recording started");
-                    Toast startRecordingToast = Toast.makeText(getApplicationContext(), "Recording started..", Toast.LENGTH_LONG);
-                    startRecordingToast.setGravity(Gravity.TOP, 0, 0);
-                    startRecordingToast.show();
                     recordingStartTime = System.currentTimeMillis();
                     timerHandler.postDelayed(timerRunnable, 500);
                 } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.info("Stop recording event received!!");
+                    log.debug("Stop recording event received!!");
                     // Stop recording using MediaCodec method
                     chameleonApplication.getRecordingFrameListener().onStopRecording();
                     log.debug("Video recording stopped");
-                    Toast stopRecordingToast = Toast.makeText(getApplicationContext(), "Recording stopped..", Toast.LENGTH_LONG);
-                    stopRecordingToast.setGravity(Gravity.TOP, 0, 0);
-                    stopRecordingToast.show();
                     timerHandler.removeCallbacks(timerRunnable);
                     recordingTimerTextView.setVisibility(View.INVISIBLE);
                 }

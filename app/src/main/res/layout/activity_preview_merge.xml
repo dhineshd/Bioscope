@@ -31,26 +31,27 @@
             android:translationY="-60dp"
             android:rotation="90"/>
 
-        <LinearLayout
+        <Button
+            android:id="@+id/button_merge"
+            android:background="@drawable/medium_size_button"
+            android:stateListAnimator="@anim/lift_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_gravity="bottom|center">
+            android:layout_gravity="bottom|center"
+            android:layout_marginBottom="36dp"
+            android:text="SAVE"
+            android:textSize="12sp"
+            android:textColor="@android:color/white" />
 
-            <ImageButton
-                android:id="@+id/button_swap_merge_preview"
-                android:src="@drawable/swap_videos"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@null" />
-
-            <Button
-                android:id="@+id/button_merge"
-                android:text="Save"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/button_swap_merge_preview"
+            android:src="@drawable/swap_videos"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_margin="36dp"
+            android:scaleType="fitXY"
+            android:layout_gravity="bottom|right"
+            android:background="@null" />
 
     </FrameLayout>
 
