@@ -6,6 +6,8 @@ import android.media.Image;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,7 +27,30 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
 
         final EditText editUserNameText = (EditText) findViewById(R.id.editUserNameText);
 
-        final ImageButton continueButton = (ImageButton) findViewById(R.id.enterNameButton);
+        final Button continueButton = (Button) findViewById(R.id.enterNameButton);
+
+        editUserNameText.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // purposely left unimplemented
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // purposely left unimplemented
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+                if(s.length() > 0) {
+                    continueButton.setVisibility(View.VISIBLE);
+                } else {
+                    continueButton.setVisibility(View.INVISIBLE);
+                }
+            }
+        });
 
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override

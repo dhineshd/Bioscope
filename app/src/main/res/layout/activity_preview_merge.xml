@@ -43,7 +43,7 @@
         <Button
             android:id="@+id/button_merge"
             android:background="@drawable/medium_size_button"
-            android:stateListAnimator="@anim/lift_up"
+            android:stateListAnimator="@anim/main_round_button_lift_up"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center"
