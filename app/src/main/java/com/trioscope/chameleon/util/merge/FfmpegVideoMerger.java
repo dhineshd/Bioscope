@@ -10,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -101,6 +102,37 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add(outputPath);
 
         return params;
+    }
+
+    public void printLicenseInfo() {
+        log.info("Printing license infro for FFmpeg");
+        prepare();
+
+        File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
+        String cmdLocation = ffmpeg.getAbsolutePath();
+
+        List<String> cmdParams = new ArrayList<>();
+        cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
+        cmdParams.add("-L");
+        log.info("Ffmpeg parameters are {}", cmdParams);
+        ProcessBuilder builder = new ProcessBuilder(cmdParams);
+        builder.redirectErrorStream(true);
+        Process p = null;
+        try {
+            p = builder.start();
+
+            String line;
+            BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            while ((line = in.readLine()) != null) {
+                line = line.trim();
+                log.info("Output: {}", line);
+            }
+            in.close();
+
+            log.info("Done running cmd, exitValue={}", p.waitFor());
+        } catch (IOException | InterruptedException e) {
+            log.error("Error printing license info", e);
+        }
     }
 
     private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {
