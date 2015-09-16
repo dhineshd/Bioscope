@@ -27,7 +27,7 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
 
         final EditText editUserNameText = (EditText) findViewById(R.id.editUserNameText);
 
-        final Button continueButton = (Button) findViewById(R.id.enterNameButton);
+        final ImageButton continueButton = (ImageButton) findViewById(R.id.enterNameButton);
 
         editUserNameText.addTextChangedListener(new TextWatcher() {
 
@@ -68,10 +68,10 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
             }
         });
 
-//        if(!EMPTY_STRING.equals(getUserName())) {
-//            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
-//            finish();// close this activity; so we can never navigate back here
-//        }
+        if(!EMPTY_STRING.equals(getUserName())) {
+            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
+            finish();// close this activity; so we can never navigate back here
+        }
     }
 
      private String getUserName() {

@@ -27,16 +27,17 @@
         android:fontFamily="sans-serif-condensed"
         />
 
-    <Button
-        android:layout_width="42dp"
-        android:layout_height="42dp"
-        android:layout_marginTop="3dp"
-        android:layout_marginRight="3dp"
+    <ImageButton
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginRight="18dp"
+        android:padding="12dp"
         android:id="@+id/enterNameButton"
         android:layout_alignRight="@+id/editUserNameText"
         android:layout_alignTop="@+id/editUserNameText"
-        android:background="@drawable/small_size_button"
-        android:stateListAnimator="@anim/main_round_button_lift_up"
+        android:src="@drawable/next_icon"
+        android:background="@null"
         android:visibility="invisible"
     />
 
