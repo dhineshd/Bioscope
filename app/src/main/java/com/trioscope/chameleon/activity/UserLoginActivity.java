@@ -27,7 +27,7 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
 
         final EditText editUserNameText = (EditText) findViewById(R.id.editUserNameText);
 
-        final Button continueButton = (Button) findViewById(R.id.enterNameButton);
+        final ImageButton continueButton = (ImageButton) findViewById(R.id.enterNameButton);
 
         editUserNameText.addTextChangedListener(new TextWatcher() {
 
