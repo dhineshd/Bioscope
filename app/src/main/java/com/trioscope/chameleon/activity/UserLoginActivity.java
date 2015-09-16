@@ -68,10 +68,10 @@ public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActi
             }
         });
 
-//        if(!EMPTY_STRING.equals(getUserName())) {
-//            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
-//            finish();// close this activity; so we can never navigate back here
-//        }
+        if(!EMPTY_STRING.equals(getUserName())) {
+            startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
+            finish();// close this activity; so we can never navigate back here
+        }
     }
 
      private String getUserName() {
