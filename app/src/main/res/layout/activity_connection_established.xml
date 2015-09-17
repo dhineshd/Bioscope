@@ -11,64 +11,36 @@
     tools:context="com.trioscope.chameleon.activity.ConnectionEstablishedActivity">
 
     <FrameLayout
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
         <RelativeLayout
             android:id="@+id/relativeLayout_session_preview"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent" />
-
-        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:weightSum="3">
+            android:layout_height="match_parent" />
 
-            <LinearLayout
-                android:layout_width="0px"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:weightSum="3">
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|left"
+            android:layout_marginBottom="48dp"
+            android:layout_marginLeft="18dp">
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+            <ImageView
+                android:id="@+id/imageView_stream_remote"
+                android:layout_width="109dp"
+                android:layout_height="186dp"
+                android:layout_gravity="center"
+                android:visibility="invisible"/>
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+            <ImageView
+                android:layout_width="110dp"
+                android:layout_height="187dp"
+                android:layout_gravity="center"
+                android:background="@drawable/border_image"
+                android:visibility="visible" />
 
-                <TextView
-                    android:id="@+id/peer_user_name"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:layout_weight="0" />
-
-                <ImageView
-                    android:id="@+id/imageView_stream_remote"
-                    android:layout_width="match_parent"
-                    android:layout_height="0px"
-                    android:layout_weight="1"
-                    android:adjustViewBounds="true" />
-
-            </LinearLayout>
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-        </LinearLayout>
+        </FrameLayout>
 
        <ProgressBar
             android:id="@+id/progressBar_file_transfer"
@@ -79,13 +51,82 @@
             android:max="100"
             style="@android:style/Widget.ProgressBar.Horizontal"/>
 
-        <Button
-            android:id="@+id/button_record_session"
-            android:text="Record"
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center"
-            android:visibility="invisible"/>
+            android:layout_gravity="bottom|center">
+
+            <TextView
+                android:id="@+id/textview_recording_timer"
+                android:visibility="invisible"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_centerHorizontal="true"
+                android:padding="12dp"
+                android:background="@null"
+                android:textColor="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/button_record_session"
+                android:src="@drawable/start_recording_button_enabled"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:scaleType="fitCenter"
+                android:layout_below="@+id/textview_recording_timer"
+                android:background="@null"
+                android:layout_marginBottom="36dp"
+                android:enabled="false" />
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:background="#CC808080">
+
+            <TextView
+                android:id="@+id/textview_peer_user_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:gravity="center"
+                android:layout_centerInParent="true"/>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/relativeLayout_end_session"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/button_continue_session"
+                android:background="@drawable/large_size_button"
+                android:stateListAnimator="@anim/main_round_button_lift_up"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentTop="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="248dp"
+                android:text="Continue"
+                android:textSize="20sp"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/button_retake_video"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/button_continue_session"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="42dp"
+                android:background="@null"
+                android:text="Retake"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"/>
+
+        </RelativeLayout>
 
     </FrameLayout>
 

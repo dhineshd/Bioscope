@@ -82,6 +82,7 @@ dependencies {
 
     // To resolve dependency, ensure Google Play Services are installed as an extra through the Android SDK manager
     compile 'com.google.android.gms:play-services-analytics:7.5.0'
+
 }
 
 android.applicationVariants.all { variant ->

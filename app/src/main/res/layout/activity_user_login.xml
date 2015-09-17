@@ -4,26 +4,41 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     android:paddingBottom="@dimen/activity_vertical_margin"
+    android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.activity.UserLoginActivity">
 
 
+    <!-- android:textColorHint="#80ffffff"  80ffffff (80 represent 50% opacity) -->
     <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="300dp"
+        android:layout_height="48dp"
         android:inputType="textPersonName"
-        android:hint="Name"
-        android:ems="10"
+        android:layout_marginTop="198dp"
+        android:hint="Username"
         android:id="@+id/editUserNameText"
-        android:layout_above="@+id/enterNameButton"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="43dp" />
+        android:layout_marginBottom="43dp"
+        android:background="@drawable/username_edit_text_border_shape"
+        android:drawableLeft="@drawable/user_icon"
+        android:drawablePadding="12dp"
+        android:paddingRight="48dp"
+        android:textColor="#ffffff"
+        android:textColorHint="#80ffffff"
+        android:fontFamily="sans-serif-condensed"
+        />
 
     <ImageButton
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginRight="18dp"
+        android:padding="12dp"
         android:id="@+id/enterNameButton"
-        android:layout_centerVertical="true"
-        android:layout_alignEnd="@+id/editUserNameText" />
-
+        android:layout_alignRight="@+id/editUserNameText"
+        android:layout_alignTop="@+id/editUserNameText"
+        android:src="@drawable/next_icon"
+        android:background="@null"
+        android:visibility="invisible"
+    />
 
 </RelativeLayout>
