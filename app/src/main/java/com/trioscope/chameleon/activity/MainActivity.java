@@ -82,7 +82,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         FfmpegVideoMerger merger = new FfmpegVideoMerger();
         merger.setContext(this);
-        merger.printLicenseInfo();
+        merger.printAvailableCodecs();
 
     }
 

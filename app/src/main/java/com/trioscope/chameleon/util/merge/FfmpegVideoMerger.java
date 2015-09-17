@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,6 +31,7 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String PACKAGED_FFMPEG_ARM = "ffmpeg/armeabi-v7a/bin/ffmpeg";
     private static final String PACKAGED_FFMPEG_ARM_WITH_NEON = "ffmpeg/armeabi-v7a-neon/bin/ffmpeg";
     private static final String PACKAGED_FFMPEG_X86 = "ffmpeg/x86/bin/ffmpeg";
+    private static final String PACKAGED_LIBOPENH = "ffmpeg/libopenh264.so";
     private static final String DEPACKAGED_CMD_NAME = "ffmpeg";
 
 
@@ -64,6 +66,8 @@ public class FfmpegVideoMerger implements VideoMerger {
         } else {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
+
+        depackageUtil.depackageAsset(PACKAGED_LIBOPENH, "libopenh264.so");
 
         prepared = true;
     }
@@ -104,22 +108,38 @@ public class FfmpegVideoMerger implements VideoMerger {
         return params;
     }
 
-    public void printLicenseInfo() {
-        log.info("Printing license infro for FFmpeg");
+    public void printAvailableCodecs() {
+        log.info("Printing available codecs for FFmpeg");
         prepare();
 
-        File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
-        String cmdLocation = ffmpeg.getAbsolutePath();
+        List<String> cmdParams = new ArrayList<>();
+        cmdParams.add("-codecs");
+        runFFmpegCommandAndPrint(cmdParams);
+    }
+
+    public void printLicenseInfo() {
+        log.info("Printing license info for FFmpeg");
+        prepare();
 
         List<String> cmdParams = new ArrayList<>();
-        cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
         cmdParams.add("-L");
+        runFFmpegCommandAndPrint(cmdParams);
+    }
+
+    private void runFFmpegCommandAndPrint(List<String> cmdParams) {
+        File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
+        String ldLibraryPath = depackageUtil.getOutputDirectory().getAbsolutePath();
+        log.info("ldLibraryPath is {}", ldLibraryPath);
+
+        String cmdLocation = ffmpeg.getAbsolutePath();
+        cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
         log.info("Ffmpeg parameters are {}", cmdParams);
         ProcessBuilder builder = new ProcessBuilder(cmdParams);
         builder.redirectErrorStream(true);
-        Process p = null;
+        Map<String, String> env = builder.environment();
+        env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
         try {
-            p = builder.start();
+            Process p = builder.start();
 
             String line;
             BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -187,6 +207,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                             double sec = getSecondsFromTimeFormat(m);
                             log.debug("Found a status update of {}s", sec);
                             publishProgress(sec, maxInputTime);
+                        } else {
+                            log.info("Non-status line: {}", line);
                         }
                     }
 
@@ -246,6 +268,14 @@ public class FfmpegVideoMerger implements VideoMerger {
         protected void onCancelled() {
             log.info("Task unexpectedly cancelled!");
         }
+
+        @Override
+        protected void onCancelled(Boolean aBoolean) {
+            super.onCancelled(aBoolean);
+            onCancelled();
+        }
+
+
     }
 
     @Data
