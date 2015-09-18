@@ -1,17 +1,29 @@
 package com.trioscope.chameleon.util;
 
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
+import android.net.Uri;
 
+import com.trioscope.chameleon.types.ThreadWithHandler;
+
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Util to depackage assets from APK to storage directory
@@ -19,10 +31,98 @@ import lombok.RequiredArgsConstructor;
  * Created by phand on 7/1/15.
  */
 @RequiredArgsConstructor
+@Slf4j
 public class DepackageUtil {
     private static final Logger LOG = LoggerFactory.getLogger(DepackageUtil.class);
     private static final String DPKG_DIR_NAME = "dpkg";
     private final Context context;
+
+    // TODO: Make this threadsafe so we can download multiple assets at once
+    private long downloadId;
+    private DownloadManager manager;
+
+    public boolean downloadAsset(String assetUrl, String outputName) {
+        log.info("Using download manager to download {}", assetUrl);
+
+        registerBroadcastReceiver();
+
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(assetUrl));
+        request.setDescription("Downloading OpenH264 for H.264 encoding");
+        request.setTitle("Downloading encoding library");
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setDestinationInExternalFilesDir(context, null, outputName);
+
+        // get download service and enqueue file
+        log.info("Retrieving download manager and enqueueing request to download to {}", context.getExternalFilesDir(null));
+        manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
+        downloadId = manager.enqueue(request);
+
+        // TODO: Take this off UI thread
+        try {
+            synchronized (this) {
+                this.wait();
+            }
+        } catch (InterruptedException e) {
+            log.error("Error waiting for download");
+        }
+
+        if (outputName.endsWith(".bz2")) {
+            String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+            String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
+            log.info("Unzipping bz2 file {} to {}", fileName, unzippedFileName);
+            try {
+                FileInputStream fin = new FileInputStream(fileName);
+                BufferedInputStream in = new BufferedInputStream(fin);
+                FileOutputStream out = new FileOutputStream(unzippedFileName);
+                BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(in);
+                final byte[] buffer = new byte[1024];
+                int n = 0;
+                while (-1 != (n = bzIn.read(buffer))) {
+                    out.write(buffer, 0, n);
+                }
+                log.info("Finished unzipping, closing streams");
+                out.close();
+                bzIn.close();
+            } catch (IOException e) {
+                log.error("Unable to unzip file due to error", e);
+            }
+        }
+
+        log.info("Listing depackage directory: ");
+        File dir = new File("/data/data/com.trioscope.chameleon/app_dpkg/");
+        for (File f : dir.listFiles()) {
+            log.info("File: {}", f);
+        }
+
+        return true;
+    }
+
+    private void registerBroadcastReceiver() {
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                log.info("Received ACTION_DOWNLOAD_COMPLETE intent: {}", intent);
+                String action = intent.getAction();
+                if (DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(action)) {
+                    log.info("Intent was a completed download");
+                    DownloadManager.Query query = new DownloadManager.Query();
+                    query.setFilterById(downloadId);
+                    Cursor c = manager.query(query);
+                    if (c.moveToFirst()) {
+                        int columnIndex = c.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                        if (DownloadManager.STATUS_SUCCESSFUL == c.getInt(columnIndex)) {
+                            log.info("Download completed successfully");
+                            synchronized (DepackageUtil.this) {
+                                DepackageUtil.this.notifyAll();
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        context.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), null, new ThreadWithHandler().getHandler());
+    }
 
     public boolean depackageAsset(String assetName, String outputName) {
         // TODO: Perform this as an async task

@@ -58,6 +58,7 @@ dependencies {
     compile 'commons-io:commons-io:2.4'
     ajc "org.aspectj:aspectjtools:${aspectjVersion}"
     compile "org.aspectj:aspectjrt:${aspectjVersion}"
+    compile "org.apache.commons:commons-compress:1.10"
 
     // Supports Android 4.0.3 and later (API level 15)
     compile 'com.journeyapps:zxing-android-embedded:2.0.1@aar'

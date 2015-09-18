@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,7 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String PACKAGED_FFMPEG_ARM_WITH_NEON = "ffmpeg/armeabi-v7a-neon/bin/ffmpeg";
     private static final String PACKAGED_FFMPEG_X86 = "ffmpeg/x86/bin/ffmpeg";
     private static final String DEPACKAGED_CMD_NAME = "ffmpeg";
+    private static final String URL_LIBOPENH = "http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2";
 
 
     private static final Pattern INPUT_DURATION_PATTERN = Pattern.compile("Duration: (\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
@@ -65,6 +67,8 @@ public class FfmpegVideoMerger implements VideoMerger {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
 
+        depackageUtil.downloadAsset(URL_LIBOPENH, "libopenh264.so.bz2");
+
         prepared = true;
     }
 
@@ -93,8 +97,8 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add(minorVidPath);
         params.add("-filter_complex");
         params.add("[0] transpose=1,scale=iw:-1 [0new]; [1] transpose=1,scale=iw:-1 [1new]; [1new]scale=iw/3:ih/3 [pip]; [0new][pip] overlay=0:main_h-overlay_h");
-        params.add("-preset");
-        params.add("ultrafast");
+       // params.add("-preset");
+       // params.add("ultrafast");
         params.add("-threads");
         params.add("auto");
         params.add("-strict");
@@ -104,22 +108,39 @@ public class FfmpegVideoMerger implements VideoMerger {
         return params;
     }
 
-    public void printLicenseInfo() {
-        log.info("Printing license infro for FFmpeg");
+    public void printAvailableCodecs() {
+        log.info("Printing available codecs for FFmpeg");
         prepare();
 
-        File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
-        String cmdLocation = ffmpeg.getAbsolutePath();
+        List<String> cmdParams = new ArrayList<>();
+        cmdParams.add("-codecs");
+        runFFmpegCommandAndPrint(cmdParams);
+    }
+
+    public void printLicenseInfo() {
+        log.info("Printing license info for FFmpeg");
+        prepare();
 
         List<String> cmdParams = new ArrayList<>();
-        cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
         cmdParams.add("-L");
+        runFFmpegCommandAndPrint(cmdParams);
+    }
+
+    private void runFFmpegCommandAndPrint(List<String> cmdParams) {
+        File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
+
+        String cmdLocation = ffmpeg.getAbsolutePath();
+        cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
         log.info("Ffmpeg parameters are {}", cmdParams);
         ProcessBuilder builder = new ProcessBuilder(cmdParams);
         builder.redirectErrorStream(true);
-        Process p = null;
+
+        // Append libopenh264.so to LD_LIBRARY_PATH
+        String ldLibraryPath = depackageUtil.getOutputDirectory().getAbsolutePath();
+        Map<String, String> env = builder.environment();
+        env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
         try {
-            p = builder.start();
+            Process p = builder.start();
 
             String line;
             BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -168,6 +189,12 @@ public class FfmpegVideoMerger implements VideoMerger {
                 log.info("Ffmpeg parameters are {}", cmdParams);
                 ProcessBuilder builder = new ProcessBuilder(cmdParams);
                 builder.redirectErrorStream(true);
+
+                // Append libopenh264.so to LD_LIBRARY_PATH
+                String ldLibraryPath = depackageUtil.getOutputDirectory().getAbsolutePath();
+                Map<String, String> env = builder.environment();
+                env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
+
                 Process p = builder.start();
 
                 String line;
@@ -187,6 +214,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                             double sec = getSecondsFromTimeFormat(m);
                             log.debug("Found a status update of {}s", sec);
                             publishProgress(sec, maxInputTime);
+                        } else {
+                            log.info("Non-status line: {}", line);
                         }
                     }
 
@@ -246,6 +275,14 @@ public class FfmpegVideoMerger implements VideoMerger {
         protected void onCancelled() {
             log.info("Task unexpectedly cancelled!");
         }
+
+        @Override
+        protected void onCancelled(Boolean aBoolean) {
+            super.onCancelled(aBoolean);
+            onCancelled();
+        }
+
+
     }
 
     @Data
