@@ -130,11 +130,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             @Override
             public void handleMessage(Message msg) {
 
-                if(msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
+                if (msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
 
                     SendVideoToPeerMetadata metadata = (SendVideoToPeerMetadata) msg.obj;
                     SendVideoToPeerTask task = new SendVideoToPeerTask(metadata.getClientSocket()
-                    , metadata.getVideoFile(), metadata.getRecordingStartTimeMillis());
+                            , metadata.getVideoFile(), metadata.getRecordingStartTimeMillis());
 
                     task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                 } else {
@@ -204,6 +204,14 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        final ImageView switchCamerasButton = (ImageView) findViewById(R.id.button_switch_cameras);
+        switchCamerasButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
 
         final ImageButton recordSessionButton = (ImageButton) findViewById(R.id.button_record_session);
         recordSessionButton.setOnClickListener(new View.OnClickListener() {
@@ -500,7 +508,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
                             long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
                                     localCurrentTimeMsBeforeSendingRequest) / 2;
-                             log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
+                            log.info("network communication latency = {} ms", networkCommunicationLatencyMs);
                             remoteClockAheadOfLocalClockMillis = response.getCurrentTimeMillis() -
                                     localCurrentTimeMsAfterReceivingResponse +
                                     networkCommunicationLatencyMs;
@@ -639,7 +647,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             .fileSizeBytes(fileSizeBytes)
                             .recordingStartTimeMillis(recordingStartTimeMillis)
                             .currentTimeMillis(System.currentTimeMillis()).build();
-                    log.error(""+response);
+                    log.error("" + response);
                     PeerMessage responseMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                             .contents(gson.toJson(response)).build();
@@ -723,7 +731,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 try {
                     log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
 
-                    if(!isIpReachable(peerIp)) {
+                    if (!isIpReachable(peerIp)) {
                         log.warn("Peer IP = {} not reachable. Unable to receive stream!", peerIp.getHostAddress());
                         continue;
                     }

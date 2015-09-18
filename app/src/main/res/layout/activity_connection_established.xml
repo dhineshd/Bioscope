@@ -93,6 +93,18 @@
                 android:gravity="center"
                 android:layout_centerInParent="true"/>
 
+            <ImageView
+                android:id="@+id/button_switch_cameras"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"
+                android:background="@drawable/swap_videos"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginRight="20dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"
+                />
         </RelativeLayout>
 
         <RelativeLayout
