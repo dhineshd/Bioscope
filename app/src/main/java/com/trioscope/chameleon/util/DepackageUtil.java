@@ -44,6 +44,16 @@ public class DepackageUtil {
     public boolean downloadAsset(String assetUrl, String outputName) {
         log.info("Using download manager to download {}", assetUrl);
 
+
+        if (outputName.endsWith(".bz2")) {
+            String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
+            File f = new File(unzippedFileName);
+            if (f.exists()) {
+                log.info("File {} already exists, not going to download", unzippedFileName);
+                return true;
+            }
+        }
+
         registerBroadcastReceiver();
 
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(assetUrl));
@@ -64,6 +74,7 @@ public class DepackageUtil {
             }
         } catch (InterruptedException e) {
             log.error("Error waiting for download");
+            return false;
         }
 
         if (outputName.endsWith(".bz2")) {
@@ -85,6 +96,7 @@ public class DepackageUtil {
                 bzIn.close();
             } catch (IOException e) {
                 log.error("Unable to unzip file due to error", e);
+                return false;
             }
         }
 
@@ -125,17 +137,21 @@ public class DepackageUtil {
     }
 
     public boolean depackageAsset(String assetName, String outputName) {
-        // TODO: Perform this as an async task
+        File outputDir = getOutputDirectory();
+        LOG.info("Acquired directory {} for depackaging", outputDir);
+
+        File outputFile = new File(outputDir.getPath() + File.separator + outputName);
+
+        if (outputFile.exists()) {
+            log.info("Output file {} already exists - not going to depackage again");
+            return true;
+        }
 
         // Open your local db as the input stream
         InputStream myInput = null;
         try {
             myInput = context.getAssets().open(assetName);
             // Path to the just created empty db
-            File outputDir = getOutputDirectory();
-            LOG.info("Acquired directory {} for depackaging", outputDir);
-
-            File outputFile = new File(outputDir.getPath() + File.separator + outputName);
             // Open the empty db as the output stream
             OutputStream myOutput = new FileOutputStream(outputFile);
             // transfer bytes from the inputfile to the outputfile
