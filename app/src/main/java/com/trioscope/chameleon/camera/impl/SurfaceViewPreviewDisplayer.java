@@ -131,4 +131,14 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
         cameraFrameBuffer.frameAvailable(cameraInfo, new CameraFrameData(data), null);
         camera.addCallbackBuffer(data);
     }
+
+    @Override
+    public void toggleFrontFacingCamera() {
+        throw new UnsupportedOperationException("This preview displayer does not support front facing camera" );
+    }
+
+    @Override
+    public boolean isUsingFrontFacingCamera() {
+        return false;
+    }
 }

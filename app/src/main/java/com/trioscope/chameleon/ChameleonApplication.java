@@ -43,6 +43,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.net.ssl.KeyManagerFactory;
@@ -241,6 +242,7 @@ public class ChameleonApplication extends Application {
                     public void onOpened(CameraDevice camera) {
                         log.info("Found camera device callback {}", camera);
 
+
                         previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
                         previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
 
@@ -248,6 +250,11 @@ public class ChameleonApplication extends Application {
                             log.info("Notifying chameleon waiters");
                             ChameleonApplication.this.notifyAll();
                         }
+                    }
+
+                    @Override
+                    public void onClosed(CameraDevice camera) {
+                        log.info("Camera {} is closed", camera);
                     }
 
                     @Override
@@ -521,8 +528,8 @@ public class ChameleonApplication extends Application {
                 if (wifiManager.isWifiEnabled()) {
 
                     //Publish time for wifi to be enabled
-                    metrics.sendTime(MetricNames.Category.WIFI.getName(),
-                            MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
+                    //metrics.sendTime(MetricNames.Category.WIFI.getName(),
+                     //       MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
 
                     // Done with checking Wifi state
                     unregisterReceiverSafely(this);

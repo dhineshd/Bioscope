@@ -38,8 +38,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        chameleonApplication.updateOrientation();
-
         setContentView(R.layout.activity_main);
 
         gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener() {
@@ -82,7 +80,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         //FfmpegVideoMerger merger = new FfmpegVideoMerger();
         //merger.setContext(this);
         //merger.printAvailableCodecs();
-
     }
 
     private void showLibraryActivity() {
@@ -127,11 +124,11 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         chameleonApplication.startConnectionServerIfNotRunning();
 
-        if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
-
-            DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(
-                    mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
-            newFragment.show(getFragmentManager(), "dialog");
+        if (doesDeviceSupportNFC()) {
+            if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
+                DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
+                newFragment.show(getFragmentManager(), "dialog");
+            }
         }
 
         // Check to see that the Activity started due to an Android Beam
@@ -176,8 +173,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.disableForegroundDispatch();
 
         super.onBackPressed();
-
-        ((ChameleonApplication) getApplication()).cleanupAndExit();
     }
 
 }
