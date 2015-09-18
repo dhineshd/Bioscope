@@ -23,12 +23,12 @@ public class ConnectionServer {
     private Thread serverThread;
     @NonNull
     private SSLServerSocket serverSocket;
+    private Gson gson = new Gson();
 
     public ConnectionServer(
             final int port,
             final ServerEventListener serverEventListener,
             final SSLServerSocketFactory sslServerSocketFactory) {
-
 
         serverThread = new Thread(new Runnable() {
             @Override
@@ -36,7 +36,6 @@ public class ConnectionServer {
                 try {
                     serverSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(port);
                     serverSocket.setEnabledProtocols(new String[]{"TLSv1.2"});
-                    Gson gson = new Gson();
                     while (!Thread.currentThread().isInterrupted()) {
                         log.info("ServerSocket Created, awaiting connection");
                         SSLSocket socket = (SSLSocket) serverSocket.accept();

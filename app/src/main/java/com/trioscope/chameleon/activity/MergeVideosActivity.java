@@ -9,6 +9,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.SurfaceHolder;
@@ -55,6 +56,7 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
     private SurfaceHolder majorVideoHolder, minorVideoHolder;
     private SurfaceView minorVideoSurfaceView;
     private boolean majorVideoMediaPlayerPrepared, minorVideoMediaPlayerPrepared;
+    private File outputFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,11 +94,12 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         // If the Fragment is non-null, then it is currently being
         // retained across a configuration change.
         if (taskFragment == null) {
+            outputFile = chameleonApplication.getOutputMediaFile("Merged.mp4");
             taskFragment = FfmpegTaskFragment.newInstance(
                     intent.getStringExtra(MAJOR_VIDEO_METADATA_KEY),
                     intent.getStringExtra(MINOR_VIDEO_METADATA_KEY),
                     majorVideoStartedBeforeMinorVideoOffsetMillis,
-                    chameleonApplication.getOutputMediaFile("Merged.mp4").getAbsolutePath());
+                    outputFile.getAbsolutePath());
             fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
         } else {
             log.info("Task fragment exists - reusing (device rotated)");
@@ -150,6 +153,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
         ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
         bar.setVisibility(View.GONE);
         log.info("FFMPEG Completed! Going to video library now!");
+
+        //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
+        Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        addVideoIntent.setData(Uri.fromFile(outputFile));
+        sendBroadcast(addVideoIntent);
 
         Intent i = new Intent(MergeVideosActivity.this, VideoLibraryActivity.class);
         startActivity(i);

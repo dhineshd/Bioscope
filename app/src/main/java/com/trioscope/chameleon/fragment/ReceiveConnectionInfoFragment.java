@@ -223,22 +223,28 @@ public class ReceiveConnectionInfoFragment extends Fragment {
 
             final WifiManager wifiManager =
                     (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            wifiManager.addNetwork(conf);
-            final int netId = wifiManager.addNetwork(conf);
-            log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
-            // Enable only our network and disable others
-            //wifiManager.disconnect();
-            wifiManager.enableNetwork(netId, true);
+            int maxAttemptsToAddNetwork = 3;
+            while (maxAttemptsToAddNetwork-- > 0) {
+                int netId = wifiManager.addNetwork(conf);
+                if (netId != -1) {
+                    log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
+                    // Enable only our network and disable others
+                    wifiManager.disconnect();
+                    wifiManager.enableNetwork(netId, true);
+                    break;
+                }
+                try { Thread.sleep(500); } catch (InterruptedException e) {}
+            }
         } else {
             log.info("Already connected to SSID = {}", networkSSID);
         }
     }
 
     @Override
-    public void onDestroy() {
+    public void onPause() {
+        super.onPause();
         chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
         connectToWifiNetworkBroadcastReceiver = null;
-        super.onDestroy();
     }
 
 }
