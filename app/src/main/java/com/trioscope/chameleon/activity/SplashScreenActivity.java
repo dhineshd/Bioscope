@@ -1,23 +1,39 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
-import android.os.Handler;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
 
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 
 public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageActivity {
 
-    /** Duration of wait **/
+    /**
+     * Duration of wait
+     **/
     private final int SPLASH_DISPLAY_LENGTH = 1000;
+    private final int SPLASH_DISPLAY_LENGTH_WITH_DOWNLOAD = 7000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash_screen);
+
+        int waitTimeMillis = SPLASH_DISPLAY_LENGTH;
+        FfmpegVideoMerger merger = new FfmpegVideoMerger(this);
+        if (!merger.hasRequiredComponents()) {
+            // We need to do an initial download of codecs
+            TextView text = (TextView) findViewById(R.id.splash_status_text);
+            text.setText("Downloading additional codecs for mp4 encoding...");
+            long elapsedTime = System.currentTimeMillis();
+            merger.prepare();
+            elapsedTime = System.currentTimeMillis() - elapsedTime;
+            waitTimeMillis = (int) Math.max(SPLASH_DISPLAY_LENGTH_WITH_DOWNLOAD - elapsedTime, 0);
+        }
 
          /* New Handler to start the Menu-Activity
          * and close this Splash-Screen after some seconds.*/
@@ -29,7 +45,7 @@ public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageA
                 SplashScreenActivity.this.startActivity(mainIntent);
                 SplashScreenActivity.this.finish();
             }
-        }, SPLASH_DISPLAY_LENGTH);
+        }, waitTimeMillis);
     }
 
     @Override

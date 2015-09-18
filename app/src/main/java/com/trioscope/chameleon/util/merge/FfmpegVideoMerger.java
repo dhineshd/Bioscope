@@ -32,6 +32,7 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String PACKAGED_FFMPEG_ARM_WITH_NEON = "ffmpeg/armeabi-v7a-neon/bin/ffmpeg";
     private static final String PACKAGED_FFMPEG_X86 = "ffmpeg/x86/bin/ffmpeg";
     private static final String DEPACKAGED_CMD_NAME = "ffmpeg";
+    private static final String DEPACKAGED_LIB_OPENH = "libopenh264.so.bz2";
     private static final String URL_LIBOPENH = "http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2";
 
 
@@ -45,6 +46,10 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     @Setter
     private ProgressUpdatable progressUpdatable;
+
+    public FfmpegVideoMerger(Context context) {
+        setContext(context);
+    }
 
     public void setContext(Context context) {
         this.context = context;
@@ -67,7 +72,7 @@ public class FfmpegVideoMerger implements VideoMerger {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
 
-        depackageUtil.downloadAsset(URL_LIBOPENH, "libopenh264.so.bz2");
+        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH);
 
         prepared = true;
     }
@@ -154,6 +159,10 @@ public class FfmpegVideoMerger implements VideoMerger {
         } catch (IOException | InterruptedException e) {
             log.error("Error printing license info", e);
         }
+    }
+
+    public boolean hasRequiredComponents() {
+        return depackageUtil.hasDownloaded(DEPACKAGED_LIB_OPENH);
     }
 
     private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {

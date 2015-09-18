@@ -196,4 +196,14 @@ public class DepackageUtil {
 
         return outputDir;
     }
+
+    public boolean hasDownloaded(String outputName) {
+        String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+
+        if (fileName.endsWith(".bz2")) {
+            fileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
+        }
+
+        return new File(fileName).exists();
+    }
 }
