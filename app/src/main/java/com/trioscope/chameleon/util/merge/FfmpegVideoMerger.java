@@ -102,8 +102,9 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add(minorVidPath);
         params.add("-filter_complex");
         params.add("[0] transpose=1,scale=iw:-1 [major]; [1] transpose=1,scale=iw*0.3:ih*0.3 [minor]; [major][minor] overlay=54:main_h-overlay_h-54,drawbox=54:1290:324:576:white:t=8");
-        params.add("-preset");
-        params.add("ultrafast");
+        //OpenH264 doesnt support preset
+        //params.add("-preset");
+        //params.add("ultrafast");
         params.add("-threads");
         params.add("auto");
         params.add("-strict");

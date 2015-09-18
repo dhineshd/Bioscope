@@ -21,7 +21,6 @@ import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.impl.UpdateRateListener;
-import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
@@ -43,7 +42,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.net.ssl.KeyManagerFactory;

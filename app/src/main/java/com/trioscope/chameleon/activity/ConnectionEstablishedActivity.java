@@ -209,7 +209,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                log.info("Toggling between cameras");
+                chameleonApplication.getPreviewDisplayer().toggleFrontFacingCamera();
             }
         });
 
