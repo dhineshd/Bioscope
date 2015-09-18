@@ -12,6 +12,8 @@ import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.view.Menu;
@@ -34,6 +36,7 @@ import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
+import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
 import com.trioscope.chameleon.types.SessionStatus;
 
 import java.io.BufferedInputStream;
@@ -62,6 +65,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -88,6 +92,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private Handler timerHandler;
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
+    private Handler sendVideoToPeerHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,9 +124,29 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             }
         };
 
-        sslSocketFactory = getInitializedSSLSocketFactory();
+        Handler sendVideoToPeerHandler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+
+                if(msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
+
+                    SendVideoToPeerMetadata metadata = (SendVideoToPeerMetadata) msg.obj;
+                    SendVideoToPeerTask task = new SendVideoToPeerTask(metadata.getClientSocket()
+                    , metadata.getVideoFile(), metadata.getRecordingStartTimeMillis());
+
+                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                } else {
+                    super.handleMessage(msg);
+                }
+
+            }
+        };
 
         chameleonApplication = (ChameleonApplication) getApplication();
+
+        chameleonApplication.getStreamListener().setSendVideoToPeerHandler(sendVideoToPeerHandler);
+
+        sslSocketFactory = getInitializedSSLSocketFactory();
 
         recordEventReceiver = new BroadcastReceiver() {
             @Override
@@ -529,10 +554,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @RequiredArgsConstructor
     class SendVideoToPeerTask extends AsyncTask<Void, Integer, Void> {
 
+        @NonNull
         private final Socket clientSocket;
-
+        @NonNull
         private final File fileToSend;
-
+        @NonNull
         private final Long recordingStartTimeMillis;
 
         @Override
@@ -549,33 +575,40 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             if (fileToSend != null && recordingStartTimeMillis != null) {
                 OutputStream outputStream = null;
                 InputStream inputStream = null;
-                long fileSizeBytes = fileToSend.length();
+                Long fileSizeBytes = fileToSend.length();
+
                 try {
                     PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
                     SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
-                            .fileSizeBytes(fileToSend.length())
+                            .fileSizeBytes(fileSizeBytes)
                             .recordingStartTimeMillis(recordingStartTimeMillis)
                             .currentTimeMillis(System.currentTimeMillis()).build();
+                    log.error(""+response);
                     PeerMessage responseMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                             .contents(gson.toJson(response)).build();
-                    log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+                    log.info("Sending file size msg = {}", gson.toJson(responseMsg));
                     pw.println(gson.toJson(responseMsg));
                     pw.close();
 
                     // Get recording time
                     MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
                     metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
-                    log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+                    log.info("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
                     clientSocket.setSendBufferSize(65536);
                     clientSocket.setReceiveBufferSize(65536);
                     outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
                     inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
                     byte[] buffer = new byte[65536];
                     int bytesRead = 0;
+                    int totalBytesSent = 0;
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        log.debug("Sending recorded file.. bytes = {}", bytesRead);
+                        log.info("Sending recorded file.. bytes = {}", bytesRead);
                         outputStream.write(buffer, 0, bytesRead);
+
+                        totalBytesSent += bytesRead;
+
+                        publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
                     }
                     log.debug("Successfully sent recorded file!");
                 } catch (IOException e) {
@@ -595,7 +628,20 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 }
             }
 
+            log.error("Returning null to director");
             return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            log.info("Updating progress bar.. {}", values[0]);
+            progressBar.setProgress(values[0]);
+            super.onProgressUpdate(values);
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            progressBar.setVisibility(View.INVISIBLE);
         }
     }
 

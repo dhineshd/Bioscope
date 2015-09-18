@@ -8,6 +8,10 @@ import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.media.MediaMetadataRetriever;
+import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
 
@@ -22,6 +26,7 @@ import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.util.ColorConversionUtil;
 
@@ -65,6 +70,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
     private long previousFrameSendTimeMs = 0;
     private byte[] finalFrameData = new byte[DEFAULT_STREAM_IMAGE_SIZE.getWidth() * DEFAULT_STREAM_IMAGE_SIZE.getHeight() * 3/2];
+
+    @Setter
+    private Handler sendVideoToPeerHandler;
 
     @Override
     //@Timed
@@ -284,52 +292,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         log.debug("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
         Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
-        if (videoFile != null && recordingStartTimeMillis != null) {
-            OutputStream outputStream = null;
-            InputStream inputStream = null;
-            try {
-                PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
-                SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
-                        .fileSizeBytes(videoFile.length())
-                        .recordingStartTimeMillis(recordingStartTimeMillis)
-                        .currentTimeMillis(System.currentTimeMillis()).build();
-                PeerMessage responseMsg = PeerMessage.builder()
-                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
-                        .contents(gson.toJson(response)).build();
-                log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
-                pw.println(gson.toJson(responseMsg));
-                pw.close();
 
-                // Get recording time
-                MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-                metadataRetriever.setDataSource(videoFile.getAbsolutePath());
-                log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-                clientSocket.setSendBufferSize(65536);
-                clientSocket.setReceiveBufferSize(65536);
-                outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-                inputStream = new BufferedInputStream(new FileInputStream(videoFile));
-                byte[] buffer = new byte[65536];
-                int bytesRead = 0;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    log.debug("Sending recorded file.. bytes = {}", bytesRead);
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-                log.debug("Successfully sent recorded file!");
-            } catch (IOException e) {
-                log.error("Failed to send recorded video file", e);
-            } finally {
-                try {
-                    if (outputStream != null) {
-                        outputStream.close();
-                    }
-                    if (inputStream != null) {
-                        inputStream.close();
-                    }
-                    clientSocket.close();
-                } catch (IOException e) {
-                    log.warn("Failed to close streams when sending recorded video", e);
-                }
-            }
-        }
+        SendVideoToPeerMetadata metadata = new SendVideoToPeerMetadata(clientSocket, videoFile, recordingStartTimeMillis);
+        Message msg = sendVideoToPeerHandler.obtainMessage(ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE, metadata);
+        sendVideoToPeerHandler.sendMessage(msg);
     }
 }
