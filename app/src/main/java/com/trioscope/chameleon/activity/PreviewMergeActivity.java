@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
-import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -148,40 +147,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         return true;
     }
 
-    /**
-     * Sets the TextureView transform to preserve the aspect ratio of the video.
-     */
-    private void adjustAspectRatio(TextureView textureView, int videoWidth, int videoHeight) {
-        int viewWidth = textureView.getWidth();
-        int viewHeight = textureView.getHeight();
-        double aspectRatio = (double) videoHeight / videoWidth;
-
-        log.info("view width = {}, height = {}", videoWidth, viewHeight);
-        log.info("video width = {}, height = {}", videoWidth, videoHeight);
-
-        int newWidth, newHeight;
-        if (viewHeight > (int) (viewWidth * aspectRatio)) {
-            // limited by narrow width; restrict height
-            newWidth = viewWidth;
-            newHeight = (int) (viewWidth * aspectRatio);
-        } else {
-            // limited by short height; restrict width
-            newWidth = (int) (viewHeight / aspectRatio);
-            newHeight = viewHeight;
-        }
-        int xoff = (viewWidth - newWidth) / 2;
-        int yoff = (viewHeight - newHeight) / 2;
-
-        log.info("x off = {}, y off = {}", xoff, yoff);
-        log.info("new width = {}, height = {}", newWidth, newHeight);
-
-        Matrix txform = new Matrix();
-        textureView.getTransform(txform);
-        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
-        txform.postTranslate(xoff, yoff);
-        textureView.setTransform(txform);
-    }
-
     private void startVideos(
             final String majorVideoPath,
             final String minorVideoPath,
@@ -214,6 +179,43 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        cleanup();
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        cleanup();
+    }
+
+    private void cleanup() {
+        // Release mediaplayers
+        if (majorVideoMediaPlayer != null) {
+            majorVideoMediaPlayer.setSurface(null);
+            majorVideoMediaPlayer.release();
+            majorVideoMediaPlayer = null;
+        }
+        if (minorVideoMediaPlayer != null) {
+            minorVideoMediaPlayer.setSurface(null);
+            minorVideoMediaPlayer.release();
+            minorVideoMediaPlayer = null;
+        }
+
+        // Release surfaces
+        if (majorVideoTextureView != null &&
+                majorVideoTextureView.getSurfaceTexture() != null) {
+            majorVideoTextureView.getSurfaceTexture().release();
+        }
+        if (minorVideoTextureView != null &&
+                minorVideoTextureView.getSurfaceTexture() != null) {
+            minorVideoTextureView.getSurfaceTexture().release();
+        }
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

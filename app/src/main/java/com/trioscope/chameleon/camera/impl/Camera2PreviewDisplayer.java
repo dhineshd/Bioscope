@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 2;
+    private static final int MAX_NUM_IMAGES = 1;
     private final Context context;
     private final CameraDevice cameraDevice;
     private final CameraManager cameraManager;
@@ -224,13 +224,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     @Override
     public void stopPreview() {
         log.info("Stopping camera2 preview");
-        if (captureSession != null) {
-            try {
-                captureSession.abortCaptures();
-                cameraDevice.close();
-            } catch (CameraAccessException e) {
-                log.error("Unable to abort captures", e);
-            }
+        if (cameraDevice != null) {
+            // Closing camera will abort capture session
+            cameraDevice.close();
         }
     }
 
@@ -262,7 +258,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             @Override
             public void surfaceDestroyed(SurfaceHolder holder) {
-
+                Camera2PreviewDisplayer.this.previewSurface = null;
             }
         });
 

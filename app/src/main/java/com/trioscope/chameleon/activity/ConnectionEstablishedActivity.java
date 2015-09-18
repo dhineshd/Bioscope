@@ -20,13 +20,13 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
@@ -78,7 +78,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     public static final String PEER_INFO = "PEER_INFO";
     private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
-    private StreamFromPeerTask connectToServerTask;
+    private StreamFromPeerTask streamFromPeerTask;
+    private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -98,6 +99,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection_established);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
 
@@ -183,18 +185,25 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         // Retrieve peer info to start streaming
         Intent intent = getIntent();
+        log.info("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
+
+        // Start camera frame listener for streaming
+        chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getStreamListener());
 
         // Start streaming the preview
         chameleonApplication.setSessionStatus(SessionStatus.CONNECTED);
         chameleonApplication.getStreamListener().setStreamingStarted(true);
 
+        // Start camera frame listener for recording
+        chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getRecordingFrameListener());
+
         log.info("PeerInfo = {}", peerInfo);
 
         peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
 
-        connectToServerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
-        connectToServerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
+        streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         final ImageButton recordSessionButton = (ImageButton) findViewById(R.id.button_record_session);
         recordSessionButton.setOnClickListener(new View.OnClickListener() {
@@ -257,12 +266,13 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
-                new ReceiveVideoFromPeerTask(
+                receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(
                         chameleonApplication.getVideoFile(),
                         peerVideoFile,
                         peerInfo.getIpAddress(),
-                        peerInfo.getPort())
-                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        peerInfo.getPort());
+
+                receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         });
 
@@ -295,12 +305,13 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
-        timerHandler.removeCallbacks(timerRunnable);
+        log.info("onPause invoked!");
+        cleanup();
     }
 
     @Override
     protected void onResume() {
-
+        super.onResume();
         // Register to listen for recording events
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
         IntentFilter filter = new IntentFilter();
@@ -308,7 +319,43 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         filter.addAction(ChameleonApplication.STOP_RECORDING_ACTION);
         log.info("Registering record event receiver");
         manager.registerReceiver(this.recordEventReceiver, filter);
-        super.onResume();
+    }
+
+
+    @Override
+    public void onBackPressed() {
+
+        cleanup();
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
+        super.onBackPressed();
+    }
+
+    private void cleanup() {
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
+        log.info("Unregistering record event receiver");
+        manager.unregisterReceiver(this.recordEventReceiver);
+
+        if (streamFromPeerTask != null) {
+            streamFromPeerTask.cancel(true);
+            streamFromPeerTask = null;
+        }
+        if (receiveVideoFromPeerTask != null) {
+            receiveVideoFromPeerTask.cancel(true);
+            receiveVideoFromPeerTask = null;
+        }
+        chameleonApplication.getStreamListener().setStreamingStarted(false);
+        timerHandler.removeCallbacks(timerRunnable);
+        chameleonApplication.stopPreview();
+
+        // Stop camera frame listener for recording
+        chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getRecordingFrameListener());
+
+        // Stop camera frame listener for streaming
+        chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getStreamListener());
     }
 
     private SSLSocketFactory getInitializedSSLSocketFactory() {
@@ -334,64 +381,54 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         return sslSocketFactory;
     }
 
+    @AllArgsConstructor
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
-        private Thread mThread;
-
-        public SendMessageToPeerTask(
-                final PeerMessage peerMsg,
-                final InetAddress peerIp,
-                final int port) {
-
-            mThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        // Wait till we can reach the remote host. May take time to refresh ARP cache
-                        waitUntilIPBecomesReachable(peerIp);
-
-                        SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-
-                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        PrintWriter pw = new PrintWriter(socket.getOutputStream());
-                        String serializedMsgToSend = gson.toJson(peerMsg);
-                        log.info("Sending msg = {}", serializedMsgToSend);
-                        long localCurrentTimeMsBeforeSendingRequest = System.currentTimeMillis();
-                        pw.println(serializedMsgToSend);
-                        pw.close();
-                        if (PeerMessage.Type.START_RECORDING.equals(peerMsg.getType())) {
-                            String recvMsg = bufferedReader.readLine();
-                            long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
-                            if (recvMsg != null) {
-                                PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
-                                StartRecordingResponse response =
-                                        gson.fromJson(message.getContents(), StartRecordingResponse.class);
-                                long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse - localCurrentTimeMsBeforeSendingRequest) / 2;
-                                clockDifferenceMs = response.getCurrentTimeMillis() -
-                                        localCurrentTimeMsAfterReceivingResponse +
-                                        networkLatencyMs;
-                                log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
-                                log.info("Remote current time = {}", response.getCurrentTimeMillis());
-                                log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
-                                log.info("Clock difference ms = {}", clockDifferenceMs);
-                            }
-                        }
-                    } catch (IOException e) {
-                        log.error("Failed to send message = " + peerMsg + " to peer", e);
-                    }
-                }
-            });
-        }
+        private PeerMessage peerMsg;
+        private InetAddress peerIp;
+        private int port;
 
         @Override
         protected Void doInBackground(Void... params) {
-            mThread.start();
+            try {
+                // Wait till we can reach the remote host. May take time to refresh ARP cache
+                if (!isIpReachable(peerIp)) {
+                    log.warn("Peer = {} not reachable. Unable to send message = {}", peerIp, peerMsg);
+                    return null;
+                }
+
+                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter pw = new PrintWriter(socket.getOutputStream());
+                String serializedMsgToSend = gson.toJson(peerMsg);
+                log.info("Sending msg = {}", serializedMsgToSend);
+                long localCurrentTimeMsBeforeSendingRequest = System.currentTimeMillis();
+                pw.println(serializedMsgToSend);
+                pw.close();
+                if (PeerMessage.Type.START_RECORDING.equals(peerMsg.getType())) {
+                    String recvMsg = bufferedReader.readLine();
+                    long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
+                    if (recvMsg != null) {
+                        PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
+                        StartRecordingResponse response =
+                                gson.fromJson(message.getContents(), StartRecordingResponse.class);
+                        long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse - localCurrentTimeMsBeforeSendingRequest) / 2;
+                        clockDifferenceMs = response.getCurrentTimeMillis() -
+                                localCurrentTimeMsAfterReceivingResponse +
+                                networkLatencyMs;
+                        log.info("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
+                        log.info("Remote current time = {}", response.getCurrentTimeMillis());
+                        log.info("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
+                        log.info("Clock difference ms = {}", clockDifferenceMs);
+                    }
+                }
+            } catch (IOException e) {
+                log.error("Failed to send message = " + peerMsg + " to peer", e);
+            }
             return null;
         }
 
-        public void tearDown() {
-            mThread.interrupt();
-        }
     }
 
     @RequiredArgsConstructor
@@ -422,7 +459,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             try {
 
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                waitUntilIPBecomesReachable(peerIp);
+                if (!isIpReachable(peerIp)) {
+                    log.warn("Peer = {} not reachable! Unable to receive video", peerIp.getHostAddress());
+                    return null;
+                }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
                 socket.setEnabledProtocols(new String[]{"TLSv1.2"});
@@ -477,7 +517,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 if (remoteVideoFile.createNewFile()) {
                     outputStream = new BufferedOutputStream(new FileOutputStream(remoteVideoFile));
 
-                    final byte[] buffer = new byte[65536];
+                    final byte[] buffer = new byte[ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES];
                     inputStream = new BufferedInputStream(socket.getInputStream());
                     int bytesRead = 0;
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
@@ -514,6 +554,22 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPostExecute(Void aVoid) {
+
+            // Stop receiving stream
+            if (streamFromPeerTask != null) {
+                streamFromPeerTask.cancel(true);
+                streamFromPeerTask = null;
+            }
+
+            // Stop sending stream
+            chameleonApplication.getStreamListener().terminateSession();
+
+            // Sending message to terminate session
+            PeerMessage terminateSessionMsg = PeerMessage.builder()
+                    .type(PeerMessage.Type.TERMINATE_SESSION).build();
+            new SendMessageToPeerTask(terminateSessionMsg, peerIp, port)
+                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
             progressBar.setVisibility(View.INVISIBLE);
 
             // Adjust recording start time for remote recording to account for
@@ -641,94 +697,84 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPostExecute(Void aVoid) {
+
+            // Stop receiving stream
+            if (streamFromPeerTask != null) {
+                streamFromPeerTask.cancel(true);
+                streamFromPeerTask = null;
+            }
+
+            // Stop sending stream
+            chameleonApplication.getStreamListener().terminateSession();
+
             progressBar.setVisibility(View.INVISIBLE);
         }
     }
 
+    @AllArgsConstructor
     class StreamFromPeerTask extends AsyncTask<Void, Void, Void> {
-        private Thread mThread;
-
-        public StreamFromPeerTask(final InetAddress hostIp, final int port) {
-            final Context context = getApplicationContext();
-            mThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    int attemptsLeft = 3;
-                    while (attemptsLeft-- > 0) {
-                        try {
-                            receiveStreamFromPeer(hostIp, port);
-                        } catch (Exception e) {
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    Toast.makeText(getApplicationContext(), "Failed to stream from peer", Toast.LENGTH_LONG);
-                                }
-                            });
-                            log.warn("Failed to stream from peer attemptsLeft = " + attemptsLeft, e);
-                        }
-                    }
-                }
-            });
-        }
+        private InetAddress peerIp;
+        private int port;
 
         @Override
         protected Void doInBackground(Void... params) {
-            mThread.start();
-            return null;
-        }
+            int attemptsLeft = 3;
+            while (attemptsLeft-- > 0) {
+                try {
+                    log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
 
-        public void tearDown() {
-            mThread.interrupt();
-        }
+                    if(!isIpReachable(peerIp)) {
+                        log.warn("Peer IP = {} not reachable. Unable to receive stream!", peerIp.getHostAddress());
+                        continue;
+                    }
 
-    }
+                    SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                    socket.setEnabledProtocols(new String[]{"TLSv1.2"});
 
-    private void receiveStreamFromPeer(final InetAddress remoteHostIp, final int port) throws IOException {
-        log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
+                    final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 
-        waitUntilIPBecomesReachable(remoteHostIp);
-
-        SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(remoteHostIp, port);
-        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-
-        final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
-
-        PrintWriter pw = new PrintWriter(socket.getOutputStream());
-        PeerMessage peerMsg = PeerMessage.builder()
-                .type(PeerMessage.Type.START_SESSION)
-                .contents("abc")
-                .senderUserName(getUserName()) //Send this user's name
-                .build();
-        log.info("Sending msg = {}", gson.toJson(peerMsg));
-        pw.println(gson.toJson(peerMsg));
-        pw.close();
-        final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
-        InputStream inputStream = socket.getInputStream();
-        final Matrix matrix = new Matrix();
-        matrix.postRotate(90);
-        while (!Thread.currentThread().isInterrupted()) {
-            // TODO More robust
-            final int bytesRead = inputStream.read(buffer);
-            if (bytesRead != -1) {
-                //log.info("Received preview image from remote server bytes = " + bytesRead);
-                final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
-                        BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (imageView != null && bmpRef.get() != null) {
-                            // TODO : Rotate image without using bitmap
-                            Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
-                                    bmpRef.get().getHeight(), matrix, true);
-                            imageView.setImageBitmap(rotatedBitmap);
-                            imageView.setVisibility(View.VISIBLE);
+                    PrintWriter pw = new PrintWriter(socket.getOutputStream());
+                    PeerMessage peerMsg = PeerMessage.builder()
+                            .type(PeerMessage.Type.START_SESSION)
+                            .contents("abc")
+                            .senderUserName(getUserName()) //Send this user's name
+                            .build();
+                    log.info("Sending msg = {}", gson.toJson(peerMsg));
+                    pw.println(gson.toJson(peerMsg));
+                    pw.close();
+                    final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
+                    InputStream inputStream = socket.getInputStream();
+                    final Matrix matrix = new Matrix();
+                    matrix.postRotate(90);
+                    while (!isCancelled()) {
+                        // TODO More robust
+                        final int bytesRead = inputStream.read(buffer);
+                        if (bytesRead != -1) {
+                            //log.info("Received preview image from remote server bytes = " + bytesRead);
+                            final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                                    BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (imageView != null && bmpRef.get() != null) {
+                                        // TODO : Rotate image without using bitmap
+                                        Bitmap rotatedBitmap = Bitmap.createBitmap(
+                                                bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
+                                                bmpRef.get().getHeight(), matrix, true);
+                                        imageView.setImageBitmap(rotatedBitmap);
+                                        imageView.setVisibility(View.VISIBLE);
+                                    }
+                                }
+                            });
                         }
                     }
-                });
+                } catch (Exception e) {
+                    log.warn("Failed to stream from peer attemptsLeft = " + attemptsLeft, e);
+                }
             }
+            log.info("Finishing StreamFromPeerTask..");
+            return null;
         }
-
     }
 
     private String getUserName() {
@@ -737,12 +783,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         return settings.getString(getString(R.string.pref_user_name_key), "");
     }
 
-    private void waitUntilIPBecomesReachable(final InetAddress ipAddress) throws IOException {
+    private boolean isIpReachable(final InetAddress ipAddress) throws IOException {
         // Wait till we can reach the remote host. May take time to refresh ARP cache
         long startTime = System.currentTimeMillis();
-        while (!ipAddress.isReachable(1000)
-                && (System.currentTimeMillis() - startTime
-                > MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE)) ;
+        while ((System.currentTimeMillis() - startTime
+                < MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE)) {
+            if (ipAddress.isReachable(1000)) {
+                log.info("IP = {} is reachable!", ipAddress.getHostAddress());
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -765,34 +816,5 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-
-    @Override
-    protected void onDestroy() {
-        cleanup();
-        super.onDestroy();
-    }
-
-    @Override
-    public void onBackPressed() {
-
-        cleanup();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
-        super.onBackPressed();
-    }
-
-    private void cleanup() {
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        log.info("Unregistering record event receiver");
-        manager.unregisterReceiver(this.recordEventReceiver);
-
-        if (connectToServerTask != null) {
-            connectToServerTask.tearDown();
-        }
     }
 }

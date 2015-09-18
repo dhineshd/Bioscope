@@ -17,16 +17,12 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -119,8 +115,6 @@ public class VideoLibraryActivity extends EnableForegroundDispatchForNFCMessageA
 
             if(bitmap != null) {
                 imageView.setImageBitmap(bitmap);
-            } else {
-                imageView.setImageResource(R.drawable.video_file);
             }
 
             final int position_final = position;

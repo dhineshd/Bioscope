@@ -62,9 +62,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
 
     private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
-    private byte[] finalFrameData =
-            new byte[ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth() *
-                    ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight() * 3 / 2];
+    private byte[] finalFrameData;//= new byte[ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth() *
+                    //ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight() * 3 / 2];
 
     public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
         this.chameleonApplication = chameleonApplication;
@@ -172,8 +171,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
                 log.debug("Converting color format from YUV420Planar to YUV420SemiPlanar");
-                ColorConversionUtil.convertI420ToNV12(frameData.getBytes(),
-                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+                finalFrameData = ColorConversionUtil.convertI420ToNV12AndReturnByteArray(
+                        frameData.getBytes(), cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             } else {
 //                ColorConversionUtil.rotateI420By90Degrees(frameData.getBytes(),
 //                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());

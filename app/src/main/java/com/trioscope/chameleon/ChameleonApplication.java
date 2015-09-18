@@ -16,7 +16,6 @@ import android.telephony.TelephonyManager;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
-import com.trioscope.chameleon.camera.BackgroundRecorder;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
@@ -26,7 +25,6 @@ import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
-import com.trioscope.chameleon.stream.RecordingEventListener;
 import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
 import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
@@ -73,24 +71,19 @@ public class ChameleonApplication extends Application {
     // the need to maintain sequence numbers when sending data. So, we
     // need to ensure that the compressed stream image size is less than this value.
     public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
+    public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
 
     public static final int SERVER_PORT = 7080;
 
-
-
-    @Getter
-    private BackgroundRecorder videoRecorder;
     @Getter
     private RotationState rotationState = new RotationState();
 
     @Getter
     @Setter
     private volatile File videoFile;
-    @Getter
-    @Setter
-    private volatile File secondaryVideoFile;
+
     @Getter
     @Setter
     private volatile Long recordingStartTimeMillis;
@@ -153,27 +146,21 @@ public class ChameleonApplication extends Application {
 
         log.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
 
-        // Enable Wifi to save time later and to avoid constantly turning on/off
-        // which affects battery performance
-        if (!isWifiEnabledInitially) {
-            enableWifiAndPerformActionWhenEnabled(null);
-        }
+            // Enable Wifi to save time later and to avoid constantly turning on/off
+            // which affects battery performance
+            if (!isWifiEnabledInitially) {
+                enableWifiAndPerformActionWhenEnabled(null);
+            }
 
         recordingFrameListener = new VideoRecordingFrameListener(this);
-        cameraFrameBuffer.addListener(recordingFrameListener);
 
         streamListener = new VideoStreamFrameListener(this);
-        cameraFrameBuffer.addListener(streamListener);
+        //cameraFrameBuffer.addListener(streamListener);
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
 
         startup();
-    }
-
-    public void createBackgroundRecorder(
-            final RecordingEventListener recordingEventListener) {
-        videoRecorder = new BackgroundRecorder(this, recordingEventListener);
     }
 
     public void startConnectionServerIfNotRunning() {
@@ -222,7 +209,6 @@ public class ChameleonApplication extends Application {
                     log.error("Unable to wait on application", e);
                 }
             }
-
 
             log.info("Returning preview displayer");
             return previewDisplayer;
@@ -300,6 +286,14 @@ public class ChameleonApplication extends Application {
         }
     }
 
+    public void stopPreview() {
+        if (previewDisplayer != null) {
+            previewDisplayer.stopPreview();
+            previewDisplayer = null;
+        }
+        previewStarted = false;
+    }
+
     public synchronized void updateOrientation() {
         log.info("Updating current device orientation");
 
@@ -326,7 +320,7 @@ public class ChameleonApplication extends Application {
      */
     public SurfaceView createPreviewDisplay() {
         log.info("Creating preview display and stopping preview first");
-        previewDisplayer.stopPreview();
+        //previewDisplayer.stopPreview();
         previewStarted = false;
         return previewDisplayer.createPreviewDisplay();
     }
@@ -370,11 +364,6 @@ public class ChameleonApplication extends Application {
 
         // Tear down phone call receiver
         unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
-
-        // Stop recording
-        if (videoRecorder != null) {
-            videoRecorder.stopRecording();
-        }
 
         // Release camera
         if (cameraOpener != null && cameraOpener.getCamera() != null) {
@@ -508,28 +497,6 @@ public class ChameleonApplication extends Application {
             return true;
         }
         return false;
-    }
-
-    public boolean prepareVideoRecorder() {
-        //Create a file for storing the recorded video
-        videoFile = getOutputMediaFile(MEDIA_TYPE_VIDEO);
-        log.info("Setting video file = {}", videoFile.getAbsolutePath());
-        videoRecorder.setOutputFile(videoFile);
-        videoRecorder.setCamera(cameraOpener.getCamera());
-        return true;
-    }
-
-    public void finishVideoRecording() {
-        videoRecorder.stopRecording();
-        //camera.lock();         // take camera access back from video recorder
-
-        if (videoFile != null) {
-            //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
-            Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-            addVideoIntent.setData(Uri.fromFile(videoFile));
-
-            sendBroadcast(addVideoIntent);
-        }
     }
 
     /**
