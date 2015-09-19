@@ -113,11 +113,11 @@ public class SendConnectionInfoNFCActivity
     }
 
     public void onBackPressed() {
+        super.onBackPressed();
 
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity= new Intent(this, MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
-        super.onBackPressed();
     }
 }
