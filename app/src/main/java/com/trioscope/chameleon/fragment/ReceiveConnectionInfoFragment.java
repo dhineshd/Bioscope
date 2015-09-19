@@ -131,6 +131,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 
         connectToWifiNetworkBroadcastReceiver = new BroadcastReceiver() {
             @Override
