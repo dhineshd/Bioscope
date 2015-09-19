@@ -62,6 +62,17 @@
             android:layout_gravity="bottom|right"
             android:background="@null" />
 
+        <TextView
+            android:id="@+id/textView_touch_replay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="Touch to replay"
+            android:textSize="20sp"
+            android:textColor="#80FFFFFF"
+            android:visibility="invisible"/>
+
     </FrameLayout>
 
     <ProgressBar

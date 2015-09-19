@@ -16,6 +16,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -47,6 +48,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private boolean minorVideoSurfaceReady;
     private FfmpegTaskFragment taskFragment;
     private File outputFile;
+    private TextView touchReplayTextView;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -171,6 +174,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 startVideos(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
             }
         });
+
+        touchReplayTextView = (TextView) findViewById(R.id.textView_touch_replay);
     }
 
     @Override
@@ -212,9 +217,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
-                startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                minorVideoMediaPlayer.stop();
+                touchReplayTextView.setVisibility(View.VISIBLE);
             }
         });
+
+        touchReplayTextView.setVisibility(View.INVISIBLE);
 
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
