@@ -15,6 +15,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -257,8 +258,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         captureSession = session;
                         try {
                             // Auto focus should be continuous for camera preview.
-                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+//                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+//                                    CaptureRequest.CONTROL_AF_MODE_OFF);
+                            // TODO : Check to see which devices can support this rate
+                            // Not setting the rate can affect audio processing capability
+                            // on certain devices like LG g4
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                    Range.create(20, 20));
 
 
                             // Finally, we start displaying the camera preview.
@@ -360,19 +366,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     public void stopPreview() {
         log.debug("Stopping camera2 preview");
         if (cameraDevice != null) {
-            // Closing camera will abort capture session
-            if (captureSession != null) {
-                try {
-                    captureSession.abortCaptures();
-                    cameraDevice.close();
-                    cameraDevice = null;
-                } catch (CameraAccessException e) {
-                    log.error("Unable to abort captures", e);
-                }
-            } else {
-                cameraDevice.close();
-                cameraDevice = null;
-            }
+            // Closing camera will abort capture session. So, no cleanup necessary.
+            cameraDevice.close();
+            cameraDevice = null;
         }
     }
 
