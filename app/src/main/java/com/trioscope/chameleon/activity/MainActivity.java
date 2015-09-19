@@ -21,6 +21,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.types.SessionStatus;
+import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -77,9 +78,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
             }
         });
 
-        //FfmpegVideoMerger merger = new FfmpegVideoMerger();
-        //merger.setContext(this);
-        //merger.printAvailableCodecs();
+        FfmpegVideoMerger merger = new FfmpegVideoMerger();
+        merger.setContext(this);
+        merger.printAvailableCodecs();
     }
 
     private void showLibraryActivity() {
