@@ -62,6 +62,25 @@
             android:layout_gravity="bottom|right"
             android:background="@null" />
 
+        <TextView
+            android:id="@+id/textView_touch_replay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="Touch to replay"
+            android:textSize="20sp"
+            android:textColor="#80FFFFFF"
+            android:visibility="invisible"/>
+
     </FrameLayout>
+
+    <ProgressBar
+        android:id="@+id/ffmpeg_progress_bar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="20dp"
+        android:layout_margin="10dp"
+        android:visibility="gone"/>
 
 </RelativeLayout>

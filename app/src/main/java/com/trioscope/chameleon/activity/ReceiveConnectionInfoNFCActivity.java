@@ -2,12 +2,10 @@ package com.trioscope.chameleon.activity;
 
 import android.app.FragmentManager;
 import android.content.Intent;
-import android.nfc.NdefMessage;
-import android.nfc.NfcAdapter;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
@@ -29,6 +27,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
 
         // Tear down Wifi hotspot since we are going to join
         // the peer's hotspot.
