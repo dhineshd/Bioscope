@@ -12,6 +12,7 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
@@ -37,7 +38,8 @@ public class SendConnectionInfoFragment extends Fragment {
     private static final String CONNECTION_STATUS_TEXT_KEY = "CONNECTION_STATUS_TEXT";
     private ChameleonApplication chameleonApplication;
     private TextView connectionStatusTextView;
-
+    private ProgressBar sendConnInfoProgBar;
+    private ProgressBar sendConnInfoProgBarMax;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,6 +57,10 @@ public class SendConnectionInfoFragment extends Fragment {
         log.info("onViewCreated : SendConnectionInfoFragment");
 
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_sender_connection_status);
+
+        sendConnInfoProgBar = (ProgressBar) view.findViewById(R.id.send_conn_info_prog_bar);
+
+        sendConnInfoProgBarMax = (ProgressBar) view.findViewById(R.id.send_conn_info_prog_bar_max);
 
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
         new SetupWifiHotspotTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -127,7 +133,11 @@ public class SendConnectionInfoFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                connectionStatusTextView.setText("Creating WiFi network..");
+
+                sendConnInfoProgBar.setVisibility(View.VISIBLE);
+                sendConnInfoProgBar.setIndeterminate(true);
+                connectionStatusTextView.setText("Preparing To Connect");
+
             }
         });
 
@@ -226,7 +236,16 @@ public class SendConnectionInfoFragment extends Fragment {
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            connectionStatusTextView.setText("Ready to send connection info..");
+                            sendConnInfoProgBar.setVisibility(View.INVISIBLE);
+
+                            connectionStatusTextView.setText("Use NFC to Connect");
+                            connectionStatusTextView.setBackgroundResource(R.drawable.circular_orange_background);
+
+                            //sendConnInfoProgBarMax.setProgress(100);
+                            //sendConnInfoProgBarMax.setVisibility(View.VISIBLE);
+
+
+
                         }
                     });
 

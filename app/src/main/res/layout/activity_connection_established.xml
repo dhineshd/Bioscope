@@ -39,17 +39,18 @@
                 android:layout_gravity="center"
                 android:background="@drawable/border_image"
                 android:visibility="visible" />
-
         </FrameLayout>
 
        <ProgressBar
             android:id="@+id/progressBar_file_transfer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
             android:layout_gravity="center"
             android:visibility="gone"
+            android:indeterminate="false"
             android:max="100"
-            style="@android:style/Widget.ProgressBar.Horizontal"/>
+            android:progressDrawable="@drawable/circular_prog_bar_determinate"
+           />
 
         <RelativeLayout
             android:layout_width="wrap_content"

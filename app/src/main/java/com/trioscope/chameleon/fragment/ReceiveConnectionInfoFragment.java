@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
@@ -38,6 +39,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
     private TextView connectionStatusTextView;
     private ChameleonApplication chameleonApplication;
+    private ProgressBar receiveConnInfoProgBar;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -57,6 +59,8 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_receiver_connection_status);
+
+        receiveConnInfoProgBar = (ProgressBar) view.findViewById(R.id.receive_conn_info_prog_bar);
 
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
     }
@@ -119,7 +123,9 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName() + "..");
+                receiveConnInfoProgBar.setVisibility(View.VISIBLE);
+                connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName());
+
             }
         });
 
