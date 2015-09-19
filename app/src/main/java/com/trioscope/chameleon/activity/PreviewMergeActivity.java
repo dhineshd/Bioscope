@@ -208,6 +208,14 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             log.error("Failed to start minor media player", e);
         }
 
+        // Replay both videos continuously on a loop
+        majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+            }
+        });
+
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
     }
