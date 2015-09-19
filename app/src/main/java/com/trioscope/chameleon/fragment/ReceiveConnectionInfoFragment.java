@@ -44,7 +44,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         // Re-use the fragment on orientation change etc to retain the view
-        setRetainInstance(true);
+        //setRetainInstance(true);
     }
 
     @Override

@@ -10,8 +10,10 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
@@ -27,16 +29,20 @@ public class SendConnectionInfoNFCActivity
         implements NfcAdapter.CreateNdefMessageCallback, WifiConnectionInfoListener {
     private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
     private Gson mGson = new Gson();
+    private ChameleonApplication chameleonApplication;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_send_connection_info_nfc);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        log.info("Created");
+        chameleonApplication = (ChameleonApplication) getApplication();
+        chameleonApplication.startConnectionServerIfNotRunning();
 
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
-
-        log.info("Created");
     }
 
     @Override

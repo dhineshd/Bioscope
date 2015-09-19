@@ -173,6 +173,13 @@ public class ChameleonApplication extends Application {
         }
     }
 
+    public void stopConnectionServer() {
+        if (connectionServer != null) {
+            connectionServer.stop();
+            connectionServer = null;
+        }
+    }
+
     private SSLServerSocketFactory getInitializedSSLServerSocketFactory() {
         SSLServerSocketFactory sslServerSocketFactory = null;
         try {

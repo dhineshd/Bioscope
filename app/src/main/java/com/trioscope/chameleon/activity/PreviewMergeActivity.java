@@ -1,8 +1,10 @@
 package com.trioscope.chameleon.activity;
 
+import android.app.FragmentManager;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -10,19 +12,30 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
 import com.trioscope.chameleon.types.RecordingMetadata;
+import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
+        implements ProgressUpdatable{
+    private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
     private int majorVideoAheadOfMinorVideoByMillis;
@@ -32,11 +45,14 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private MediaPlayer minorVideoMediaPlayer;
     private boolean majorVideoSurfaceReady;
     private boolean minorVideoSurfaceReady;
+    private FfmpegTaskFragment taskFragment;
+    private File outputFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_preview_merge);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         Intent intent = getIntent();
         final RecordingMetadata localRecordingMetadata = gson.fromJson(
@@ -112,20 +128,36 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             }
         });
 
-        Button startMergeButton = (Button) findViewById(R.id.button_merge);
+        final Button startMergeButton = (Button) findViewById(R.id.button_merge);
         startMergeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(), MergeVideosActivity.class);
+
+                // Don't let user click again
+                startMergeButton.setEnabled(false);
+
                 // Decide which is major video depending on user's latest choice of preview playback
+                String serializedMajorVideoMetadata, serializedMinorVideoMetadata;
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
-                    intent.putExtra(MergeVideosActivity.MAJOR_VIDEO_METADATA_KEY, gson.toJson(localRecordingMetadata));
-                    intent.putExtra(MergeVideosActivity.MINOR_VIDEO_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
+                    serializedMajorVideoMetadata = gson.toJson(localRecordingMetadata);
+                    serializedMinorVideoMetadata = gson.toJson(remoteRecordingMetadata);
                 } else {
-                    intent.putExtra(MergeVideosActivity.MAJOR_VIDEO_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
-                    intent.putExtra(MergeVideosActivity.MINOR_VIDEO_METADATA_KEY, gson.toJson(localRecordingMetadata));
+                    serializedMajorVideoMetadata = gson.toJson(remoteRecordingMetadata);
+                    serializedMinorVideoMetadata = gson.toJson(localRecordingMetadata);
                 }
-                startActivity(intent);
+
+                // Initialize merge fragment
+                FragmentManager fm = getFragmentManager();
+                //taskFragment = (FfmpegTaskFragment) fm.findFragmentByTag(TASK_FRAGMENT_TAG);
+
+                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
+                        "BIOSCOPE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4");
+                        taskFragment = FfmpegTaskFragment.newInstance(
+                                serializedMajorVideoMetadata,
+                                serializedMinorVideoMetadata,
+                                majorVideoAheadOfMinorVideoByMillis,
+                                outputFile.getAbsolutePath());
+                fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
             }
         });
 
@@ -190,6 +222,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     public void onBackPressed() {
         super.onBackPressed();
         cleanup();
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
     }
 
     private void cleanup() {
@@ -237,5 +274,40 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onProgress(double progress, double outOf) {
+        int progressPerc = getPercent(progress, outOf);
+        ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
+        if (View.VISIBLE != bar.getVisibility()) {
+            bar.setVisibility(View.VISIBLE);
+        }
+        bar.setProgress(progressPerc);
+
+        log.info("Now {}% done", progressPerc);
+    }
+
+    private static int getPercent(double progress, double outOf) {
+        return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
+    }
+
+    @Override
+    public void onCompleted() {
+        ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
+        bar.setVisibility(View.GONE);
+        log.info("FFMPEG Completed! Going to video library now!");
+
+        //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
+        Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        addVideoIntent.setData(Uri.fromFile(outputFile));
+        sendBroadcast(addVideoIntent);
+
+        Toast.makeText(this, outputFile.getName() + " saved to gallery", Toast.LENGTH_LONG).show();
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
     }
 }

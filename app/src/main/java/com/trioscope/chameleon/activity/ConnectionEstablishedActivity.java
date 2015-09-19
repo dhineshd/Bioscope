@@ -27,6 +27,7 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
@@ -93,7 +94,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private Handler timerHandler;
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
-    private Handler sendVideoToPeerHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -356,6 +356,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             receiveVideoFromPeerTask.cancel(true);
             receiveVideoFromPeerTask = null;
         }
+
         chameleonApplication.getStreamListener().setStreamingStarted(false);
         timerHandler.removeCallbacks(timerRunnable);
         chameleonApplication.stopPreview();
@@ -365,6 +366,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         // Stop camera frame listener for streaming
         chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getStreamListener());
+
+        chameleonApplication.stopConnectionServer();
     }
 
     private SSLSocketFactory getInitializedSSLSocketFactory() {
@@ -564,6 +567,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPostExecute(Void aVoid) {
 
+            chameleonApplication.tearDownWifiHotspot();
+
+            chameleonApplication.stopConnectionServer();
+
             // Stop receiving stream
             if (streamFromPeerTask != null) {
                 streamFromPeerTask.cancel(true);
@@ -707,6 +714,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPostExecute(Void aVoid) {
 
+            chameleonApplication.stopConnectionServer();
+
             // Stop receiving stream
             if (streamFromPeerTask != null) {
                 streamFromPeerTask.cancel(true);
@@ -717,6 +726,13 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             chameleonApplication.getStreamListener().terminateSession();
 
             progressBar.setVisibility(View.INVISIBLE);
+
+            Toast.makeText(getApplicationContext(), "Session completed!", Toast.LENGTH_LONG).show();
+
+            //Re-use MainActivity instance if already present. If not, create new instance.
+            Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
+            openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            startActivity(openMainActivity);
         }
     }
 

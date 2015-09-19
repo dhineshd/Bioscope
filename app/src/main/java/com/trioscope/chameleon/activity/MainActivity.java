@@ -14,6 +14,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 
@@ -35,10 +36,10 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         chameleonApplication = (ChameleonApplication) getApplication();
-
-        setContentView(R.layout.activity_main);
 
         gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
@@ -91,7 +92,11 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        return gestureDetector.onTouchEvent(event);
+
+        // Disabling until library is ready
+        //return gestureDetector.onTouchEvent(event);
+
+        return false;
     }
 
     @Override
@@ -121,8 +126,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.onResume();
 
         log.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
-
-        chameleonApplication.startConnectionServerIfNotRunning();
 
         if (doesDeviceSupportNFC()) {
             if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
@@ -167,12 +170,14 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     public void onBackPressed() {
+        super.onBackPressed();
+
         log.info("User pressed back");
 
         //Disable NFC Foreground dispatch
         super.disableForegroundDispatch();
 
-        super.onBackPressed();
+        chameleonApplication.cleanupAndExit();
     }
 
 }
