@@ -240,7 +240,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             log.debug("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
-                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
                 requestBuilder.addTarget(imageReader.getSurface());
                 requestBuilder.addTarget(previewSurface);
                 log.debug("Creating capture session");
