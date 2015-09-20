@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -267,7 +268,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
 
+        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(),
+                ChameleonApplication.APP_FONT_LOCATION);
+
         Button continueButton = (Button) findViewById(R.id.button_continue_session);
+        continueButton.setTypeface(appFontTypeface);
+
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

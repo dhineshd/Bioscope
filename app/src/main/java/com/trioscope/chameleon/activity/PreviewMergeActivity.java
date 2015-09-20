@@ -3,6 +3,7 @@ package com.trioscope.chameleon.activity;
 import android.app.FragmentManager;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
+import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -49,6 +50,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private FfmpegTaskFragment taskFragment;
     private File outputFile;
     private TextView touchReplayTextView;
+    private Button buttonMerge;
 
 
     @Override
@@ -56,6 +58,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_preview_merge);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(),
+                ChameleonApplication.APP_FONT_LOCATION);
+
+        buttonMerge = (Button) findViewById(R.id.button_merge);
+        buttonMerge.setTypeface(appFontTypeface);
 
         Intent intent = getIntent();
         final RecordingMetadata localRecordingMetadata = gson.fromJson(

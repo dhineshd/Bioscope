@@ -57,7 +57,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
         Typeface comicReliefTypeface = Typeface.createFromAsset(getAssets(),
-                "fonts/comic-relief/ComicRelief.ttf");
+                ChameleonApplication.APP_FONT_LOCATION);
 
         startSessionButton.setTypeface(comicReliefTypeface);
 
