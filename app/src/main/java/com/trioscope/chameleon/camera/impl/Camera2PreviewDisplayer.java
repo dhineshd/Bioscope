@@ -258,8 +258,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         captureSession = session;
                         try {
                             // Auto focus should be continuous for camera preview.
-//                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-//                                    CaptureRequest.CONTROL_AF_MODE_OFF);
+                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
                             // TODO : Check to see which devices can support this rate
                             // Not setting the rate can affect audio processing capability
                             // on certain devices like LG g4
