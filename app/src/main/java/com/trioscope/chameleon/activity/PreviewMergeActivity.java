@@ -13,6 +13,8 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -82,6 +84,20 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
 
+        majorVideoTextureView.getViewTreeObserver().addOnGlobalLayoutListener(
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        majorVideoTextureView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        int width = majorVideoTextureView.getMeasuredWidth();
+                        int height = majorVideoTextureView.getMeasuredHeight();
+                        ViewGroup.LayoutParams layoutParams = majorVideoTextureView.getLayoutParams();
+                        layoutParams.width = height;
+                        layoutParams.height = width;
+                        majorVideoTextureView.setLayoutParams(layoutParams);
+                    }
+                });
+
         majorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -95,7 +111,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
             @Override
             public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
             }
 
             @Override
@@ -110,6 +125,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         });
 
         minorVideoTextureView = (TextureView) findViewById(R.id.textureview_minor_video);
+
         minorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
