@@ -6,6 +6,7 @@ import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.graphics.Matrix;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -53,6 +54,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private File outputFile;
     private TextView touchReplayTextView;
     private Button buttonMerge;
+    private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
 
 
     @Override
@@ -68,10 +70,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         buttonMerge.setTypeface(appFontTypeface);
 
         Intent intent = getIntent();
-        final RecordingMetadata localRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
-        final RecordingMetadata remoteRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+        localRecordingMetadata = gson.fromJson(
+                intent.getStringExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY),
+                RecordingMetadata.class);
+        remoteRecordingMetadata = gson.fromJson(
+                intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY),
+                RecordingMetadata.class);
 
         majorVideoAheadOfMinorVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
                 localRecordingMetadata.getStartTimeMillis());
@@ -80,6 +84,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         minorVideoMediaPlayer = new MediaPlayer();
 
         majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
+
         minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
 
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
@@ -92,8 +97,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                         int width = majorVideoTextureView.getMeasuredWidth();
                         int height = majorVideoTextureView.getMeasuredHeight();
                         ViewGroup.LayoutParams layoutParams = majorVideoTextureView.getLayoutParams();
-                        layoutParams.width = height;
-                        layoutParams.height = width;
+                        layoutParams.width = width;
+                        layoutParams.height = height;
                         majorVideoTextureView.setLayoutParams(layoutParams);
                     }
                 });
@@ -223,6 +228,14 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         this.majorVideoPath = majorVideoPath;
         this.minorVideoPath = minorVideoPath;
 
+        if (majorVideoPath.equals(localRecordingMetadata.getAbsoluteFilePath())) {
+            updateDisplayOrientation(majorVideoTextureView, localRecordingMetadata.getOrientationDegrees());
+            updateDisplayOrientation(minorVideoTextureView, remoteRecordingMetadata.getOrientationDegrees());
+        } else {
+            updateDisplayOrientation(majorVideoTextureView, remoteRecordingMetadata.getOrientationDegrees());
+            updateDisplayOrientation(minorVideoTextureView, localRecordingMetadata.getOrientationDegrees());
+        }
+
         try {
             majorVideoMediaPlayer.setDataSource(majorVideoPath);
             majorVideoMediaPlayer.prepare();
@@ -250,6 +263,21 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
+    }
+
+    private void updateDisplayOrientation(final TextureView textureView, final int orientationDegrees) {
+
+        Matrix matrix = new Matrix();
+        // Need to generate mirror image
+        if (orientationDegrees == 270) {
+            matrix.setScale(-1, 1);
+            matrix.postTranslate(textureView.getLayoutParams().width, 0);
+        } else if (orientationDegrees == 90) {
+            matrix.setScale(1, 1);
+            matrix.postTranslate(0, 0);
+        }
+        textureView.setTransform(matrix);
+
     }
 
     @Override

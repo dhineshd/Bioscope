@@ -71,6 +71,8 @@ public class ChameleonApplication extends Application {
     // need to ensure that the compressed stream image size is less than this value.
     public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
+    public static final double DEFAULT_ASPECT_WIDTH_RATIO = 16;
+    public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
     public static final String APP_FONT_LOCATION = "fonts/Idolwild/idolwild.ttf";
@@ -88,6 +90,9 @@ public class ChameleonApplication extends Application {
     @Getter
     @Setter
     private volatile Long recordingStartTimeMillis;
+    @Getter
+    @Setter
+    private volatile Integer recordingOrientationDegrees;
 
     @Getter
     private CameraOpener cameraOpener;

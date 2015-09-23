@@ -25,9 +25,11 @@ public class ColorConversionUtil {
             ByteBuffer y_plane, ByteBuffer u_plane, ByteBuffer v_plane,
             byte[] output, int width, int height);
 
-    public static native void scaleAndConvertI420ToNV21(byte[] input, byte[] output, int oldWidth, int oldHeight, int newWidth, int newHeight);
+    public static native void scaleAndConvertI420ToNV21(
+            byte[] input, byte[] output, int oldWidth, int oldHeight, int newWidth, int newHeight);
 
-    public static native byte[] scaleAndConvertI420ToNV21AndReturnByteArray(byte[] input, int oldWidth, int oldHeight, int newWidth, int newHeight);
+    public static native byte[] scaleAndConvertI420ToNV21AndReturnByteArray(
+            byte[] input, int oldWidth, int oldHeight, int newWidth, int newHeight, boolean inversion);
 
     public static native void scaleAndConvertI420ToNV21Method2(
             ByteBuffer y_plane, ByteBuffer u_plane, ByteBuffer v_plane,

@@ -118,6 +118,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     @Override
     //@Timed
     public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
+        cameraFrameSize = cameraInfo.getCameraResolution();
         if (isRecording) {
             long frameReceiveTimeMillis = System.currentTimeMillis();
             long frameReceiveTimeNanos = System.nanoTime();
@@ -130,7 +131,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
             if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
                     try {
                         long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameReceiveDelayMillis;
-                        processFrame(data, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
+                        processFrame(data, frameInfo, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
                     } catch (Exception e) {
                         log.error("Failed to record frame", e);
                     }
@@ -140,6 +141,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     private void processFrame(
             final CameraFrameData frameData,
+            final FrameInfo frameInfo,
             final long presentationTimeMicros,
             final long adjustedFrameReceiveTimeMillis) {
 
@@ -147,18 +149,24 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         if (!muxerStarted &&
                 videoTrackIndex != -1 &&
                 audioTrackIndex != -1) {
+
+            // set video orientation hint based on camera orientation
+            mediaMuxer.setOrientationHint(frameInfo.getOrientationDegrees());
+
             mediaMuxer.start();
             muxerStarted = true;
         }
 
         processVideo(
                 frameData,
+                frameInfo,
                 presentationTimeMicros,
                 adjustedFrameReceiveTimeMillis);
     }
 
     private void processVideo(
             final CameraFrameData frameData,
+            final FrameInfo frameInfo,
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
@@ -220,6 +228,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 if (firstFrameReceivedForRecordingTimeMillis == null) {
                     firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis;
                     chameleonApplication.setRecordingStartTimeMillis(frameReceiveTimeMillis);
+                    chameleonApplication.setRecordingOrientationDegrees(frameInfo.getOrientationDegrees());
                     log.debug("First video presentation time = {}", videoBufferInfo.presentationTimeUs);
                 }
 

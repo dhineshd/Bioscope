@@ -47,7 +47,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private static final int MAX_NUM_IMAGES = 3;
     private final Context context;
     private final CameraManager cameraManager;
-    private final CameraInfo cameraInfo;
+    private CameraInfo cameraInfo;
     private CameraDevice cameraDevice;
     private ImageReader imageReader;
     private SimpleImageListener simpleImageListener;
@@ -68,27 +68,40 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         this.context = context;
         this.cameraDevice = cameraDevice;
         this.cameraManager = cameraManager;
+    }
+
+    private void updateCameraInfo() {
 
         Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
         CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
 
         log.debug("Creating cameraInfo");
         CameraInfo.ImageEncoding encoding;
-        /* ImageReader doesnt support NV21 currently.
-          if (supportedEncodings.contains(CameraInfo.ImageEncoding.NV21))
-            encoding = CameraInfo.ImageEncoding.NV21;
-        */
+
         encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
-        //builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
-        //builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
-        builder.cameraResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
-        builder.captureResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
+        Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+
+        if (!supportedSizes.contains(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE)) {
+            // Find supported size with desired aspect ratio
+            for (Size suppportedSize : supportedSizes) {
+                int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());
+                int widthRatio = suppportedSize.getWidth() / factor;
+                int heightRatio = suppportedSize.getHeight() / factor;
+                if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_WIDTH_RATIO
+                        && heightRatio == ChameleonApplication.DEFAULT_ASPECT_HEIGHT_RATIO) {
+                    frameSize = suppportedSize;
+                    break;
+                }
+            }
+        }
+        builder.cameraResolution(frameSize);
+        builder.captureResolution(frameSize);
         builder.encoding(encoding);
         cameraInfo = builder.build();
 
-        log.debug("Using cameraInfo {}", cameraInfo);
+        log.info("Using cameraInfo {}", cameraInfo);
 
         try {
             CameraCharacteristics cc = cameraManager.getCameraCharacteristics(cameraDevice.getId());
@@ -97,7 +110,10 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         } catch (CameraAccessException e) {
             log.error("Unable to access camerainformation", e);
         }
+    }
 
+    public int greatestCommonFactor(int width, int height) {
+        return (height == 0) ? width : greatestCommonFactor(height, width % height);
     }
 
     @Override
@@ -224,12 +240,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             log.error("Unable to get camera sizes", e);
         }
 
-        log.debug("Getting sizes for format {} = {}", format, sizes);
+        log.info("Getting sizes for format {} = {}", format, sizes);
         return sizes;
     }
 
     private void startPreviewHelper() {
         try {
+            updateCameraInfo();
             CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
             log.debug("Timestamp source for camera2: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
 
@@ -435,6 +452,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 ImageUtil.getDataFromImage(image, buffer);
             }
             frameInfo.setTimestampNanos(image.getTimestamp());
+            // Camera frame is always rotated by 90. Front camera produces inverted frame (rotated by 180)
+            frameInfo.setOrientationDegrees(isUsingFrontFacingCamera()? 270 : 90);
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
 
             image.close();

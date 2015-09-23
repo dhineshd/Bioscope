@@ -82,6 +82,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
+    private SendVideoToPeerTask sendVideoToPeerTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -134,10 +135,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 if (msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
 
                     SendVideoToPeerMetadata metadata = (SendVideoToPeerMetadata) msg.obj;
-                    SendVideoToPeerTask task = new SendVideoToPeerTask(metadata.getClientSocket()
-                            , metadata.getVideoFile(), metadata.getRecordingStartTimeMillis());
-
-                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    sendVideoToPeerTask = new SendVideoToPeerTask(
+                            metadata.getClientSocket(),
+                            metadata.getVideoFile(),
+                            metadata.getRecordingStartTimeMillis(),
+                            metadata.getRecordingOrientationDegrees());
+                    sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                 } else {
                     super.handleMessage(msg);
                 }
@@ -225,6 +228,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 if (isRecording) {
                     recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
 
+                    // Hide button to switch cameras
+                    switchCamerasButton.setVisibility(View.VISIBLE);
+
                     // Sending message to peer to stop recording
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.STOP_RECORDING)
@@ -243,6 +249,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 } else {
 
                     recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
+
+                    // Hide button to switch cameras
+                    switchCamerasButton.setVisibility(View.INVISIBLE);
 
                     // Sending message to peer to start remote recording
                     PeerMessage peerMsg = PeerMessage.builder()
@@ -362,6 +371,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             receiveVideoFromPeerTask.cancel(true);
             receiveVideoFromPeerTask = null;
         }
+        if (sendVideoToPeerTask != null) {
+            sendVideoToPeerTask.cancel(true);
+            sendVideoToPeerTask = null;
+        }
 
         chameleonApplication.getStreamListener().setStreamingStarted(false);
         timerHandler.removeCallbacks(timerRunnable);
@@ -460,6 +473,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @NonNull
         private Integer port;
         private Long remoteRecordingStartTimeMillis;
+        private Integer remoteRecordingOrientationDegrees;
         private long remoteClockAheadOfLocalClockMillis = 0L;
 
         @Override
@@ -513,6 +527,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         if (response != null) {
                             fileSizeBytes = response.getFileSizeBytes();
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
+                            remoteRecordingOrientationDegrees = response.getRecordingOrientationDegrees();
                             log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                             log.debug("Remote current time = {}", response.getCurrentTimeMillis());
                             log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
@@ -605,10 +620,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(localVideoFile.getAbsolutePath())
                     .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
+                    .orientationDegrees(chameleonApplication.getRecordingOrientationDegrees())
                     .build();
             RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
+                    .orientationDegrees(remoteRecordingOrientationDegrees)
                     .build();
 
             MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
@@ -638,6 +655,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         private final File fileToSend;
         @NonNull
         private final Long recordingStartTimeMillis;
+        @NonNull
+        private final Integer recordingOrientationDegrees;
 
         @Override
         protected void onPreExecute() {
@@ -650,59 +669,58 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected Void doInBackground(Void... params) {
 
-            if (fileToSend != null && recordingStartTimeMillis != null) {
-                OutputStream outputStream = null;
-                InputStream inputStream = null;
-                Long fileSizeBytes = fileToSend.length();
+            OutputStream outputStream = null;
+            InputStream inputStream = null;
+            Long fileSizeBytes = fileToSend.length();
 
+            try {
+                PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
+                SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
+                        .fileSizeBytes(fileSizeBytes)
+                        .recordingStartTimeMillis(recordingStartTimeMillis)
+                        .recordingOrientationDegrees(recordingOrientationDegrees)
+                        .currentTimeMillis(System.currentTimeMillis()).build();
+                log.error("" + response);
+                PeerMessage responseMsg = PeerMessage.builder()
+                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
+                        .contents(gson.toJson(response)).build();
+                log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+                pw.println(gson.toJson(responseMsg));
+                pw.close();
+
+                // Get recording time
+                MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+                metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
+                log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+                clientSocket.setSendBufferSize(65536);
+                clientSocket.setReceiveBufferSize(65536);
+                outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+                inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
+                byte[] buffer = new byte[65536];
+                int bytesRead = 0;
+                int totalBytesSent = 0;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    log.debug("Sending recorded file.. bytes = {}", bytesRead);
+                    outputStream.write(buffer, 0, bytesRead);
+
+                    totalBytesSent += bytesRead;
+
+                    publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
+                }
+                log.debug("Successfully sent recorded file!");
+            } catch (IOException e) {
+                log.error("Failed to send recorded video file", e);
+            } finally {
                 try {
-                    PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
-                    SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
-                            .fileSizeBytes(fileSizeBytes)
-                            .recordingStartTimeMillis(recordingStartTimeMillis)
-                            .currentTimeMillis(System.currentTimeMillis()).build();
-                    log.error("" + response);
-                    PeerMessage responseMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
-                            .contents(gson.toJson(response)).build();
-                    log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
-                    pw.println(gson.toJson(responseMsg));
-                    pw.close();
-
-                    // Get recording time
-                    MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-                    metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
-                    log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-                    clientSocket.setSendBufferSize(65536);
-                    clientSocket.setReceiveBufferSize(65536);
-                    outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-                    inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
-                    byte[] buffer = new byte[65536];
-                    int bytesRead = 0;
-                    int totalBytesSent = 0;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        log.debug("Sending recorded file.. bytes = {}", bytesRead);
-                        outputStream.write(buffer, 0, bytesRead);
-
-                        totalBytesSent += bytesRead;
-
-                        publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
+                    if (outputStream != null) {
+                        outputStream.close();
                     }
-                    log.debug("Successfully sent recorded file!");
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                    clientSocket.close();
                 } catch (IOException e) {
-                    log.error("Failed to send recorded video file", e);
-                } finally {
-                    try {
-                        if (outputStream != null) {
-                            outputStream.close();
-                        }
-                        if (inputStream != null) {
-                            inputStream.close();
-                        }
-                        clientSocket.close();
-                    } catch (IOException e) {
-                        log.warn("Failed to close streams when sending recorded video", e);
-                    }
+                    log.warn("Failed to close streams when sending recorded video", e);
                 }
             }
 
