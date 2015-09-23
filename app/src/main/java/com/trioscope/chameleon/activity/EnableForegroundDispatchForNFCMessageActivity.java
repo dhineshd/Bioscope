@@ -3,6 +3,7 @@ package com.trioscope.chameleon.activity;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.nfc.NfcAdapter;
 import android.nfc.tech.Ndef;
 import android.os.Bundle;
@@ -48,7 +49,7 @@ public abstract class EnableForegroundDispatchForNFCMessageActivity extends AppC
     }
 
     protected boolean doesDeviceSupportNFC() {
-        boolean ret =  mNfcAdapter != null && mNfcAdapter.isEnabled();
+        boolean ret =  getPackageManager().hasSystemFeature(PackageManager.FEATURE_NFC);
 
         log.info("Device supports NFC: {}", ret);
         return ret;
