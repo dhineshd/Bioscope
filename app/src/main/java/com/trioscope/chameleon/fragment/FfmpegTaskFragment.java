@@ -103,10 +103,10 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         videoMerger.mergeVideos(
                 VideoConfiguration.builder()
                         .file(new File(majorVideoMetadata.getAbsoluteFilePath()))
-                        .horizontallyFlipped(majorVideoMetadata.getOrientationDegrees() == 270).build(),
+                        .horizontallyFlipped(majorVideoMetadata.isHorizontallyFlipped()).build(),
                 VideoConfiguration.builder()
                         .file(new File(minorVideoMetadata.getAbsoluteFilePath()))
-                        .horizontallyFlipped(minorVideoMetadata.getOrientationDegrees() == 270).build(),
+                        .horizontallyFlipped(minorVideoMetadata.isHorizontallyFlipped()).build(),
                 new File(outputFilename),
                 config.build());
         startTime = System.currentTimeMillis();

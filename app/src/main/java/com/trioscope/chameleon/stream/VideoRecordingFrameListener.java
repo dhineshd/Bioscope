@@ -228,7 +228,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 if (firstFrameReceivedForRecordingTimeMillis == null) {
                     firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis;
                     chameleonApplication.setRecordingStartTimeMillis(frameReceiveTimeMillis);
-                    chameleonApplication.setRecordingOrientationDegrees(frameInfo.getOrientationDegrees());
+                    chameleonApplication.setRecordingHorizontallyFlipped(frameInfo.isHorizontallyFlipped());
                     log.debug("First video presentation time = {}", videoBufferInfo.presentationTimeUs);
                 }
 
@@ -387,16 +387,24 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
         isRecording = false;
         muxerStarted = false;
         audioRecordTask.cancel(true);
-
-        if (videoEncoder != null) {
-            videoEncoder.stop();
-            videoEncoder.release();
-            videoEncoder = null;
+        try {
+            if (videoEncoder != null) {
+                videoEncoder.stop();
+                videoEncoder.release();
+                videoEncoder = null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop videoEncoder", e);
         }
-        if (mediaMuxer != null) {
-            mediaMuxer.stop();
-            mediaMuxer.release();
-            mediaMuxer = null;
+
+        try {
+            if (mediaMuxer != null) {
+                mediaMuxer.stop();
+                mediaMuxer.release();
+                mediaMuxer = null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop mediaMuxer", e);
         }
     }
 }

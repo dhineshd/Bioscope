@@ -452,8 +452,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 ImageUtil.getDataFromImage(image, buffer);
             }
             frameInfo.setTimestampNanos(image.getTimestamp());
-            // Camera frame is always rotated by 90. Front camera produces inverted frame (rotated by 180)
+
+            // Front camera produces upside-down and mirror image of original frame
             frameInfo.setOrientationDegrees(isUsingFrontFacingCamera()? 270 : 90);
+            frameInfo.setVerticallyFlipped(isUsingFrontFacingCamera());
+            frameInfo.setHorizontallyFlipped(isUsingFrontFacingCamera());
+
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
 
             image.close();

@@ -39,7 +39,6 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final Pattern INPUT_DURATION_PATTERN = Pattern.compile("Duration: (\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
     private static final Pattern STATUS_DURATION_PATTERN = Pattern.compile("time=(\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
 
-    @Setter
     private Context context;
     private DepackageUtil depackageUtil;
     private boolean prepared = false;
@@ -120,11 +119,11 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-filter_complex");
         params.add("[0] " +
                 (shouldHorizontallyFlipMajorVideo? "hflip," : "") +
-                "scale=iw:-1 [major]; " +
+                "scale=1080:1920 [major]; " +
                 "[1] " +
                 (shouldHorizontallyFlipMinorVideo? "hflip," : "") +
-                "scale=iw*0.3:ih*0.3 [minor]; " +
-                "[major][minor] overlay=54:main_h-overlay_h-54,drawbox=54:1290:324:576:white:t=8");
+                "scale=360:640 [minor]; " +
+                "[major][minor] overlay=54:1226,drawbox=54:1226:360:640:white:t=8");
         //OpenH264 doesnt support preset
         //params.add("-preset");
         //params.add("ultrafast");

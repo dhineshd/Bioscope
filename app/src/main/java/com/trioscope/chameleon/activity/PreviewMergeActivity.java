@@ -229,11 +229,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         this.minorVideoPath = minorVideoPath;
 
         if (majorVideoPath.equals(localRecordingMetadata.getAbsoluteFilePath())) {
-            updateDisplayOrientation(majorVideoTextureView, localRecordingMetadata.getOrientationDegrees());
-            updateDisplayOrientation(minorVideoTextureView, remoteRecordingMetadata.getOrientationDegrees());
+            updateDisplayOrientation(majorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
+            updateDisplayOrientation(minorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
         } else {
-            updateDisplayOrientation(majorVideoTextureView, remoteRecordingMetadata.getOrientationDegrees());
-            updateDisplayOrientation(minorVideoTextureView, localRecordingMetadata.getOrientationDegrees());
+            updateDisplayOrientation(majorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
+            updateDisplayOrientation(minorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
         }
 
         try {
@@ -265,14 +265,16 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         minorVideoMediaPlayer.start();
     }
 
-    private void updateDisplayOrientation(final TextureView textureView, final int orientationDegrees) {
+    private void updateDisplayOrientation(
+            final TextureView textureView,
+            final boolean horizontallyFlipped) {
 
         Matrix matrix = new Matrix();
         // Need to generate mirror image
-        if (orientationDegrees == 270) {
+        if (horizontallyFlipped) {
             matrix.setScale(-1, 1);
             matrix.postTranslate(textureView.getLayoutParams().width, 0);
-        } else if (orientationDegrees == 90) {
+        } else {
             matrix.setScale(1, 1);
             matrix.postTranslate(0, 0);
         }

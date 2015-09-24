@@ -36,6 +36,7 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
+import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
@@ -139,7 +140,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                             metadata.getClientSocket(),
                             metadata.getVideoFile(),
                             metadata.getRecordingStartTimeMillis(),
-                            metadata.getRecordingOrientationDegrees());
+                            metadata.isRecordingHorizontallyFlipped());
                     sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                 } else {
                     super.handleMessage(msg);
@@ -473,7 +474,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @NonNull
         private Integer port;
         private Long remoteRecordingStartTimeMillis;
-        private Integer remoteRecordingOrientationDegrees;
+        private boolean remoteRecordingHorizontallyFlipped;
         private long remoteClockAheadOfLocalClockMillis = 0L;
 
         @Override
@@ -527,7 +528,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         if (response != null) {
                             fileSizeBytes = response.getFileSizeBytes();
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
-                            remoteRecordingOrientationDegrees = response.getRecordingOrientationDegrees();
+                            remoteRecordingHorizontallyFlipped = response.isRecordingHorizontallyFlipped();
                             log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                             log.debug("Remote current time = {}", response.getCurrentTimeMillis());
                             log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
@@ -620,12 +621,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(localVideoFile.getAbsolutePath())
                     .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
-                    .orientationDegrees(chameleonApplication.getRecordingOrientationDegrees())
+                    .horizontallyFlipped(chameleonApplication.isRecordingHorizontallyFlipped())
                     .build();
             RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
-                    .orientationDegrees(remoteRecordingOrientationDegrees)
+                    .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
                     .build();
 
             MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
@@ -656,7 +657,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @NonNull
         private final Long recordingStartTimeMillis;
         @NonNull
-        private final Integer recordingOrientationDegrees;
+        private final boolean recordingHorizontallyFlipped;
 
         @Override
         protected void onPreExecute() {
@@ -678,9 +679,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
                         .fileSizeBytes(fileSizeBytes)
                         .recordingStartTimeMillis(recordingStartTimeMillis)
-                        .recordingOrientationDegrees(recordingOrientationDegrees)
+                        .recordingHorizontallyFlipped(recordingHorizontallyFlipped)
                         .currentTimeMillis(System.currentTimeMillis()).build();
-                log.error("" + response);
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                         .contents(gson.toJson(response)).build();
@@ -724,7 +724,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 }
             }
 
-            log.error("Returning null to director");
             return null;
         }
 
@@ -794,27 +793,33 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
                     InputStream inputStream = socket.getInputStream();
                     final Matrix matrix = new Matrix();
-                    matrix.postRotate(90);
                     while (!isCancelled()) {
                         // TODO More robust
-                        final int bytesRead = inputStream.read(buffer);
-                        if (bytesRead != -1) {
-                            //log.debug("Received preview image from remote server bytes = " + bytesRead);
-                            final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
-                                    BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (imageView != null && bmpRef.get() != null) {
-                                        // TODO : Rotate image without using bitmap
-                                        Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                                bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
-                                                bmpRef.get().getHeight(), matrix, true);
-                                        imageView.setImageBitmap(rotatedBitmap);
-                                        imageView.setVisibility(View.VISIBLE);
+                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        String recvMsg = bufferedReader.readLine();
+                        if (recvMsg != null) {
+                            StreamMetadata streamMetadata = gson.fromJson(recvMsg, StreamMetadata.class);
+                            matrix.setScale(1, streamMetadata.isHorizontallyFlipped() ? -1 : 1);
+                            matrix.postRotate(90);
+                            final int bytesRead = inputStream.read(buffer);
+                            if (bytesRead != -1) {
+                                //log.debug("Received preview image from remote server bytes = " + bytesRead);
+                                final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                                        BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (imageView != null && bmpRef.get() != null) {
+                                            // TODO : Rotate image without using bitmap
+                                            Bitmap rotatedBitmap = Bitmap.createBitmap(
+                                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
+                                                    bmpRef.get().getHeight(), matrix, true);
+                                            imageView.setImageBitmap(rotatedBitmap);
+                                            imageView.setVisibility(View.VISIBLE);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
                     }
                 } catch (Exception e) {

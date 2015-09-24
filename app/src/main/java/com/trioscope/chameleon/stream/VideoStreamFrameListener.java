@@ -20,6 +20,7 @@ import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
+import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
@@ -93,9 +94,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                             byteArray = convertYUV420888ImageToJPEGByteArray(
                                     data.getImage(), cameraWidth, cameraHeight, targetWidth, targetHeight);
                         } else if (data.getBytes() != null) {
-                            log.info("Camera width = {}, height = {}, frame array length = {}", cameraWidth, cameraHeight, data.getBytes().length);
                             byteArray = convertYUV420888ByteArrayToJPEGByteArray(
-                                    data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight, frameInfo.getOrientationDegrees());
+                                    data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight,
+                                    frameInfo.isHorizontallyFlipped());
                         }
                     } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
                         byteArray = convertNV21ToJPEGByteArray(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
@@ -106,6 +107,12 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     }
                     if (byteArray != null) {
                         log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
+                        StreamMetadata streamMetadata = StreamMetadata.builder()
+                                .horizontallyFlipped(frameInfo.isHorizontallyFlipped())
+                                .build();
+                        PrintWriter pw = new PrintWriter(destOutputStream);
+                        pw.println(gson.toJson(streamMetadata));
+                        pw.close();
                         destOutputStream.write(byteArray, 0, byteArray.length);
                     }
                     previousFrameSendTimeMs = System.currentTimeMillis();
@@ -122,9 +129,9 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
             final int frameHeight,
             final int targetWidth,
             final int targetHeight,
-            final int orientationDegrees) {
+            final boolean verticallyFlipped) {
         finalFrameData = ColorConversionUtil.scaleAndConvertI420ToNV21AndReturnByteArray(
-                frameData, frameWidth, frameHeight, targetWidth, targetHeight, orientationDegrees == 270);
+                frameData, frameWidth, frameHeight, targetWidth, targetHeight, verticallyFlipped);
         YuvImage yuvimage = new YuvImage(
                 finalFrameData,
                 ImageFormat.NV21, targetWidth, targetHeight, null);
@@ -295,13 +302,11 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private void sendRecordedVideo(final Socket clientSocket) {
         log.debug("Received message to send recorded video!");
         File videoFile = chameleonApplication.getVideoFile();
-        Long recordingStartTimeMillis = chameleonApplication.getRecordingStartTimeMillis();
-        Integer recordingOrientationDegrees = chameleonApplication.getRecordingOrientationDegrees();
         SendVideoToPeerMetadata metadata = SendVideoToPeerMetadata.builder()
                 .clientSocket(clientSocket)
                 .videoFile(videoFile)
-                .recordingStartTimeMillis(recordingStartTimeMillis)
-                .recordingOrientationDegrees(recordingOrientationDegrees)
+                .recordingStartTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
+                .recordingHorizontallyFlipped(chameleonApplication.isRecordingHorizontallyFlipped())
                 .build();
         Message msg = sendVideoToPeerHandler.obtainMessage(ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE, metadata);
         sendVideoToPeerHandler.sendMessage(msg);

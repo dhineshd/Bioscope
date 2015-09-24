@@ -92,7 +92,7 @@ public class ChameleonApplication extends Application {
     private volatile Long recordingStartTimeMillis;
     @Getter
     @Setter
-    private volatile Integer recordingOrientationDegrees;
+    private volatile boolean recordingHorizontallyFlipped;
 
     @Getter
     private CameraOpener cameraOpener;

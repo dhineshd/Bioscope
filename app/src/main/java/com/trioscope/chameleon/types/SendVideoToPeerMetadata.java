@@ -19,6 +19,5 @@ public class SendVideoToPeerMetadata {
     private final File videoFile;
     @NonNull
     private final Long recordingStartTimeMillis;
-    @NonNull
-    private final Integer recordingOrientationDegrees;
+    private final boolean recordingHorizontallyFlipped;
 }
