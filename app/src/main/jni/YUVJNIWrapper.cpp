@@ -188,7 +188,6 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
     int newYsize = newW * newH;
 
     unsigned char* tempBuf = new unsigned char[newLen];
-    unsigned char* tempBuf2 = NULL;
 
     unsigned char* src_y = i420Buf;
     unsigned char* src_u = i420Buf + oldYsize;
@@ -209,28 +208,9 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
             newW, newH,
             libyuv::kFilterNone);
 
-    if (inversion) {
-
-//        tempBuf2 = new unsigned char[newLen];
-//
-//        unsigned char* temp2_y = tempBuf;
-//        unsigned char* temp2_u = tempBuf + newYsize;
-//        unsigned char* temp2_v = temp2_u + (newYsize / 4);
-//
-//        libyuv::I420Mirror(
-//        (uint8*) temp_y, newW,
-//        (uint8*) temp_u, newW / 2,
-//        (uint8*) temp_v, newW / 2,
-//        (uint8*) temp2_y, newW,
-//        (uint8*) temp2_u, newW,
-//        (uint8*) temp2_v, newW,
-//        newW, newH);
-//
-//        // Re-assigning temp to new buffer
-//        temp_y = tempBuf2;
-//        temp_u = tempBuf2 + newYsize;
-//        temp_v = temp_u + (newYsize / 4);
-    }
+	if (i420Buf) {
+		delete[] i420Buf;
+	}
 
     unsigned char* outputBuf = new unsigned char[newLen];
     unsigned char* dst_y = outputBuf;
@@ -248,16 +228,8 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
     jbyteArray nv12 = env->NewByteArray(newLen);
     env->SetByteArrayRegion(nv12, 0, newLen, reinterpret_cast<jbyte*>(outputBuf));
 
-    if (i420Buf) {
-        delete[] i420Buf;
-    }
-
     if (tempBuf) {
         delete[] tempBuf;
-    }
-
-    if (tempBuf2) {
-        delete[] tempBuf2;
     }
 
     if (outputBuf) {
