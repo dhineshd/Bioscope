@@ -15,6 +15,7 @@ import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.MergeConfiguration;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
+import com.trioscope.chameleon.util.merge.VideoConfiguration;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
@@ -35,9 +36,9 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
     private FfmpegVideoMerger videoMerger;
     private long startTime;
     private Notification.Builder notificationBuilder;
-    private RecordingMetadata localRecordingMetadata;
-    private RecordingMetadata remoteRecordingMetadata;
-    private long localVideoStartedBeforeRemoteVideoOffsetMillis;
+    private RecordingMetadata majorVideoMetadata;
+    private RecordingMetadata minorVideoMetadata;
+    private long majorVideoStartedBeforeMinorVideoOffsetMillis;
     private String outputFilename;
 
     private Gson gson = new Gson();
@@ -83,26 +84,31 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         Bundle args = getArguments();
 
         videoMerger = new FfmpegVideoMerger();
-        localRecordingMetadata = gson.fromJson(
+        majorVideoMetadata = gson.fromJson(
                 args.getString(MAJOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
-        remoteRecordingMetadata = gson.fromJson(
+        minorVideoMetadata = gson.fromJson(
                 args.getString(MINOR_VIDEO_METADATA_KEY), RecordingMetadata.class);
-        localVideoStartedBeforeRemoteVideoOffsetMillis =
+        majorVideoStartedBeforeMinorVideoOffsetMillis =
                 args.getLong(MAJOR_BEFORE_MINOR_VIDEO_START_OFFSET_MILLIS_KEY);
         outputFilename = args.getString(OUTPUT_FILENAME_KEY);
         log.info("Local video started before remote video offset millis = {}",
-                localVideoStartedBeforeRemoteVideoOffsetMillis);
-        File vid1 = new File(localRecordingMetadata.getAbsoluteFilePath());
-        File vid2 = new File(remoteRecordingMetadata.getAbsoluteFilePath());
-        File output = new File(outputFilename);
+                majorVideoStartedBeforeMinorVideoOffsetMillis);
 
         videoMerger.setContext(currentContext);
         videoMerger.setProgressUpdatable(this);
         videoMerger.prepare();
 
         MergeConfiguration.MergeConfigurationBuilder config = MergeConfiguration.builder();
-        config.videoStartOffsetMilli(localVideoStartedBeforeRemoteVideoOffsetMillis);
-        videoMerger.mergeVideos(vid1, vid2, output, config.build());
+        config.videoStartOffsetMilli(majorVideoStartedBeforeMinorVideoOffsetMillis);
+        videoMerger.mergeVideos(
+                VideoConfiguration.builder()
+                        .file(new File(majorVideoMetadata.getAbsoluteFilePath()))
+                        .horizontallyFlipped(majorVideoMetadata.getOrientationDegrees() == 270).build(),
+                VideoConfiguration.builder()
+                        .file(new File(minorVideoMetadata.getAbsoluteFilePath()))
+                        .horizontallyFlipped(minorVideoMetadata.getOrientationDegrees() == 270).build(),
+                new File(outputFilename),
+                config.build());
         startTime = System.currentTimeMillis();
 
 

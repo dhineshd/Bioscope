@@ -78,19 +78,30 @@ public class FfmpegVideoMerger implements VideoMerger {
     }
 
     @Override
-    public void mergeVideos(File video1, File video2, File outputFile, MergeConfiguration configuration) {
+    public void mergeVideos(
+            final VideoConfiguration videoConfig1,
+            final VideoConfiguration videoConfig2,
+            File outputFile,
+            final MergeConfiguration configuration) {
+
         if (!prepared)
             prepare();
 
         VideoMergeTaskParams params = new VideoMergeTaskParams();
         params.setConfiguration(configuration);
-        params.setFile1(video1);
-        params.setFile2(video2);
+        params.setFirstVideoConfig(videoConfig1);
+        params.setSecondVideoConfig(videoConfig2);
         params.setOutputFile(outputFile);
         AsyncTask<VideoMergeTaskParams, Double, Boolean> task = new AsyncVideoMergeTask().execute(params);
     }
 
-    private List<String> constructPIPArguments(String majorVidPath, String minorVidPath, String outputPath, MergeConfiguration configuration) {
+    private List<String> constructPIPArguments(
+            final String majorVidPath,
+            final boolean shouldHorizontallyFlipMajorVideo,
+            final String minorVidPath,
+            final boolean shouldHorizontallyFlipMinorVideo,
+            final String outputPath,
+            final MergeConfiguration configuration) {
         List<String> params = new LinkedList<>();
         params.add("-i");
         params.add(majorVidPath);
@@ -107,7 +118,13 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-b:v");
         params.add("5000k");
         params.add("-filter_complex");
-        params.add("[0] scale=iw:-1 [major]; [1] scale=iw*0.3:ih*0.3 [minor]; [major][minor] overlay=54:main_h-overlay_h-54,drawbox=54:1290:324:576:white:t=8");
+        params.add("[0] " +
+                (shouldHorizontallyFlipMajorVideo? "hflip," : "") +
+                "scale=iw:-1 [major]; " +
+                "[1] " +
+                (shouldHorizontallyFlipMinorVideo? "hflip," : "") +
+                "scale=iw*0.3:ih*0.3 [minor]; " +
+                "[major][minor] overlay=54:main_h-overlay_h-54,drawbox=54:1290:324:576:white:t=8");
         //OpenH264 doesnt support preset
         //params.add("-preset");
         //params.add("ultrafast");
@@ -180,8 +197,9 @@ public class FfmpegVideoMerger implements VideoMerger {
         @Override
         protected Boolean doInBackground(VideoMergeTaskParams... params) {
             start = System.currentTimeMillis();
-            majorVideo = params[0].getFile1();
-            minorVideo = params[0].getFile2();
+            majorVideo = params[0].getFirstVideoConfig().getFile();
+            minorVideo = params[0].getSecondVideoConfig().getFile();
+
             File outputFile = params[0].getOutputFile();
 
             log.info("Running ffmpeg to merge {} and {} into {}", majorVideo, minorVideo, outputFile);
@@ -199,8 +217,13 @@ public class FfmpegVideoMerger implements VideoMerger {
                     outputFile.delete();
                     log.info("Existing file at {} is deleted", outputFile);
                 }
-                List<String> cmdParams = constructPIPArguments(majorVideo.getAbsolutePath(),
-                        minorVideo.getAbsolutePath(), outputFile.getAbsolutePath(), params[0].getConfiguration());
+                List<String> cmdParams = constructPIPArguments(
+                        majorVideo.getAbsolutePath(),
+                        params[0].getFirstVideoConfig().isHorizontallyFlipped(),
+                        minorVideo.getAbsolutePath(),
+                        params[0].getSecondVideoConfig().isHorizontallyFlipped(),
+                        outputFile.getAbsolutePath(),
+                        params[0].getConfiguration());
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
                 log.info("Ffmpeg parameters are {}", cmdParams);
                 ProcessBuilder builder = new ProcessBuilder(cmdParams);
@@ -303,7 +326,8 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     @Data
     private class VideoMergeTaskParams {
-        File file1, file2, outputFile;
+        VideoConfiguration firstVideoConfig, secondVideoConfig;
+        File outputFile;
         MergeConfiguration configuration;
     }
 }
