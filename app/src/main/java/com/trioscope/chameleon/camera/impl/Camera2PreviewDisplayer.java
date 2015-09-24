@@ -53,6 +53,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
+    private Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
     private int curLensFacing = -1;
 
 
@@ -81,7 +82,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
-        Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+
+        frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
 
         if (!supportedSizes.contains(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE)) {
             // Find supported size with desired aspect ratio
@@ -398,9 +400,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     public SurfaceView createPreviewDisplay() {
         log.debug("Creating PreviewDisplay for open camera");
         SurfaceView surfaceView = new SurfaceView(context);
-        surfaceView.getHolder().setFixedSize(
-                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth(),
-                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight());
+        surfaceView.getHolder().setFixedSize(frameSize.getWidth(), frameSize.getHeight());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
