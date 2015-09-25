@@ -15,7 +15,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -73,13 +72,11 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
     private void updateCameraInfo() {
 
-        Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
         CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
 
         log.debug("Creating cameraInfo");
-        CameraInfo.ImageEncoding encoding;
-
-        encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
+        // Supposed to be universally supported by Camera2
+        CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
@@ -276,15 +273,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         // When the session is ready, we start displaying the preview.
                         captureSession = session;
                         try {
-                            // Auto focus should be continuous for camera preview.
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
-                            // TODO : Check to see which devices can support this rate
-                            // Not setting the rate can affect audio processing capability
-                            // on certain devices like LG g4
-                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                                    Range.create(20, 20));
-
+                                    CaptureRequest.CONTROL_AF_MODE_OFF);
 
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
