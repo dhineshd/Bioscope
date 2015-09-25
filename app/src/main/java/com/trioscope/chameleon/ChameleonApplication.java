@@ -73,7 +73,7 @@ public class ChameleonApplication extends Application {
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
-    public static final String APP_FONT_LOCATION = "fonts/Idolwild/idolwild.ttf";
+    public static final String APP_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
 
 
     public static final int SERVER_PORT = 7080;

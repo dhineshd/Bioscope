@@ -27,16 +27,13 @@
 
         <Button
             android:id="@+id/button_main_start_session"
-            android:background="@drawable/large_size_button"
-            android:stateListAnimator="@anim/main_round_button_lift_up"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:background="@drawable/primary_button_large_background"
+            android:stateListAnimator="@anim/button_elevation_anim"
+            style="@style/primaryButtonLargeText"
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="248dp"
-            android:text="DIRECT\nVIDEO"
-            android:textSize="28sp"
-            android:textColor="@android:color/white" />
+            android:text="DIRECT\nVIDEO" />
 
         <ImageButton
             android:id="@+id/button_main_library"

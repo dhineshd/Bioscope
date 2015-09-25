@@ -117,8 +117,8 @@
 
             <Button
                 android:id="@+id/button_continue_session"
-                android:background="@drawable/large_size_button"
-                android:stateListAnimator="@anim/main_round_button_lift_up"
+                android:background="@drawable/primary_button_large_background"
+                android:stateListAnimator="@anim/button_elevation_anim"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentTop="true"
