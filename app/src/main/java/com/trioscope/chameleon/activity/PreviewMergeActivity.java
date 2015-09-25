@@ -6,6 +6,7 @@ import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.graphics.Matrix;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -13,6 +14,8 @@ import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -51,6 +54,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private File outputFile;
     private TextView touchReplayTextView;
     private Button buttonMerge;
+    private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
 
 
     @Override
@@ -66,10 +70,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         buttonMerge.setTypeface(appFontTypeface);
 
         Intent intent = getIntent();
-        final RecordingMetadata localRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY), RecordingMetadata.class);
-        final RecordingMetadata remoteRecordingMetadata = gson.fromJson(
-                intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY), RecordingMetadata.class);
+        localRecordingMetadata = gson.fromJson(
+                intent.getStringExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY),
+                RecordingMetadata.class);
+        remoteRecordingMetadata = gson.fromJson(
+                intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY),
+                RecordingMetadata.class);
 
         majorVideoAheadOfMinorVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
                 localRecordingMetadata.getStartTimeMillis());
@@ -78,9 +84,24 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         minorVideoMediaPlayer = new MediaPlayer();
 
         majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
+
         minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
 
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
+
+        majorVideoTextureView.getViewTreeObserver().addOnGlobalLayoutListener(
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        majorVideoTextureView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        int width = majorVideoTextureView.getMeasuredWidth();
+                        int height = majorVideoTextureView.getMeasuredHeight();
+                        ViewGroup.LayoutParams layoutParams = majorVideoTextureView.getLayoutParams();
+                        layoutParams.width = width;
+                        layoutParams.height = height;
+                        majorVideoTextureView.setLayoutParams(layoutParams);
+                    }
+                });
 
         majorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
@@ -95,7 +116,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
             @Override
             public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
             }
 
             @Override
@@ -110,6 +130,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         });
 
         minorVideoTextureView = (TextureView) findViewById(R.id.textureview_minor_video);
+
         minorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -207,6 +228,14 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         this.majorVideoPath = majorVideoPath;
         this.minorVideoPath = minorVideoPath;
 
+        if (majorVideoPath.equals(localRecordingMetadata.getAbsoluteFilePath())) {
+            updateDisplayOrientation(majorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
+            updateDisplayOrientation(minorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
+        } else {
+            updateDisplayOrientation(majorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
+            updateDisplayOrientation(minorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
+        }
+
         try {
             majorVideoMediaPlayer.setDataSource(majorVideoPath);
             majorVideoMediaPlayer.prepare();
@@ -236,21 +265,27 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         minorVideoMediaPlayer.start();
     }
 
+    private void updateDisplayOrientation(
+            final TextureView textureView,
+            final boolean horizontallyFlipped) {
+
+        Matrix matrix = new Matrix();
+        // Need to generate mirror image
+        if (horizontallyFlipped) {
+            matrix.setScale(-1, 1);
+            matrix.postTranslate(textureView.getLayoutParams().width, 0);
+        } else {
+            matrix.setScale(1, 1);
+            matrix.postTranslate(0, 0);
+        }
+        textureView.setTransform(matrix);
+
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
         cleanup();
-    }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        cleanup();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
     }
 
     private void cleanup() {

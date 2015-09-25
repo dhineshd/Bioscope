@@ -15,7 +15,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -47,12 +46,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private static final int MAX_NUM_IMAGES = 3;
     private final Context context;
     private final CameraManager cameraManager;
-    private final CameraInfo cameraInfo;
+    private CameraInfo cameraInfo;
     private CameraDevice cameraDevice;
     private ImageReader imageReader;
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
+    private Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
     private int curLensFacing = -1;
 
 
@@ -68,27 +68,39 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         this.context = context;
         this.cameraDevice = cameraDevice;
         this.cameraManager = cameraManager;
+    }
 
-        Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
+    private void updateCameraInfo() {
+
         CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
 
         log.debug("Creating cameraInfo");
-        CameraInfo.ImageEncoding encoding;
-        /* ImageReader doesnt support NV21 currently.
-          if (supportedEncodings.contains(CameraInfo.ImageEncoding.NV21))
-            encoding = CameraInfo.ImageEncoding.NV21;
-        */
-        encoding = CameraInfo.ImageEncoding.YUV_420_888; // Supposed to be universally supported by Camera2
-        //builder.captureResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
-        //builder.cameraResolution(getSupportedSizes(encoding.getImageFormat()).get(0));
+        // Supposed to be universally supported by Camera2
+        CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
-        builder.cameraResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
-        builder.captureResolution(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE);
+
+        frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+
+        if (!supportedSizes.contains(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE)) {
+            // Find supported size with desired aspect ratio
+            for (Size suppportedSize : supportedSizes) {
+                int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());
+                int widthRatio = suppportedSize.getWidth() / factor;
+                int heightRatio = suppportedSize.getHeight() / factor;
+                if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_WIDTH_RATIO
+                        && heightRatio == ChameleonApplication.DEFAULT_ASPECT_HEIGHT_RATIO) {
+                    frameSize = suppportedSize;
+                    break;
+                }
+            }
+        }
+        builder.cameraResolution(frameSize);
+        builder.captureResolution(frameSize);
         builder.encoding(encoding);
         cameraInfo = builder.build();
 
-        log.debug("Using cameraInfo {}", cameraInfo);
+        log.info("Using cameraInfo {}", cameraInfo);
 
         try {
             CameraCharacteristics cc = cameraManager.getCameraCharacteristics(cameraDevice.getId());
@@ -97,7 +109,10 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         } catch (CameraAccessException e) {
             log.error("Unable to access camerainformation", e);
         }
+    }
 
+    public int greatestCommonFactor(int width, int height) {
+        return (height == 0) ? width : greatestCommonFactor(height, width % height);
     }
 
     @Override
@@ -224,12 +239,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             log.error("Unable to get camera sizes", e);
         }
 
-        log.debug("Getting sizes for format {} = {}", format, sizes);
+        log.info("Getting sizes for format {} = {}", format, sizes);
         return sizes;
     }
 
     private void startPreviewHelper() {
         try {
+            updateCameraInfo();
             CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
             log.debug("Timestamp source for camera2: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
 
@@ -257,15 +273,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         // When the session is ready, we start displaying the preview.
                         captureSession = session;
                         try {
-                            // Auto focus should be continuous for camera preview.
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
-                            // TODO : Check to see which devices can support this rate
-                            // Not setting the rate can affect audio processing capability
-                            // on certain devices like LG g4
-                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                                    Range.create(20, 20));
-
+                                    CaptureRequest.CONTROL_AF_MODE_OFF);
 
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
@@ -381,9 +390,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     public SurfaceView createPreviewDisplay() {
         log.debug("Creating PreviewDisplay for open camera");
         SurfaceView surfaceView = new SurfaceView(context);
-        surfaceView.getHolder().setFixedSize(
-                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth(),
-                ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight());
+        surfaceView.getHolder().setFixedSize(frameSize.getWidth(), frameSize.getHeight());
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
@@ -435,6 +442,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 ImageUtil.getDataFromImage(image, buffer);
             }
             frameInfo.setTimestampNanos(image.getTimestamp());
+
+            // Front camera produces upside-down and mirror image of original frame
+            frameInfo.setOrientationDegrees(isUsingFrontFacingCamera()? 270 : 90);
+            frameInfo.setVerticallyFlipped(isUsingFrontFacingCamera());
+            frameInfo.setHorizontallyFlipped(isUsingFrontFacingCamera());
+
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
 
             image.close();

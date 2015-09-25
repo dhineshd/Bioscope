@@ -14,4 +14,5 @@ public class RecordingMetadata {
     private String absoluteFilePath;
     @NonNull
     private Long startTimeMillis;
+    private boolean horizontallyFlipped;
 }

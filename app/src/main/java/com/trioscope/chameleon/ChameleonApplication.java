@@ -12,7 +12,6 @@ import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
-import android.telephony.TelephonyManager;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
@@ -71,6 +70,8 @@ public class ChameleonApplication extends Application {
     // need to ensure that the compressed stream image size is less than this value.
     public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
+    public static final double DEFAULT_ASPECT_WIDTH_RATIO = 16;
+    public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
     public static final String APP_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
@@ -88,6 +89,9 @@ public class ChameleonApplication extends Application {
     @Getter
     @Setter
     private volatile Long recordingStartTimeMillis;
+    @Getter
+    @Setter
+    private volatile boolean recordingHorizontallyFlipped;
 
     @Getter
     private CameraOpener cameraOpener;
@@ -147,11 +151,11 @@ public class ChameleonApplication extends Application {
 
         log.info("Wifi initial enabled state = {}", isWifiEnabledInitially);
 
-            // Enable Wifi to save time later and to avoid constantly turning on/off
-            // which affects battery performance
-            if (!isWifiEnabledInitially) {
-                enableWifiAndPerformActionWhenEnabled(null);
-            }
+        // Enable Wifi to save time later and to avoid constantly turning on/off
+        // which affects battery performance
+        if (!isWifiEnabledInitially) {
+            enableWifiAndPerformActionWhenEnabled(null);
+        }
 
         recordingFrameListener = new VideoRecordingFrameListener(this);
 
@@ -227,18 +231,6 @@ public class ChameleonApplication extends Application {
         if (!previewStarted) {
             log.info("Grabbing camera and starting preview");
 
-
-            /*
-            cameraOpener = new CameraOpener();
-            cameraOpener.openCamera();
-
-            Camera.Parameters params = cameraOpener.getCamera().getParameters();
-
-            cameraInfo = CameraInfoFactory.createCameraInfo(params);
-
-            log.info("CameraInfo for opened camera is {}", cameraInfo);
-            previewDisplayer = new SurfaceViewPreviewDisplayer(this, cameraOpener.getCamera(), cameraInfo);
-            */
             final CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             try {
                 ThreadWithHandler handlerThread = new ThreadWithHandler();
@@ -345,11 +337,14 @@ public class ChameleonApplication extends Application {
         startConnectionServerIfNotRunning();
 
         //Code for phone
-        IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
-        phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-        incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
-        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
-        log.info("Registered IncomingPhoneCallBroadcastReceiver");
+        // Commenting this out until we implement call handling logic. Need to register
+        // in every onResume() and unregister in every onPause()
+
+//        IntentFilter phoneStateChangedIntentFilter = new IntentFilter();
+//        phoneStateChangedIntentFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+//        incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
+//        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
+//        log.info("Registered IncomingPhoneCallBroadcastReceiver");
 
         // Reset session flags
         sessionStatus = SessionStatus.DISCONNECTED;
@@ -377,12 +372,7 @@ public class ChameleonApplication extends Application {
         tearDownWifiIfNecessary();
 
         // Tear down phone call receiver
-        unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
-
-        // Release camera
-        if (cameraOpener != null && cameraOpener.getCamera() != null) {
-            cameraOpener.release();
-        }
+        //unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
 
         System.exit(0);
     }

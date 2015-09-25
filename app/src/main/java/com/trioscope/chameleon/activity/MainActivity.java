@@ -21,9 +21,11 @@ import android.widget.ImageButton;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
-import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +35,7 @@ import static android.view.View.OnClickListener;
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private ChameleonApplication chameleonApplication;
     private GestureDetectorCompat gestureDetector;
+    private Set<Intent> processedIntents = new HashSet<Intent>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,7 +84,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         FfmpegVideoMerger merger = new FfmpegVideoMerger();
         merger.setContext(this);
-        merger.printAvailableCodecs();
     }
 
     private void showLibraryActivity() {
@@ -123,6 +125,12 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        log.info("onPause invoked!");
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
 
@@ -137,14 +145,13 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
-
-            chameleonApplication.setSessionStatus(SessionStatus.STARTED);
             processIntent(getIntent());
         }
     }
 
     @Override
     public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
         log.info("new intent received {}", intent);
         // onResume gets called after this to handle the intent
         setIntent(intent);
@@ -154,6 +161,11 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
      * Parses the NDEF Message from the intent and prints to the TextView
      */
     void processIntent(Intent intent) {
+        if (processedIntents.contains(intent)) {
+            log.info("Ignoring already processed intent = {}", intent);
+            return;
+        }
+        log.info("Processing intent = {}", intent);
         Parcelable[] rawMsgs = intent.getParcelableArrayExtra(
                 NfcAdapter.EXTRA_NDEF_MESSAGES);
         // only one message sent during the beam
@@ -167,18 +179,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         Intent i = new Intent(this, ReceiveConnectionInfoNFCActivity.class);
         i.putExtra(ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA, msgAsJson);
         startActivity(i);
+        processedIntents.add(intent);
     }
-
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-
-        log.info("User pressed back");
-
-        //Disable NFC Foreground dispatch
-        super.disableForegroundDispatch();
-
-        chameleonApplication.cleanupAndExit();
-    }
-
 }

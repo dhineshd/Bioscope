@@ -36,6 +36,7 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
+import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
@@ -82,6 +83,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
+    private SendVideoToPeerTask sendVideoToPeerTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -108,24 +110,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
 
-        //runs without a timer by reposting this handler at the end of the runnable
-        timerHandler = new Handler();
-
-        timerRunnable = new Runnable() {
-
-            @Override
-            public void run() {
-                long millis = System.currentTimeMillis() - recordingStartTime;
-                int seconds = (int) (millis / 1000);
-                int minutes = seconds / 60;
-                seconds = seconds % 60;
-
-                recordingTimerTextView.setVisibility(View.VISIBLE);
-                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
-
-                timerHandler.postDelayed(this, 500);
-            }
-        };
+        initializeRecordingTimer();
 
         Handler sendVideoToPeerHandler = new Handler(Looper.getMainLooper()) {
             @Override
@@ -134,10 +119,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 if (msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
 
                     SendVideoToPeerMetadata metadata = (SendVideoToPeerMetadata) msg.obj;
-                    SendVideoToPeerTask task = new SendVideoToPeerTask(metadata.getClientSocket()
-                            , metadata.getVideoFile(), metadata.getRecordingStartTimeMillis());
-
-                    task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    sendVideoToPeerTask = new SendVideoToPeerTask(
+                            metadata.getClientSocket(),
+                            metadata.getVideoFile(),
+                            metadata.getRecordingStartTimeMillis(),
+                            metadata.isRecordingHorizontallyFlipped());
+                    sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                 } else {
                     super.handleMessage(msg);
                 }
@@ -150,27 +137,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         chameleonApplication.getStreamListener().setSendVideoToPeerHandler(sendVideoToPeerHandler);
 
         sslSocketFactory = getInitializedSSLSocketFactory();
-
-        recordEventReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Start recording event received!!");
-                    // Start recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
-                    log.debug("Video recording started");
-                    recordingStartTime = System.currentTimeMillis();
-                    timerHandler.postDelayed(timerRunnable, 500);
-                } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Stop recording event received!!");
-                    // Stop recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStopRecording();
-                    log.debug("Video recording stopped");
-                    timerHandler.removeCallbacks(timerRunnable);
-                    recordingTimerTextView.setVisibility(View.INVISIBLE);
-                }
-            }
-        };
 
         // Prepare camera preview
         chameleonApplication.preparePreview();
@@ -241,7 +207,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
-
                     recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Sending message to peer to start remote recording
@@ -264,6 +229,32 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
         }
+
+
+        recordEventReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
+                    log.debug("Start recording event received!!");
+                    // Start recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
+                    log.debug("Video recording started");
+                    recordingStartTime = System.currentTimeMillis();
+                    timerHandler.postDelayed(timerRunnable, 500);
+                    // Show button to switch cameras
+                    switchCamerasButton.setVisibility(View.INVISIBLE);
+                } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
+                    log.debug("Stop recording event received!!");
+                    // Stop recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStopRecording();
+                    log.debug("Video recording stopped");
+                    timerHandler.removeCallbacks(timerRunnable);
+                    recordingTimerTextView.setVisibility(View.INVISIBLE);
+                    // Show button to switch cameras
+                    switchCamerasButton.setVisibility(View.VISIBLE);
+                }
+            }
+        };
 
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
@@ -302,6 +293,27 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         });
     }
 
+    private void initializeRecordingTimer() {
+        //runs without a timer by reposting this handler at the end of the runnable
+        timerHandler = new Handler();
+
+        timerRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                long millis = System.currentTimeMillis() - recordingStartTime;
+                int seconds = (int) (millis / 1000);
+                int minutes = seconds / 60;
+                seconds = seconds % 60;
+
+                recordingTimerTextView.setVisibility(View.VISIBLE);
+                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
+
+                timerHandler.postDelayed(this, 500);
+            }
+        };
+    }
+
     private void addCameraPreviewSurface() {
         log.debug("Creating surfaceView on thread {}", Thread.currentThread());
 
@@ -320,7 +332,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
-        log.debug("onPause invoked!");
+        log.debug("onPause invoked! Performing cleanup");
         cleanup();
     }
 
@@ -336,20 +348,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         manager.registerReceiver(this.recordEventReceiver, filter);
     }
 
-
-    @Override
-    public void onBackPressed() {
-
-        cleanup();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
-        super.onBackPressed();
-    }
-
     private void cleanup() {
+        chameleonApplication.tearDownWifiHotspot();
+
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
         log.debug("Unregistering record event receiver");
         manager.unregisterReceiver(this.recordEventReceiver);
@@ -361,6 +362,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         if (receiveVideoFromPeerTask != null) {
             receiveVideoFromPeerTask.cancel(true);
             receiveVideoFromPeerTask = null;
+        }
+        if (sendVideoToPeerTask != null) {
+            sendVideoToPeerTask.cancel(true);
+            sendVideoToPeerTask = null;
         }
 
         chameleonApplication.getStreamListener().setStreamingStarted(false);
@@ -460,6 +465,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @NonNull
         private Integer port;
         private Long remoteRecordingStartTimeMillis;
+        private boolean remoteRecordingHorizontallyFlipped;
         private long remoteClockAheadOfLocalClockMillis = 0L;
 
         @Override
@@ -513,6 +519,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                         if (response != null) {
                             fileSizeBytes = response.getFileSizeBytes();
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
+                            remoteRecordingHorizontallyFlipped = response.isRecordingHorizontallyFlipped();
                             log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                             log.debug("Remote current time = {}", response.getCurrentTimeMillis());
                             log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
@@ -605,10 +612,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(localVideoFile.getAbsolutePath())
                     .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
+                    .horizontallyFlipped(chameleonApplication.isRecordingHorizontallyFlipped())
                     .build();
             RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
+                    .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
                     .build();
 
             MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
@@ -638,6 +647,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         private final File fileToSend;
         @NonNull
         private final Long recordingStartTimeMillis;
+        @NonNull
+        private final boolean recordingHorizontallyFlipped;
 
         @Override
         protected void onPreExecute() {
@@ -650,63 +661,60 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected Void doInBackground(Void... params) {
 
-            if (fileToSend != null && recordingStartTimeMillis != null) {
-                OutputStream outputStream = null;
-                InputStream inputStream = null;
-                Long fileSizeBytes = fileToSend.length();
+            OutputStream outputStream = null;
+            InputStream inputStream = null;
+            Long fileSizeBytes = fileToSend.length();
 
+            try {
+                PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
+                SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
+                        .fileSizeBytes(fileSizeBytes)
+                        .recordingStartTimeMillis(recordingStartTimeMillis)
+                        .recordingHorizontallyFlipped(recordingHorizontallyFlipped)
+                        .currentTimeMillis(System.currentTimeMillis()).build();
+                PeerMessage responseMsg = PeerMessage.builder()
+                        .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
+                        .contents(gson.toJson(response)).build();
+                log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+                pw.println(gson.toJson(responseMsg));
+                pw.close();
+
+                // Get recording time
+                MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
+                metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
+                log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
+                clientSocket.setSendBufferSize(65536);
+                clientSocket.setReceiveBufferSize(65536);
+                outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+                inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
+                byte[] buffer = new byte[65536];
+                int bytesRead = 0;
+                int totalBytesSent = 0;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    log.debug("Sending recorded file.. bytes = {}", bytesRead);
+                    outputStream.write(buffer, 0, bytesRead);
+
+                    totalBytesSent += bytesRead;
+
+                    publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
+                }
+                log.debug("Successfully sent recorded file!");
+            } catch (IOException e) {
+                log.error("Failed to send recorded video file", e);
+            } finally {
                 try {
-                    PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
-                    SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
-                            .fileSizeBytes(fileSizeBytes)
-                            .recordingStartTimeMillis(recordingStartTimeMillis)
-                            .currentTimeMillis(System.currentTimeMillis()).build();
-                    log.error("" + response);
-                    PeerMessage responseMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
-                            .contents(gson.toJson(response)).build();
-                    log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
-                    pw.println(gson.toJson(responseMsg));
-                    pw.close();
-
-                    // Get recording time
-                    MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-                    metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
-                    log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-                    clientSocket.setSendBufferSize(65536);
-                    clientSocket.setReceiveBufferSize(65536);
-                    outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-                    inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
-                    byte[] buffer = new byte[65536];
-                    int bytesRead = 0;
-                    int totalBytesSent = 0;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        log.debug("Sending recorded file.. bytes = {}", bytesRead);
-                        outputStream.write(buffer, 0, bytesRead);
-
-                        totalBytesSent += bytesRead;
-
-                        publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
+                    if (outputStream != null) {
+                        outputStream.close();
                     }
-                    log.debug("Successfully sent recorded file!");
+                    if (inputStream != null) {
+                        inputStream.close();
+                    }
+                    clientSocket.close();
                 } catch (IOException e) {
-                    log.error("Failed to send recorded video file", e);
-                } finally {
-                    try {
-                        if (outputStream != null) {
-                            outputStream.close();
-                        }
-                        if (inputStream != null) {
-                            inputStream.close();
-                        }
-                        clientSocket.close();
-                    } catch (IOException e) {
-                        log.warn("Failed to close streams when sending recorded video", e);
-                    }
+                    log.warn("Failed to close streams when sending recorded video", e);
                 }
             }
 
-            log.error("Returning null to director");
             return null;
         }
 
@@ -776,27 +784,33 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
                     InputStream inputStream = socket.getInputStream();
                     final Matrix matrix = new Matrix();
-                    matrix.postRotate(90);
                     while (!isCancelled()) {
                         // TODO More robust
-                        final int bytesRead = inputStream.read(buffer);
-                        if (bytesRead != -1) {
-                            //log.debug("Received preview image from remote server bytes = " + bytesRead);
-                            final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
-                                    BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (imageView != null && bmpRef.get() != null) {
-                                        // TODO : Rotate image without using bitmap
-                                        Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                                bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
-                                                bmpRef.get().getHeight(), matrix, true);
-                                        imageView.setImageBitmap(rotatedBitmap);
-                                        imageView.setVisibility(View.VISIBLE);
+                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        String recvMsg = bufferedReader.readLine();
+                        if (recvMsg != null) {
+                            StreamMetadata streamMetadata = gson.fromJson(recvMsg, StreamMetadata.class);
+                            matrix.setScale(1, streamMetadata.isHorizontallyFlipped() ? -1 : 1);
+                            matrix.postRotate(90);
+                            final int bytesRead = inputStream.read(buffer);
+                            if (bytesRead != -1) {
+                                //log.debug("Received preview image from remote server bytes = " + bytesRead);
+                                final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                                        BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (imageView != null && bmpRef.get() != null) {
+                                            // TODO : Rotate image without using bitmap
+                                            Bitmap rotatedBitmap = Bitmap.createBitmap(
+                                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
+                                                    bmpRef.get().getHeight(), matrix, true);
+                                            imageView.setImageBitmap(rotatedBitmap);
+                                            imageView.setVisibility(View.VISIBLE);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
                     }
                 } catch (Exception e) {

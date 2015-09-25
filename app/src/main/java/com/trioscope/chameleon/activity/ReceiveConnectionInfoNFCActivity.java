@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.app.FragmentManager;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -93,16 +92,4 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         }
 
     }
-
-    @Override
-    public void onBackPressed() {
-
-        super.onBackPressed();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity= new Intent(this, MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
-    }
-
 }
