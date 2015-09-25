@@ -118,14 +118,11 @@
                 android:id="@+id/button_continue_session"
                 android:background="@drawable/primary_button_large_background"
                 android:stateListAnimator="@anim/button_elevation_anim"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                style="@style/primaryButtonLargeText"
                 android:layout_alignParentTop="true"
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="248dp"
-                android:text="Continue"
-                android:textSize="20sp"
-                android:textColor="@android:color/white" />
+                android:text="Continue" />
 
             <Button
                 android:id="@+id/button_retake_video"
