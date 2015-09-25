@@ -76,7 +76,6 @@ public class ChameleonApplication extends Application {
 
     public static final String APP_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
 
-
     public static final int SERVER_PORT = 7080;
 
     @Getter

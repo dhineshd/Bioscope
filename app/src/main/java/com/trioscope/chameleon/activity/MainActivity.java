@@ -48,7 +48,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                log.info("Detected gesture");
                 if (GestureUtils.isSwipeUp(e1, e2, velocityX, velocityY)) {
+                    log.info("Gesture is swipe up");
                     showLibraryActivity();
                     return true;
                 }
@@ -87,7 +89,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     }
 
     private void showLibraryActivity() {
-        Intent i = new Intent(MainActivity.this, VideoLibraryActivity.class);
+        Intent i = new Intent(MainActivity.this, VideoLibraryGridActivity.class);
         i.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(i);
         overridePendingTransition(R.anim.abc_slide_in_bottom, R.anim.abc_slide_out_top);
