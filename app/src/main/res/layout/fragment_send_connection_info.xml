@@ -12,6 +12,14 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.fragment.SendConnectionInfoFragment">
 
+    <ProgressBar
+        android:id="@+id/send_conn_info_prog_bar"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:visibility="invisible"
+        android:indeterminate="true"
+        android:layout_gravity="center" />
+
     <TextView
         android:id="@+id/textView_sender_connection_status"
         android:background="@null"
@@ -20,13 +28,4 @@
         android:fontFamily="sans-serif-condensed"
         android:layout_gravity="center"
         android:gravity="center" />
-
-    <ProgressBar
-        android:id="@+id/send_conn_info_prog_bar"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:visibility="gone"
-        android:indeterminate="true"
-        android:layout_gravity="center" />
-
 </FrameLayout>

@@ -173,7 +173,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        final ImageView switchCamerasButton = (ImageView) findViewById(R.id.button_switch_cameras);
+        final ImageButton switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
