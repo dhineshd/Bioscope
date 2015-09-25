@@ -1,7 +1,8 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_gravity="center"
     android:paddingLeft="0px"
     android:paddingRight="0px"
     android:paddingTop="0px"
@@ -9,33 +10,21 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment">
 
-    <TextView
-        android:id="@+id/textView_nfc_instructions"
-        android:text="@string/nfc_instructions_message"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true" />
+    <ProgressBar
+        android:id="@+id/receive_conn_info_prog_bar"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:visibility="gone"
+        android:indeterminate="true"
+        android:max="100"
+        android:layout_gravity="center" />
 
     <TextView
         android:id="@+id/textView_receiver_connection_status"
         android:layout_width="150dp"
         android:layout_height="150dp"
-        android:layout_centerInParent="true"
-        android:layout_alignLeft="@+id/receive_conn_info_prog_bar"
-        android:layout_alignTop="@+id/receive_conn_info_prog_bar"
+        android:layout_gravity="center"
         android:gravity="center"
         android:visibility="invisible" />
 
-    <ProgressBar
-        android:id="@+id/receive_conn_info_prog_bar"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:visibility="gone"
-        android:indeterminate="true"
-        android:max="100"
-        android:layout_gravity="center"
-        android:layout_centerInParent="true"
-        android:indeterminateDrawable="@drawable/circular_progress_bar"
-        />
-
-</RelativeLayout>
+</FrameLayout>

@@ -20,7 +20,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
     private Gson gson = new Gson();
     private TextView mTextViewConnectionStatus;
-    private TextView mTextViewNfcInstructions;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,7 +32,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         // the peer's hotspot.
         ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
 
-        mTextViewNfcInstructions = (TextView) findViewById(R.id.textView_nfc_instructions);
         mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_receiver_connection_status);
 
         log.debug("ReceiveConnectionInfoNFCActivity {}", this);
@@ -74,10 +72,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
             if(mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
                 mTextViewConnectionStatus.setVisibility(TextView.VISIBLE);
-            }
-
-            if(mTextViewNfcInstructions.getVisibility() == TextView.VISIBLE) {
-                mTextViewNfcInstructions.setVisibility(TextView.INVISIBLE);
             }
 
             final WiFiNetworkConnectionInfo connectionInfo =

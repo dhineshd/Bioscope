@@ -293,6 +293,7 @@ public class ChameleonApplication extends Application {
     }
 
     public void stopPreview() {
+        log.info("stop preview invoked!");
         if (previewDisplayer != null) {
             previewDisplayer.stopPreview();
             previewDisplayer = null;

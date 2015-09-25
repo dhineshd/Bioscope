@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PorterDuff;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
@@ -39,7 +40,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
     private TextView connectionStatusTextView;
     private ChameleonApplication chameleonApplication;
-    private ProgressBar receiveConnInfoProgBar;
+    private ProgressBar progressBar;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -59,9 +60,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_receiver_connection_status);
-
-        receiveConnInfoProgBar = (ProgressBar) view.findViewById(R.id.receive_conn_info_prog_bar);
-
+        progressBar = (ProgressBar) view.findViewById(R.id.receive_conn_info_prog_bar);
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
     }
 
@@ -102,6 +101,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            showProgressBar();
                             connectionStatusTextView.setText("Enabling WiFi..");
                         }
                     });
@@ -123,7 +123,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                receiveConnInfoProgBar.setVisibility(View.VISIBLE);
+                showProgressBar();
                 connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName());
 
             }
@@ -143,6 +143,9 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                 if(currentSSID != null &&
                         currentSSID.equals(connectionInfo.getSSID()) &&
                         localIPAddress != null) {
+
+                    progressBar.setVisibility(View.INVISIBLE);
+                    connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
 
                     // Done with checking connectivity
                     unregisterReceiverSafely(this);
@@ -173,6 +176,12 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         getActivity().registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
 
         connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+    }
+
+    private void showProgressBar() {
+        progressBar.setVisibility(View.VISIBLE);
+        int color = 0xffffa500;
+        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void unregisterReceiverSafely(final BroadcastReceiver receiver){

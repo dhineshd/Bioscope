@@ -1,7 +1,9 @@
 package com.trioscope.chameleon.fragment;
 
+import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.PorterDuff;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -12,6 +14,7 @@ import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -35,11 +38,13 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class SendConnectionInfoFragment extends Fragment {
+    private static final int MAX_ATTEMPTS_TO_CREATE_WIFI_HOTSPOT = 3;
     private static final String CONNECTION_STATUS_TEXT_KEY = "CONNECTION_STATUS_TEXT";
     private ChameleonApplication chameleonApplication;
     private TextView connectionStatusTextView;
-    private ProgressBar sendConnInfoProgBar;
-    private ProgressBar sendConnInfoProgBarMax;
+    private ProgressBar progressBar;
+    private ObjectAnimator progressBarAnimator;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,13 +61,16 @@ public class SendConnectionInfoFragment extends Fragment {
 
         log.info("onViewCreated : SendConnectionInfoFragment");
 
+        chameleonApplication = (ChameleonApplication) getActivity().getApplication();
+
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_sender_connection_status);
 
-        sendConnInfoProgBar = (ProgressBar) view.findViewById(R.id.send_conn_info_prog_bar);
+        progressBar = (ProgressBar) view.findViewById(R.id.send_conn_info_prog_bar);
 
-        sendConnInfoProgBarMax = (ProgressBar) view.findViewById(R.id.send_conn_info_prog_bar_max);
+        progressBarAnimator = ObjectAnimator.ofInt (progressBar, "progress", 1, 100);
+        //progressBarAnimator.setDuration (5000); //in milliseconds
+        progressBarAnimator.setInterpolator (new DecelerateInterpolator());
 
-        chameleonApplication = (ChameleonApplication) getActivity().getApplication();
         new SetupWifiHotspotTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
@@ -116,6 +124,7 @@ public class SendConnectionInfoFragment extends Fragment {
             getActivity().runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
+                    showProgressBar();
                     connectionStatusTextView.setText("Enabling Wifi..");
                 }
             });
@@ -133,15 +142,13 @@ public class SendConnectionInfoFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-
-                sendConnInfoProgBar.setVisibility(View.VISIBLE);
-                sendConnInfoProgBar.setIndeterminate(true);
+                showProgressBar();
                 connectionStatusTextView.setText("Preparing To Connect");
 
             }
         });
 
-        log.info("Creating Wifi hotspot");
+        log.info("Creating Wifi hotspot. Thread = {}", Thread.currentThread());
 
         //Initialize wifiManager and wifiChannel
         chameleonApplication.initializeWifiP2p();
@@ -157,101 +164,128 @@ public class SendConnectionInfoFragment extends Fragment {
         }
 
         // Create new Wifi hotspot
-        createWifiP2PGroup(wifiP2pManager, wifiP2pChannel);
+        createWifiP2PGroup(wifiP2pManager, wifiP2pChannel, MAX_ATTEMPTS_TO_CREATE_WIFI_HOTSPOT, 0);
 
+    }
+
+    private void showProgressBar() {
+        progressBar.setVisibility(View.VISIBLE);
+        int color = 0xffffa500;
+        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void createWifiP2PGroup(
             final WifiP2pManager wifiP2pManager,
-            final WifiP2pManager.Channel wifiP2pChannel) {
+            final WifiP2pManager.Channel wifiP2pChannel,
+            final int maxAttemptsLeftToCreateWifiHotspot,
+            final long initialSleepMs) {
 
-        final int maxRetries = 50;
-
-        wifiP2pManager.createGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
-
-            int retryCount = 0;
+        new AsyncTask<Void, Void, Void>(){
 
             @Override
-            public void onSuccess() {
-                log.info("WifiP2P createGroup success");
-                // Calling requestGroupInfo immediately after createGroup success results
-                // in group info being null. Adding some sleep seems to work.
-                // TODO : Is there a better way?
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
-                getAndPersistWifiConnectionInfo(wifiP2pManager, wifiP2pChannel);
-            }
+            protected Void doInBackground(Void... params) {
 
-            @Override
-            public void onFailure(int reasonCode) {
-                log.warn("WifiP2P createGroup. ReasonCode: {}", reasonCode);
-                // Failure happens regularly when enabling WiFi and then creating group.
-                // Retry with some backoff (Needs at least 1 sec. Tried 500 ms and it
-                // still needed 2 retries)
-                // TODO : Is there a better way?
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(initialSleepMs);
                 } catch (InterruptedException e) {
                 }
 
-                if (retryCount++ < maxRetries) {
-                    wifiP2pManager.createGroup(wifiP2pChannel, this);
-                } else {
-                    // TODO : What do we do if we can't create Wifi network?
+                log.info("Cresting wifi p2p group in Thread = {}", Thread.currentThread());
 
-                }
+                wifiP2pManager.createGroup(wifiP2pChannel, new WifiP2pManager.ActionListener() {
+
+                    @Override
+                    public void onSuccess() {
+                        log.info("WifiP2P createGroup success. Thread = {}", Thread.currentThread());
+                        getAndPersistWifiConnectionInfo(wifiP2pManager, wifiP2pChannel, 1000);
+                    }
+
+                    @Override
+                    public void onFailure(int reasonCode) {
+                        log.warn("WifiP2P createGroup. ReasonCode: {}", reasonCode);
+
+                        if (maxAttemptsLeftToCreateWifiHotspot > 0) {
+                            // Failure happens regularly when enabling WiFi and then creating group.
+                            // Retry with some backoff (Needs at least 1 sec. Tried 500 ms and it
+                            // still needed 2 retries)
+                            // TODO : Is there a better way?
+
+                            createWifiP2PGroup(
+                                    wifiP2pManager,
+                                    wifiP2pChannel,
+                                    maxAttemptsLeftToCreateWifiHotspot - 1,
+                                    1000);
+                        } else {
+                            // TODO : What do we do if we can't create Wifi network?
+                        }
+                    }
+                });
+                return null;
             }
-        });
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private void getAndPersistWifiConnectionInfo(
             final WifiP2pManager wifiP2pManager,
-            final WifiP2pManager.Channel wifiP2pChannel){
+            final WifiP2pManager.Channel wifiP2pChannel,
+            final long initialSleepMs) {
 
-        wifiP2pManager.requestGroupInfo(wifiP2pChannel, new WifiP2pManager.GroupInfoListener() {
+        new AsyncTask<Void, Void, Void>(){
+
             @Override
-            public void onGroupInfoAvailable(WifiP2pGroup group) {
-                log.info("Group info = {}", group);
+            protected Void doInBackground(Void... params) {
 
-                if (group != null) {
-                    log.debug("Wifi hotspot details {} ", group);
+                // Calling requestGroupInfo immediately after createGroup success results
+                // in group info being null. Adding some sleep seems to work.
+                // TODO : Is there a better way?
+                try {
+                    Thread.sleep(initialSleepMs);
+                } catch (InterruptedException e) {
+                }
 
-                    log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
-                            group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
+                wifiP2pManager.requestGroupInfo(wifiP2pChannel, new WifiP2pManager.GroupInfoListener() {
+                    @Override
+                    public void onGroupInfoAvailable(WifiP2pGroup group) {
+                        log.info("Group info = {}", group);
 
-                    WiFiNetworkConnectionInfo nci =
-                            WiFiNetworkConnectionInfo.builder()
-                                    .SSID(group.getNetworkName())
-                                    .passPhrase(group.getPassphrase())
-                                    .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
-                                    .serverPort(ChameleonApplication.SERVER_PORT)
-                                    .userName(getUserName())
-                                    .build();
+                        if (group != null) {
+                            log.info("Wifi hotspot details {}, Thread = {}", group, Thread.currentThread());
 
-                    // Connection info will be used in other components of the app
-                    ((WifiConnectionInfoListener) getActivity()).onWifiNetworkCreated(nci);
+                            log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
+                                    group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
 
-                    getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            sendConnInfoProgBar.setVisibility(View.INVISIBLE);
+                            WiFiNetworkConnectionInfo nci =
+                                    WiFiNetworkConnectionInfo.builder()
+                                            .SSID(group.getNetworkName())
+                                            .passPhrase(group.getPassphrase())
+                                            .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
+                                            .serverPort(ChameleonApplication.SERVER_PORT)
+                                            .userName(getUserName())
+                                            .build();
 
-                            connectionStatusTextView.setText("Use NFC to Connect");
-                            connectionStatusTextView.setBackgroundResource(R.drawable.circular_orange_background);
+                            // Connection info will be used in other components of the app
+                            ((WifiConnectionInfoListener) getActivity()).onWifiNetworkCreated(nci);
 
-                            //sendConnInfoProgBarMax.setProgress(100);
-                            //sendConnInfoProgBarMax.setVisibility(View.VISIBLE);
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                    //sendConnInfoProgBar.clearAnimation();
+                                    connectionStatusTextView.setText("Use NFC to Connect");
+                                    //connectionStatusTextView.setBackgroundResource(R.drawable.circular_orange_background);
 
+                                    //sendConnInfoProgBarMax.setProgress(100);
+                                    //sendConnInfoProgBarMax.setVisibility(View.VISIBLE);
 
+                                }
+                            });
 
                         }
-                    });
-
-                }
+                    }
+                });
+                return null;
             }
-        });
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private String getUserName() {

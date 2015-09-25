@@ -1,4 +1,4 @@
-<RelativeLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -18,34 +18,15 @@
         android:layout_width="150dp"
         android:layout_height="150dp"
         android:fontFamily="sans-serif-condensed"
-        android:layout_alignLeft="@+id/send_conn_info_prog_bar"
-        android:layout_alignTop="@+id/send_conn_info_prog_bar"
         android:layout_gravity="center"
-        android:gravity="center"
-        android:layout_centerInParent="true"/>
+        android:gravity="center" />
 
     <ProgressBar
         android:id="@+id/send_conn_info_prog_bar"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
         android:visibility="gone"
         android:indeterminate="true"
-        android:max="100"
-        android:layout_gravity="center"
-        android:layout_centerInParent="true"
-        android:indeterminateDrawable="@drawable/circular_progress_bar"
-        />
+        android:layout_gravity="center" />
 
-    <ProgressBar
-        android:id="@+id/send_conn_info_prog_bar_max"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:visibility="gone"
-        android:max="100"
-        android:progress="100"
-        android:layout_gravity="center"
-        android:layout_centerInParent="true"
-        android:progressDrawable="@drawable/circular_progress_bar"
-        />
-
-</RelativeLayout>
+</FrameLayout>

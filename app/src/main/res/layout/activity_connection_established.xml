@@ -43,13 +43,12 @@
 
        <ProgressBar
             android:id="@+id/progressBar_file_transfer"
-            android:layout_width="150dp"
-            android:layout_height="150dp"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
             android:layout_gravity="center"
             android:visibility="gone"
-            android:indeterminate="false"
+            android:indeterminate="true"
             android:max="100"
-            android:progressDrawable="@drawable/circular_prog_bar_determinate"
            />
 
         <RelativeLayout
