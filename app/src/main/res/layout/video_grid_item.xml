@@ -37,6 +37,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@+id/video_grid_buttons"
+        android:layout_centerHorizontal="true"
         android:layout_marginBottom="18dp"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
