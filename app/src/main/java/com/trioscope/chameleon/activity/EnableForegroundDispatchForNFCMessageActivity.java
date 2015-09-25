@@ -50,21 +50,20 @@ public abstract class EnableForegroundDispatchForNFCMessageActivity extends AppC
 
     protected boolean doesDeviceSupportNFC() {
         boolean ret =  getPackageManager().hasSystemFeature(PackageManager.FEATURE_NFC);
-
         log.info("Device supports NFC: {}", ret);
         return ret;
     }
 
-
     @Override
     protected void onPause() {
-        disableForegroundDispatch();
         super.onPause();
+        disableForegroundDispatch();
     }
 
     protected void disableForegroundDispatch() {
-        if (doesDeviceSupportNFC())
+        if (mNfcAdapter != null) {
             mNfcAdapter.disableForegroundDispatch(this);
+        }
     }
 
     @Override
@@ -74,8 +73,9 @@ public abstract class EnableForegroundDispatchForNFCMessageActivity extends AppC
     }
 
     protected void enableForegroundDispatch() {
-        if (doesDeviceSupportNFC())
+        if (mNfcAdapter != null) {
             mNfcAdapter.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray);
+        }
     }
 
     @Override

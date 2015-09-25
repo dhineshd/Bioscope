@@ -110,24 +110,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
 
-        //runs without a timer by reposting this handler at the end of the runnable
-        timerHandler = new Handler();
-
-        timerRunnable = new Runnable() {
-
-            @Override
-            public void run() {
-                long millis = System.currentTimeMillis() - recordingStartTime;
-                int seconds = (int) (millis / 1000);
-                int minutes = seconds / 60;
-                seconds = seconds % 60;
-
-                recordingTimerTextView.setVisibility(View.VISIBLE);
-                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
-
-                timerHandler.postDelayed(this, 500);
-            }
-        };
+        initializeRecordingTimer();
 
         Handler sendVideoToPeerHandler = new Handler(Looper.getMainLooper()) {
             @Override
@@ -154,27 +137,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         chameleonApplication.getStreamListener().setSendVideoToPeerHandler(sendVideoToPeerHandler);
 
         sslSocketFactory = getInitializedSSLSocketFactory();
-
-        recordEventReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Start recording event received!!");
-                    // Start recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
-                    log.debug("Video recording started");
-                    recordingStartTime = System.currentTimeMillis();
-                    timerHandler.postDelayed(timerRunnable, 500);
-                } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Stop recording event received!!");
-                    // Stop recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStopRecording();
-                    log.debug("Video recording stopped");
-                    timerHandler.removeCallbacks(timerRunnable);
-                    recordingTimerTextView.setVisibility(View.INVISIBLE);
-                }
-            }
-        };
 
         // Prepare camera preview
         chameleonApplication.preparePreview();
@@ -229,9 +191,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 if (isRecording) {
                     recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
 
-                    // Hide button to switch cameras
-                    switchCamerasButton.setVisibility(View.VISIBLE);
-
                     // Sending message to peer to stop recording
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.STOP_RECORDING)
@@ -248,11 +207,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
-
                     recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
-
-                    // Hide button to switch cameras
-                    switchCamerasButton.setVisibility(View.INVISIBLE);
 
                     // Sending message to peer to start remote recording
                     PeerMessage peerMsg = PeerMessage.builder()
@@ -274,6 +229,32 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
         }
+
+
+        recordEventReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
+                    log.debug("Start recording event received!!");
+                    // Start recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
+                    log.debug("Video recording started");
+                    recordingStartTime = System.currentTimeMillis();
+                    timerHandler.postDelayed(timerRunnable, 500);
+                    // Show button to switch cameras
+                    switchCamerasButton.setVisibility(View.INVISIBLE);
+                } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
+                    log.debug("Stop recording event received!!");
+                    // Stop recording using MediaCodec method
+                    chameleonApplication.getRecordingFrameListener().onStopRecording();
+                    log.debug("Video recording stopped");
+                    timerHandler.removeCallbacks(timerRunnable);
+                    recordingTimerTextView.setVisibility(View.INVISIBLE);
+                    // Show button to switch cameras
+                    switchCamerasButton.setVisibility(View.VISIBLE);
+                }
+            }
+        };
 
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
@@ -312,6 +293,27 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         });
     }
 
+    private void initializeRecordingTimer() {
+        //runs without a timer by reposting this handler at the end of the runnable
+        timerHandler = new Handler();
+
+        timerRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                long millis = System.currentTimeMillis() - recordingStartTime;
+                int seconds = (int) (millis / 1000);
+                int minutes = seconds / 60;
+                seconds = seconds % 60;
+
+                recordingTimerTextView.setVisibility(View.VISIBLE);
+                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
+
+                timerHandler.postDelayed(this, 500);
+            }
+        };
+    }
+
     private void addCameraPreviewSurface() {
         log.debug("Creating surfaceView on thread {}", Thread.currentThread());
 
@@ -330,7 +332,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
-        log.debug("onPause invoked!");
+        log.debug("onPause invoked! Performing cleanup");
         cleanup();
     }
 
@@ -346,20 +348,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         manager.registerReceiver(this.recordEventReceiver, filter);
     }
 
-
-    @Override
-    public void onBackPressed() {
-
-        cleanup();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
-        super.onBackPressed();
-    }
-
     private void cleanup() {
+        chameleonApplication.tearDownWifiHotspot();
+
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
         log.debug("Unregistering record event receiver");
         manager.unregisterReceiver(this.recordEventReceiver);

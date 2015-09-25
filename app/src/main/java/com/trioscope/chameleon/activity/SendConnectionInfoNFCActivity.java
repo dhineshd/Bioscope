@@ -19,6 +19,9 @@ import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.WifiConnectionInfoListener;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import lombok.extern.slf4j.Slf4j;
 
 import static android.nfc.NdefRecord.createMime;
@@ -30,6 +33,7 @@ public class SendConnectionInfoNFCActivity
     private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
     private Gson mGson = new Gson();
     private ChameleonApplication chameleonApplication;
+    private Set<Intent> processedIntents = new HashSet<Intent>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +97,11 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onNewIntent(Intent intent) {
+        if (processedIntents.contains(intent)) {
+            log.info("Ignoring already processed intent = {}", intent);
+            return;
+        }
+        log.info("Processing intent = {}", intent);
         Parcelable[] rawMsgs = intent.getParcelableArrayExtra(
                 NfcAdapter.EXTRA_NDEF_MESSAGES);
         // only one message sent during the beam
@@ -101,7 +110,7 @@ public class SendConnectionInfoNFCActivity
 
         final WiFiNetworkConnectionInfo connectionInfo =
                 mGson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
-
+        processedIntents.add(intent);
 
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
         newFragment.show(getFragmentManager(), "dialog");
@@ -110,14 +119,5 @@ public class SendConnectionInfoNFCActivity
     @Override
     public void onWifiNetworkCreated(WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo) {
         this.wiFiNetworkConnectionInfo = wiFiNetworkConnectionInfo;
-    }
-
-    public void onBackPressed() {
-        super.onBackPressed();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity= new Intent(this, MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
     }
 }

@@ -288,17 +288,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         cleanup();
     }
 
-    @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        cleanup();
-
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
-    }
-
     private void cleanup() {
         // Release mediaplayers
         if (majorVideoMediaPlayer != null) {
