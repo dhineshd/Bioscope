@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -171,7 +172,8 @@ public class SendConnectionInfoFragment extends Fragment {
     private void showProgressBar() {
         progressBar.setVisibility(View.VISIBLE);
         int color = 0xffffa500;
-        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        Drawable drawable = progressBar.getIndeterminateDrawable();
+        drawable.setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void createWifiP2PGroup(

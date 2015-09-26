@@ -19,6 +19,12 @@
         android:max="100"
         android:layout_gravity="center" />
 
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:src="@drawable/circle_shape"/>
+
     <TextView
         android:id="@+id/textView_receiver_connection_status"
         android:layout_width="150dp"

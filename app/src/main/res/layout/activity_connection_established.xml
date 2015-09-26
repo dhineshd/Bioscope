@@ -48,24 +48,26 @@
             android:layout_gravity="center"
             android:visibility="gone"
             android:indeterminate="true"
-            android:max="100"
-           />
+            android:max="100" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/imageview_progressbar_background"
+            android:layout_gravity="center"
+            android:src="@drawable/circle_shape"
+            android:visibility="gone"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:id="@+id/textview_file_transfer_status"/>
 
         <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center">
-
-            <TextView
-                android:id="@+id/textview_recording_timer"
-                android:visibility="invisible"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_centerHorizontal="true"
-                android:padding="12dp"
-                android:background="@null"
-                android:textColor="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/button_record_session"
@@ -76,20 +78,42 @@
                 android:layout_below="@+id/textview_recording_timer"
                 android:background="@null"
                 android:layout_marginBottom="36dp"
+                android:visibility="invisible"
                 android:enabled="false" />
+
+            <TextView
+                android:id="@+id/textview_recording_timer"
+                android:visibility="invisible"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_centerHorizontal="true"
+                android:padding="12dp"
+                android:background="@null"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="2" />
 
         </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="30dp"
-            android:background="#CC808080">
+            android:background="#40808080">
 
             <TextView
                 android:id="@+id/textview_peer_user_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="2"
                 android:gravity="center"
                 android:layout_centerInParent="true"/>
 

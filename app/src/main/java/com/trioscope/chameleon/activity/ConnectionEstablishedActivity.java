@@ -90,6 +90,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
+    private ImageView imageViewProgressBarBackground;
+    private TextView textViewFileTransfer;
     private SurfaceView previewDisplay;
     private long clockDifferenceMs;
     private TextView peerUserNameTextView;
@@ -106,6 +108,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
+        imageViewProgressBarBackground = (ImageView) findViewById(R.id.imageview_progressbar_background);
+        textViewFileTransfer = (TextView) findViewById(R.id.textview_file_transfer_status);
 
         peerUserNameTextView = (TextView) findViewById(R.id.textview_peer_user_name);
 
@@ -224,11 +228,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 }
             }
         });
-        recordSessionButton.setEnabled(false);
         if (!PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
             // If peer is not director, then I am the director
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
+            recordSessionButton.setVisibility(View.VISIBLE);
         }
 
 
@@ -308,7 +312,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 seconds = seconds % 60;
 
                 recordingTimerTextView.setVisibility(View.VISIBLE);
-                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
+                recordingTimerTextView.setText(String.format("%02d:%02d", minutes, seconds));
 
                 timerHandler.postDelayed(this, 500);
             }
@@ -473,7 +477,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar();
+            showProgressBar("Receiving video..");
         }
 
         @Override
@@ -599,7 +603,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             new SendMessageToPeerTask(terminateSessionMsg, peerIp, port)
                     .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-            progressBar.setVisibility(View.INVISIBLE);
+            hideProgressBar();
 
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
@@ -653,7 +657,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar();
+            showProgressBar("Sending video..");
         }
 
         @Override
@@ -735,7 +739,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // Stop sending stream
             chameleonApplication.getStreamListener().terminateSession();
 
-            progressBar.setVisibility(View.INVISIBLE);
+            hideProgressBar();
 
             Toast.makeText(getApplicationContext(), "Session completed!", Toast.LENGTH_LONG).show();
 
@@ -746,7 +750,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         }
     }
 
-    private void showProgressBar() {
+    private void showProgressBar(final String progressBarText) {
         int color = 0xffffa500;
         //progressBar.setProgressDrawable(getResources().getDrawable(R.drawable.circular_progress_bar));
         progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
@@ -754,7 +758,16 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         //progressBar.setIndeterminate(false);
         progressBar.setProgress(0);
         progressBar.setVisibility(View.VISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.VISIBLE);
+        textViewFileTransfer.setText(progressBarText);
+        textViewFileTransfer.setVisibility(View.VISIBLE);
         log.debug("Progress bar set to be visible = {}", progressBar.getVisibility());
+    }
+
+    private void hideProgressBar() {
+        progressBar.setVisibility(View.INVISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.INVISIBLE);
+        textViewFileTransfer.setVisibility(View.INVISIBLE);
     }
 
     @AllArgsConstructor
