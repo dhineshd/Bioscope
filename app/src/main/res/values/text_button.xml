@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="secondaryButtonText">
+        <item name="android:textColor">#80FFFFFF</item> <!-- 50% opacity -->
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">sans-serif-condensed</item> <!-- Roboto condensed -->
+        <item name="android:textStyle">bold</item>
+
+    </style>
+
+</resources>
