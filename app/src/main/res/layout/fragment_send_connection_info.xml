@@ -12,13 +12,30 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.fragment.SendConnectionInfoFragment">
 
-    <ProgressBar
-        android:id="@+id/send_conn_info_prog_bar"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:visibility="invisible"
-        android:indeterminate="true"
-        android:layout_gravity="center" />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ProgressBar
+            android:id="@+id/send_conn_info_prog_bar"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:visibility="invisible"
+            android:indeterminate="true"
+            android:layout_marginTop="248dp"
+            android:layout_centerInParent="true"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:background="@null"
+            android:id="@+id/button_cancel_send_connection_info"
+            android:layout_below="@+id/send_conn_info_prog_bar"
+            android:layout_marginTop="42dp"
+            android:layout_centerInParent="true"/>
+
+    </RelativeLayout>
 
     <ImageView
         android:layout_width="wrap_content"
@@ -34,4 +51,5 @@
         android:fontFamily="sans-serif-condensed"
         android:layout_gravity="center"
         android:gravity="center" />
+
 </FrameLayout>
