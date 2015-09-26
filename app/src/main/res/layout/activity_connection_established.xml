@@ -55,7 +55,7 @@
             android:layout_height="wrap_content"
             android:id="@+id/imageview_progressbar_background"
             android:layout_gravity="center"
-            android:src="@drawable/circle_shape"
+            android:src="@drawable/progress_bar_interior"
             android:visibility="gone"/>
 
         <TextView

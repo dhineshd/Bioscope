@@ -3,6 +3,7 @@ package com.trioscope.chameleon.fragment;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PorterDuff;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
@@ -98,7 +99,13 @@ public class SendConnectionInfoFragment extends Fragment {
     public void onViewStateRestored(Bundle savedInstanceState) {
         if (savedInstanceState != null){
             String connectionStatusText = savedInstanceState.getString(CONNECTION_STATUS_TEXT_KEY);
+
+            //Set typeface here
+            Typeface typeface = Typeface.createFromAsset(chameleonApplication.getAssets(),
+                    ChameleonApplication.APP_FONT_LOCATION);
+
             if (connectionStatusText != null){
+                connectionStatusTextView.setTypeface(typeface);
                 connectionStatusTextView.setText(connectionStatusText);
             }
         }
