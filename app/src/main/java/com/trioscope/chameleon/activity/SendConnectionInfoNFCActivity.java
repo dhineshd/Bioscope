@@ -101,6 +101,7 @@ public class SendConnectionInfoNFCActivity
             log.info("Ignoring already processed intent = {}", intent);
             return;
         }
+
         log.info("Processing intent = {}", intent);
         Parcelable[] rawMsgs = intent.getParcelableArrayExtra(
                 NfcAdapter.EXTRA_NDEF_MESSAGES);

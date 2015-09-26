@@ -36,10 +36,12 @@
             android:background="@drawable/border_image"
             android:visibility="visible" />
 
-        <Button
+        <com.trioscope.chameleon.views.PrimaryButton
             android:id="@+id/button_merge"
             android:background="@drawable/primary_button_small_background"
             android:stateListAnimator="@anim/button_elevation_anim"
+            android:layout_width="78dp"
+            android:layout_height="78dp"
             style="@style/primaryButtonSmallText"
             android:layout_marginBottom="36dp"
             android:layout_gravity="bottom|center"

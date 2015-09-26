@@ -25,10 +25,10 @@
             android:layout_marginTop="248dp"
             android:layout_centerInParent="true"/>
 
-        <Button
+        <com.trioscope.chameleon.views.TextButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            style="@style/secondaryButtonText"
+            style="@style/textButtonSecondary"
             android:text="Cancel"
             android:background="@null"
             android:id="@+id/button_cancel_send_connection_info"
@@ -39,19 +39,27 @@
     </RelativeLayout>
 
     <ImageView
+        android:id="@+id/send_conn_info_prog_bar_interior"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:src="@drawable/progress_bar_interior"/>
+        android:src="@drawable/progress_bar_interior" />
 
-    <TextView
+    <ImageView
+        android:id="@+id/send_conn_info_prog_bar_interior_ring"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@null"
+        android:visibility="invisible"
+        android:src="@drawable/circular_ring" />
+
+    <com.trioscope.chameleon.views.ProgressBarTextView
         android:id="@+id/textView_sender_connection_status"
         style="@style/progressBarText"
         android:background="@null"
         android:layout_width="150dp"
         android:layout_height="150dp"
-        android:fontFamily="sans-serif-condensed"
-        android:layout_gravity="center"
-         />
+        android:layout_gravity="center" />
 
 </FrameLayout>

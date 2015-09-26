@@ -264,11 +264,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
 
-        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(),
-                ChameleonApplication.APP_FONT_LOCATION);
 
         Button continueButton = (Button) findViewById(R.id.button_continue_session);
-        continueButton.setTypeface(appFontTypeface);
 
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override

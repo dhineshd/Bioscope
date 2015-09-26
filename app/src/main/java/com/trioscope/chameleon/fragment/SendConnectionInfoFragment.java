@@ -102,12 +102,7 @@ public class SendConnectionInfoFragment extends Fragment {
         if (savedInstanceState != null){
             String connectionStatusText = savedInstanceState.getString(CONNECTION_STATUS_TEXT_KEY);
 
-            //Set typeface here
-            Typeface typeface = Typeface.createFromAsset(chameleonApplication.getAssets(),
-                    ChameleonApplication.APP_FONT_LOCATION);
-
             if (connectionStatusText != null){
-                connectionStatusTextView.setTypeface(typeface);
                 connectionStatusTextView.setText(connectionStatusText);
             }
         }
@@ -341,7 +336,7 @@ public class SendConnectionInfoFragment extends Fragment {
                                     @Override
                                     public void run() {
                                         progressBar.setVisibility(View.INVISIBLE);
-                                        connectionStatusTextView.setText("Use NFC to connect");
+                                        connectionStatusTextView.setText("Beam\nto\nconnect");
                                     }
                                 });
                             } catch (Exception e) {

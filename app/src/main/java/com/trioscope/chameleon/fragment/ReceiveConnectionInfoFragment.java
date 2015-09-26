@@ -183,7 +183,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
             @Override
             public void run() {
                 showProgressBar();
-                connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName());
+                connectionStatusTextView.setText("Connecting\nto\n" + connectionInfo.getUserName());
 
             }
         });

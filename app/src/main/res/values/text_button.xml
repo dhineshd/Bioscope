@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="secondaryButtonText">
+    <style name="textButtonPrimary">
+        <item name="android:textColor">#FFFFFF</item> <!-- 100% opacity -->
+        <item name="android:textSize">18sp</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="textButtonSecondary">
         <item name="android:textColor">#80FFFFFF</item> <!-- 50% opacity -->
         <item name="android:textSize">18sp</item>
-        <item name="android:fontFamily">sans-serif-condensed</item> <!-- Roboto condensed -->
-        <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">false</item>
-
     </style>
+
+
 
 </resources>

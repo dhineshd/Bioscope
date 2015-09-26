@@ -58,7 +58,8 @@
             android:src="@drawable/progress_bar_interior"
             android:visibility="gone"/>
 
-        <TextView
+        <com.trioscope.chameleon.views.ProgressBarTextView
+            style="@style/progressBarText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -136,7 +137,7 @@
             android:layout_height="match_parent"
             android:visibility="gone">
 
-            <Button
+            <com.trioscope.chameleon.views.PrimaryButton
                 android:id="@+id/button_continue_session"
                 android:background="@drawable/primary_button_large_background"
                 android:stateListAnimator="@anim/button_elevation_anim"
@@ -146,7 +147,8 @@
                 android:layout_marginTop="248dp"
                 android:text="Continue" />
 
-            <Button
+            <com.trioscope.chameleon.views.TextButton
+                style="@style/textButtonPrimary"
                 android:id="@+id/button_retake_video"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
