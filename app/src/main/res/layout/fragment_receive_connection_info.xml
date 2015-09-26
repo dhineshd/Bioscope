@@ -26,6 +26,7 @@
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            style="@style/secondaryButtonText"
             android:text="Cancel"
             android:background="@null"
             android:id="@+id/button_cancel_receive_connection_info"
@@ -43,6 +44,7 @@
 
     <TextView
         android:id="@+id/textView_receiver_connection_status"
+        style="@style/progressBarText"
         android:layout_width="150dp"
         android:layout_height="150dp"
         android:layout_gravity="center"
