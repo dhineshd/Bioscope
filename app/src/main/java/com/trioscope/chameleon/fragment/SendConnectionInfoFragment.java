@@ -78,6 +78,8 @@ public class SendConnectionInfoFragment extends Fragment {
             public void onClick(View v) {
                 // Finishing current activity will take us back to previous activity
                 // since it is in the back stack
+                chameleonApplication.stopConnectionServer();
+                chameleonApplication.tearDownWifiHotspot();
                 getActivity().finish();
             }
         });
