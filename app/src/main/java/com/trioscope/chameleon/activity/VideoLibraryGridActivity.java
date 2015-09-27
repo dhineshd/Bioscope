@@ -63,6 +63,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
         List<File> libraryFiles = Arrays.asList(folder.listFiles());
 
+        log.info("Showing {} library files", libraryFiles.size());
+
         Collections.sort(libraryFiles, LAST_MODIFIED_COMPARATOR);
 
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);

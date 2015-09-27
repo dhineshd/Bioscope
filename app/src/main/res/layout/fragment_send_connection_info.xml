@@ -1,4 +1,4 @@
-<RelativeLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -12,40 +12,54 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.fragment.SendConnectionInfoFragment">
 
-    <TextView
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ProgressBar
+            android:id="@+id/send_conn_info_prog_bar"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:visibility="invisible"
+            android:indeterminate="true"
+            android:layout_marginTop="248dp"
+            android:layout_centerInParent="true"/>
+
+        <com.trioscope.chameleon.views.TextButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/textButtonSecondary"
+            android:text="Cancel"
+            android:background="@null"
+            android:id="@+id/button_cancel_send_connection_info"
+            android:layout_below="@+id/send_conn_info_prog_bar"
+            android:layout_marginTop="42dp"
+            android:layout_centerInParent="true"/>
+
+    </RelativeLayout>
+
+    <ImageView
+        android:id="@+id/send_conn_info_prog_bar_interior"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:src="@drawable/progress_bar_interior" />
+
+    <ImageView
+        android:id="@+id/send_conn_info_prog_bar_interior_ring"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@null"
+        android:visibility="invisible"
+        android:src="@drawable/circular_ring" />
+
+    <com.trioscope.chameleon.views.ProgressBarTextView
         android:id="@+id/textView_sender_connection_status"
+        style="@style/progressBarText"
         android:background="@null"
         android:layout_width="150dp"
         android:layout_height="150dp"
-        android:fontFamily="sans-serif-condensed"
-        android:layout_alignLeft="@+id/send_conn_info_prog_bar"
-        android:layout_alignTop="@+id/send_conn_info_prog_bar"
-        android:layout_gravity="center"
-        android:gravity="center"
-        android:layout_centerInParent="true"/>
+        android:layout_gravity="center" />
 
-    <ProgressBar
-        android:id="@+id/send_conn_info_prog_bar"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:visibility="gone"
-        android:indeterminate="true"
-        android:max="100"
-        android:layout_gravity="center"
-        android:layout_centerInParent="true"
-        android:indeterminateDrawable="@drawable/circular_progress_bar"
-        />
-
-    <ProgressBar
-        android:id="@+id/send_conn_info_prog_bar_max"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:visibility="gone"
-        android:max="100"
-        android:progress="100"
-        android:layout_gravity="center"
-        android:layout_centerInParent="true"
-        android:progressDrawable="@drawable/circular_progress_bar"
-        />
-
-</RelativeLayout>
+</FrameLayout>

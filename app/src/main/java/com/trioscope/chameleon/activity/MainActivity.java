@@ -62,11 +62,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
 
-        Typeface typeface = Typeface.createFromAsset(getAssets(),
-                ChameleonApplication.APP_FONT_LOCATION);
-
-        startSessionButton.setTypeface(typeface);
-
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {

@@ -25,7 +25,7 @@
             android:layout_centerHorizontal="true"
             android:layout_marginTop="40dp" />
 
-        <Button
+        <com.trioscope.chameleon.views.PrimaryButton
             android:id="@+id/button_main_start_session"
             android:background="@drawable/primary_button_large_background"
             android:stateListAnimator="@anim/button_elevation_anim"
@@ -33,7 +33,7 @@
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="248dp"
-            android:text="DIRECT\nVIDEO" />
+            android:text="Direct\nVideo" />
 
         <ImageButton
             android:id="@+id/button_main_library"

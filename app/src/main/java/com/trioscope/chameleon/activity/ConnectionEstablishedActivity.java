@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
@@ -89,6 +90,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private SSLSocketFactory sslSocketFactory;
     private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
+    private ImageView imageViewProgressBarBackground;
+    private TextView textViewFileTransfer;
     private SurfaceView previewDisplay;
     private long clockDifferenceMs;
     private TextView peerUserNameTextView;
@@ -105,6 +108,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
+        imageViewProgressBarBackground = (ImageView) findViewById(R.id.imageview_progressbar_background);
+        textViewFileTransfer = (TextView) findViewById(R.id.textview_file_transfer_status);
 
         peerUserNameTextView = (TextView) findViewById(R.id.textview_peer_user_name);
 
@@ -144,7 +149,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
             @Override
             public void run() {
-                log.debug("Preview displayer is ready to display a preview - adding one to the ConnectionEstablished activity");
+                log.info("Preview displayer is ready to display a preview - adding one to the ConnectionEstablished activity");
                 addCameraPreviewSurface();
                 chameleonApplication.startPreview();
             }
@@ -172,7 +177,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        final ImageView switchCamerasButton = (ImageView) findViewById(R.id.button_switch_cameras);
+        final ImageButton switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -223,11 +228,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 }
             }
         });
-        recordSessionButton.setEnabled(false);
         if (!PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
             // If peer is not director, then I am the director
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
+            recordSessionButton.setVisibility(View.VISIBLE);
         }
 
 
@@ -259,11 +264,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
 
-        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(),
-                ChameleonApplication.APP_FONT_LOCATION);
 
         Button continueButton = (Button) findViewById(R.id.button_continue_session);
-        continueButton.setTypeface(appFontTypeface);
 
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -307,7 +309,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 seconds = seconds % 60;
 
                 recordingTimerTextView.setVisibility(View.VISIBLE);
-                recordingTimerTextView.setText(String.format("%d:%02d", minutes, seconds));
+                recordingTimerTextView.setText(String.format("%02d:%02d", minutes, seconds));
 
                 timerHandler.postDelayed(this, 500);
             }
@@ -332,7 +334,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
-        log.debug("onPause invoked! Performing cleanup");
+        log.info("onPause invoked! Performing cleanup");
         cleanup();
     }
 
@@ -349,6 +351,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     }
 
     private void cleanup() {
+        log.info("Cleanup invoked!");
         chameleonApplication.tearDownWifiHotspot();
 
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
@@ -470,10 +473,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPreExecute() {
-            progressBar.setVisibility(View.VISIBLE);
-            log.debug("Progress bar set to be visible = {}", progressBar.getVisibility());
-            progressBar.setProgress(0);
             super.onPreExecute();
+            showProgressBar("Receiving video..");
         }
 
         @Override
@@ -599,7 +600,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             new SendMessageToPeerTask(terminateSessionMsg, peerIp, port)
                     .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-            progressBar.setVisibility(View.INVISIBLE);
+            hideProgressBar();
 
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
@@ -652,10 +653,8 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPreExecute() {
-            progressBar.setVisibility(View.VISIBLE);
-            log.debug("Progress bar set to be visible = {}", progressBar.getVisibility());
-            progressBar.setProgress(0);
             super.onPreExecute();
+            showProgressBar("Sending video..");
         }
 
         @Override
@@ -683,19 +682,17 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                 MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
                 metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
                 log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-                clientSocket.setSendBufferSize(65536);
-                clientSocket.setReceiveBufferSize(65536);
+                clientSocket.setSendBufferSize(ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES);
+                clientSocket.setReceiveBufferSize(ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES);
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
                 inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
-                byte[] buffer = new byte[65536];
+                byte[] buffer = new byte[ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES];
                 int bytesRead = 0;
                 int totalBytesSent = 0;
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     log.debug("Sending recorded file.. bytes = {}", bytesRead);
                     outputStream.write(buffer, 0, bytesRead);
-
                     totalBytesSent += bytesRead;
-
                     publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
                 }
                 log.debug("Successfully sent recorded file!");
@@ -739,7 +736,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             // Stop sending stream
             chameleonApplication.getStreamListener().terminateSession();
 
-            progressBar.setVisibility(View.INVISIBLE);
+            hideProgressBar();
 
             Toast.makeText(getApplicationContext(), "Session completed!", Toast.LENGTH_LONG).show();
 
@@ -748,6 +745,26 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             startActivity(openMainActivity);
         }
+    }
+
+    private void showProgressBar(final String progressBarText) {
+        int color = 0xffffa500;
+        //progressBar.setProgressDrawable(getResources().getDrawable(R.drawable.circular_progress_bar));
+        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        //progressBar.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        //progressBar.setIndeterminate(false);
+        progressBar.setProgress(0);
+        progressBar.setVisibility(View.VISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.VISIBLE);
+        textViewFileTransfer.setText(progressBarText);
+        textViewFileTransfer.setVisibility(View.VISIBLE);
+        log.debug("Progress bar set to be visible = {}", progressBar.getVisibility());
+    }
+
+    private void hideProgressBar() {
+        progressBar.setVisibility(View.INVISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.INVISIBLE);
+        textViewFileTransfer.setVisibility(View.INVISIBLE);
     }
 
     @AllArgsConstructor

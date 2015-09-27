@@ -14,6 +14,7 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.view.SurfaceView;
 
+import com.google.android.gms.analytics.HitBuilders;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
@@ -75,7 +76,6 @@ public class ChameleonApplication extends Application {
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
     public static final String APP_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
-
     public static final int SERVER_PORT = 7080;
 
     @Getter
@@ -143,8 +143,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         log.info("Starting application");
 
-        // Disabling metrics for now
-        //metrics = new MetricsHelper(this);
+        metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -292,6 +291,7 @@ public class ChameleonApplication extends Application {
     }
 
     public void stopPreview() {
+        log.info("stop preview invoked!");
         if (previewDisplayer != null) {
             previewDisplayer.stopPreview();
             previewDisplayer = null;
@@ -556,5 +556,4 @@ public class ChameleonApplication extends Application {
             }
         }
     }
-
 }

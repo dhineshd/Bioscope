@@ -4,6 +4,7 @@ import android.app.FragmentManager;
 import android.content.Intent;
 import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.graphics.Matrix;
@@ -27,6 +28,7 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
@@ -55,6 +57,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private TextView touchReplayTextView;
     private Button buttonMerge;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
+    private boolean publishedDurationMetrics = false;
 
 
     @Override
@@ -66,7 +69,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
         buttonMerge = (Button) findViewById(R.id.button_merge);
-        buttonMerge.setTypeface(appFontTypeface);
 
         Intent intent = getIntent();
         localRecordingMetadata = gson.fromJson(
@@ -85,6 +87,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
 
         minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
+
+
 
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
 
@@ -262,6 +266,15 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
+
+        if(!publishedDurationMetrics) {
+            //publish time metrics
+            ChameleonApplication.getMetrics().sendTime(
+                    MetricNames.Category.VIDEO.getName(), MetricNames.Label.DURATION.getName(), majorVideoMediaPlayer.getDuration());
+            publishedDurationMetrics = true;
+        }
+
+
     }
 
     private void updateDisplayOrientation(

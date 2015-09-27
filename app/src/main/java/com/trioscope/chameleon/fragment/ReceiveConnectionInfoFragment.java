@@ -1,10 +1,12 @@
 package com.trioscope.chameleon.fragment;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PorterDuff;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
@@ -15,6 +17,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -29,6 +32,8 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteOrder;
+import java.util.HashSet;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,7 +44,10 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
     private TextView connectionStatusTextView;
     private ChameleonApplication chameleonApplication;
-    private ProgressBar receiveConnInfoProgBar;
+    private ProgressBar progressBar;
+    private Button cancelButton;
+    private Activity attachedActivity;
+    private Set<AsyncTask<Void, Void, Void>> asyncTasks = new HashSet<>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -59,10 +67,18 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         connectionStatusTextView = (TextView) view.findViewById(R.id.textView_receiver_connection_status);
-
-        receiveConnInfoProgBar = (ProgressBar) view.findViewById(R.id.receive_conn_info_prog_bar);
-
+        progressBar = (ProgressBar) view.findViewById(R.id.receive_conn_info_prog_bar);
         chameleonApplication = (ChameleonApplication) getActivity().getApplication();
+        cancelButton = (Button) view.findViewById(R.id.button_cancel_receive_connection_info);
+        cancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Finishing current activity will take us back to previous activity
+                // since it is in the back stack
+                chameleonApplication.stopConnectionServer();
+                getActivity().finish();
+            }
+        });
     }
 
     @Override
@@ -85,9 +101,43 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         super.onViewStateRestored(savedInstanceState);
     }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+        log.info("Fragment onPause invoked");
+
+        chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
+        connectToWifiNetworkBroadcastReceiver = null;
+
+        for (AsyncTask task : asyncTasks) {
+            if (task != null) {
+                task.cancel(true);
+            }
+        }
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        attachedActivity = activity;
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        attachedActivity = null;
+        log.info("Fragment detached!");
+    }
+
+    private void runOnUiThread(Runnable runnable) {
+        if (attachedActivity != null) {
+            attachedActivity.runOnUiThread(runnable);
+        }
+    }
+
     public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo){
 
-        new AsyncTask<Void, Void, Void>(){
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
             @Override
             protected Void doInBackground(Void... voids) {
@@ -99,9 +149,10 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                     establishConnection(connectionInfo);
 
                 } else {
-                    getActivity().runOnUiThread(new Runnable() {
+                    runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            showProgressBar();
                             connectionStatusTextView.setText("Enabling WiFi..");
                         }
                     });
@@ -115,16 +166,24 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                 }
                 return null;
             }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        };
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                asyncTasks.add(task);
+            }
+        });
+
     }
 
     private void establishConnection(final WiFiNetworkConnectionInfo connectionInfo){
 
-        getActivity().runOnUiThread(new Runnable() {
+        runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                receiveConnInfoProgBar.setVisibility(View.VISIBLE);
-                connectionStatusTextView.setText("Connecting to " + connectionInfo.getUserName());
+                showProgressBar();
+                connectionStatusTextView.setText("Connecting\nto\n" + connectionInfo.getUserName());
 
             }
         });
@@ -140,9 +199,19 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                 final String currentSSID = getCurrentSSID();
                 String localIPAddress = getLocalIpAddressForWifi();
                 log.info("current SSID = {}, local IP = {}", currentSSID, localIPAddress);
+
+                // Fragment is finishing
+                if (attachedActivity == null) {
+                    unregisterReceiverSafely(this);
+                    return;
+                }
+
                 if(currentSSID != null &&
                         currentSSID.equals(connectionInfo.getSSID()) &&
                         localIPAddress != null) {
+
+                    progressBar.setVisibility(View.INVISIBLE);
+                    connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
 
                     // Done with checking connectivity
                     unregisterReceiverSafely(this);
@@ -173,6 +242,12 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         getActivity().registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
 
         connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+    }
+
+    private void showProgressBar() {
+        progressBar.setVisibility(View.VISIBLE);
+        int color = 0xffffa500;
+        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void unregisterReceiverSafely(final BroadcastReceiver receiver){
@@ -246,12 +321,4 @@ public class ReceiveConnectionInfoFragment extends Fragment {
             log.info("Already connected to SSID = {}", networkSSID);
         }
     }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
-        connectToWifiNetworkBroadcastReceiver = null;
-    }
-
 }

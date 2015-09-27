@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- http://stackoverflow.com/questions/11285961/how-to-make-a-background-transparent-20-in-android
+    This is 75% opacity
+    -->
+    <solid android:color="#BFFFFFFF" />
+    <size
+        android:width="150dp"
+        android:height="150dp"/>
+</shape>

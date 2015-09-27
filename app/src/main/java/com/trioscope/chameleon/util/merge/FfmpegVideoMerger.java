@@ -122,8 +122,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                 "scale=1080:1920 [major]; " +
                 "[1] " +
                 (shouldHorizontallyFlipMinorVideo? "hflip," : "") +
-                "scale=360:640 [minor]; " +
-                "[major][minor] overlay=54:1226,drawbox=54:1226:360:640:white:t=8");
+                "scale=412:732 [minor]; " +
+                "[major][minor] overlay=54:1134,drawbox=54:1134:412:732:white:t=8");
         //OpenH264 doesnt support preset
         //params.add("-preset");
         //params.add("ultrafast");

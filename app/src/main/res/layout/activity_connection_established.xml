@@ -43,30 +43,32 @@
 
        <ProgressBar
             android:id="@+id/progressBar_file_transfer"
-            android:layout_width="150dp"
-            android:layout_height="150dp"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
             android:layout_gravity="center"
             android:visibility="gone"
-            android:indeterminate="false"
-            android:max="100"
-            android:progressDrawable="@drawable/circular_prog_bar_determinate"
-           />
+            android:indeterminate="true"
+            android:max="100" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/imageview_progressbar_background"
+            android:layout_gravity="center"
+            android:src="@drawable/progress_bar_interior"
+            android:visibility="gone"/>
+
+        <com.trioscope.chameleon.views.ProgressBarTextView
+            style="@style/progressBarText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:id="@+id/textview_file_transfer_status"/>
 
         <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center">
-
-            <TextView
-                android:id="@+id/textview_recording_timer"
-                android:visibility="invisible"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_centerHorizontal="true"
-                android:padding="12dp"
-                android:background="@null"
-                android:textColor="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/button_record_session"
@@ -77,34 +79,55 @@
                 android:layout_below="@+id/textview_recording_timer"
                 android:background="@null"
                 android:layout_marginBottom="36dp"
+                android:visibility="invisible"
                 android:enabled="false" />
+
+            <TextView
+                android:id="@+id/textview_recording_timer"
+                android:visibility="invisible"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_centerHorizontal="true"
+                android:padding="12dp"
+                android:background="@null"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="2" />
 
         </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="30dp"
-            android:background="#CC808080">
+            android:background="#40808080">
 
             <TextView
                 android:id="@+id/textview_peer_user_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/white"
+                android:textSize="15sp"
+                android:shadowColor="@android:color/black"
+                android:shadowDx="2"
+                android:shadowDy="2"
+                android:shadowRadius="2"
                 android:gravity="center"
                 android:layout_centerInParent="true"/>
 
-            <ImageView
+            <ImageButton
                 android:id="@+id/button_switch_cameras"
-                android:layout_width="30dp"
+                android:layout_width="50dp"
                 android:layout_height="match_parent"
                 android:scaleType="fitCenter"
                 android:src="@drawable/video_icon"
+                android:background="@null"
                 android:layout_alignParentTop="true"
                 android:layout_alignParentEnd="true"
-                android:layout_marginRight="20dp"
-                android:layout_marginTop="5dp"
-                android:layout_marginBottom="5dp"
+                android:paddingRight="20dp"
                 />
         </RelativeLayout>
 
@@ -114,7 +137,7 @@
             android:layout_height="match_parent"
             android:visibility="gone">
 
-            <Button
+            <com.trioscope.chameleon.views.PrimaryButton
                 android:id="@+id/button_continue_session"
                 android:background="@drawable/primary_button_large_background"
                 android:stateListAnimator="@anim/button_elevation_anim"
@@ -124,7 +147,8 @@
                 android:layout_marginTop="248dp"
                 android:text="Continue" />
 
-            <Button
+            <com.trioscope.chameleon.views.TextButton
+                style="@style/textButtonPrimary"
                 android:id="@+id/button_retake_video"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
