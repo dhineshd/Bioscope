@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityOptionsCompat;
@@ -13,6 +14,7 @@ import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
@@ -61,7 +63,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         });
 
         File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
-        List<File> libraryFiles = Arrays.asList(folder.listFiles());
+        final List<File> libraryFiles = Arrays.asList(folder.listFiles());
 
         log.info("Showing {} library files", libraryFiles.size());
 
@@ -70,6 +72,17 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);
         GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
         videoGrid.setAdapter(adapter);
+
+        videoGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                File item = (File) libraryFiles.get(position);
+
+                Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
+                intentToPlayVideo.setDataAndType(Uri.parse(item.getAbsolutePath()), "video/*");
+                startActivity(intentToPlayVideo);
+            }
+        });
     }
 
     private class LibraryGridAdapter extends ArrayAdapter<File> {
@@ -81,7 +94,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             // Get the data item for this position
-            File videoFile = getItem(position);
+            final File videoFile = getItem(position);
 
             // Check if an existing view is being reused, otherwise inflate the view
             if (convertView == null) {
@@ -117,6 +130,19 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
             videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
             videoDurationTextView.setTypeface(appFontTypeface);
+
+            ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
+            shareButton.setFocusable(false);
+            shareButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent shareIntent = new Intent();
+                    shareIntent.setAction(Intent.ACTION_SEND);
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
+                    shareIntent.setType("video/mpeg");
+                    startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
+                }
+            });
 
             return convertView;
         }
