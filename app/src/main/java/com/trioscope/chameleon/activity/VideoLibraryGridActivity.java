@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -95,6 +96,13 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 log.warn("Unable to create thumbnail from video file {}", videoFile);
             }
 
+            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+            mmr.setDataSource(videoFile.getAbsolutePath());
+
+            String videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            String creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
+            log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
+
             String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
             TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
             videoAgoTextView.setText(timeAgo);
@@ -105,11 +113,19 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             videoWithTextView.setTypeface(appFontTypeface);
 
             TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
-            videoDurationTextView.setText("1:42");
+            videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
             videoDurationTextView.setTypeface(appFontTypeface);
 
             return convertView;
         }
+    }
+
+    private String milliToMinutes(Double aDouble) {
+        int seconds = (int) Math.round(aDouble / 1000.0);
+        int minutes = seconds / 60;
+        seconds %= 60;
+
+        return String.format("%d:%02d", minutes, seconds);
     }
 
 }
