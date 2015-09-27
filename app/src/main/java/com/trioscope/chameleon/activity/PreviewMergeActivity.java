@@ -66,6 +66,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         setContentView(R.layout.activity_preview_merge);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
         buttonMerge = (Button) findViewById(R.id.button_merge);
 
