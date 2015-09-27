@@ -14,6 +14,7 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.view.SurfaceView;
 
+import com.google.android.gms.analytics.HitBuilders;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
@@ -141,8 +142,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         log.info("Starting application");
 
-        // Disabling metrics for now
-        //metrics = new MetricsHelper(this);
+        metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -555,5 +555,4 @@ public class ChameleonApplication extends Application {
             }
         }
     }
-
 }

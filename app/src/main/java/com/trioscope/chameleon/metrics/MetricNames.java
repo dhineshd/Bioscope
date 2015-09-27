@@ -11,7 +11,8 @@ public class MetricNames {
     public enum Category {
 
         WIFI("WIFI", "Metrics related to Wifi"),
-        VIDEO_SYNC("VIDEO_SYNC", "Metrics related to syncing of videos");
+        VIDEO_SYNC("VIDEO_SYNC", "Metrics related to syncing of videos"),
+        VIDEO("VIDEO", "Metrics related to videos recorded");
 
         private String description;
         private String name;
@@ -27,7 +28,8 @@ public class MetricNames {
     public enum Label {
 
         ENABLE("ENABLE"),
-        FRAME_DELAY_MILLIS("FRAME_DELAY_MILLIS");
+        FRAME_DELAY_MILLIS("FRAME_DELAY_MILLIS"),
+        DURATION("DURATION");
 
         private String name;
 
