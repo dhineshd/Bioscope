@@ -2,12 +2,11 @@ package com.trioscope.chameleon.activity;
 
 import android.app.FragmentManager;
 import android.content.Intent;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
-import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
-import android.graphics.Matrix;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -22,7 +21,6 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
@@ -374,11 +372,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         addVideoIntent.setData(Uri.fromFile(outputFile));
         sendBroadcast(addVideoIntent);
 
-        Toast.makeText(this, outputFile.getName() + " saved to gallery", Toast.LENGTH_LONG).show();
+        openVideoLibrary();
+    }
 
-        //Re-use MainActivity instance if already present. If not, create new instance.
-        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(openMainActivity);
+    private void openVideoLibrary() {
+        Intent openLibraryActivity = new Intent(getApplicationContext(), VideoLibraryGridActivity.class);
+        startActivity(openLibraryActivity);
     }
 }

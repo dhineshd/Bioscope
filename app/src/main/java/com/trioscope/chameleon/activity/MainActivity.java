@@ -2,7 +2,6 @@ package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
 import android.content.Intent;
-import android.graphics.Typeface;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
@@ -85,7 +84,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     private void showLibraryActivity() {
         Intent i = new Intent(MainActivity.this, VideoLibraryGridActivity.class);
-        i.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(i);
         overridePendingTransition(R.anim.abc_slide_in_bottom, R.anim.abc_slide_out_top);
     }
@@ -94,9 +92,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     public boolean onTouchEvent(MotionEvent event) {
 
         // Disabling until library is ready
-        //return gestureDetector.onTouchEvent(event);
+        return gestureDetector.onTouchEvent(event);
 
-        return false;
+        //return false;
     }
 
     @Override

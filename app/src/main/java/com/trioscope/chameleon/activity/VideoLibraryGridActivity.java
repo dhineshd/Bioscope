@@ -9,19 +9,23 @@ import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.support.v4.app.ActivityOptionsCompat;
+import android.support.v4.view.GestureDetectorCompat;
 import android.text.format.DateUtils;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.util.ui.GestureUtils;
 
 import java.io.File;
 import java.util.Arrays;
@@ -37,11 +41,11 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
-
+    private GestureDetectorCompat gestureDetector;
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
         @Override
         public int compare(File lhs, File rhs) {
-            return new Long(lhs.lastModified()).compareTo(rhs.lastModified());
+            return new Long(rhs.lastModified()).compareTo(lhs.lastModified());
         }
     };
 
@@ -50,15 +54,27 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video_library_grid);
 
-        final ImageView minimizeGallery = (ImageView) findViewById(R.id.minimize_gallery);
+        gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                log.info("Detected gesture");
+                if (GestureUtils.isSwipeDown(e1, e2, velocityX, velocityY)) {
+                    log.info("Gesture is swipe down");
+                    finish();
+                    overridePendingTransition(R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom);
+                    return true;
+                }
+                return super.onFling(e1, e2, velocityX, velocityY);
+            }
+        });
+
+        final ImageButton minimizeGallery = (ImageButton) findViewById(R.id.minimize_gallery);
         minimizeGallery.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 log.info("Minimizing gallery, showing MainActivity");
-                Bundle options = ActivityOptionsCompat.makeCustomAnimation(VideoLibraryGridActivity.this, R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom).toBundle();
-                Intent i = new Intent(VideoLibraryGridActivity.this, MainActivity.class);
-                i.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                startActivity(i, options);
+                finish();
+                overridePendingTransition(R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom);
             }
         });
 
@@ -80,9 +96,14 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
                 intentToPlayVideo.setDataAndType(Uri.parse(item.getAbsolutePath()), "video/*");
-                startActivity(intentToPlayVideo);
+                startActivityForResult(intentToPlayVideo, 1);
             }
         });
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return gestureDetector.onTouchEvent(event);
     }
 
     private class LibraryGridAdapter extends ArrayAdapter<File> {

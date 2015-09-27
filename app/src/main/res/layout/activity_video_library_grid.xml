@@ -19,15 +19,16 @@
             android:adjustViewBounds="true"
             android:src="@drawable/settings_icon" />
 
-        <ImageView
+        <ImageButton
             android:id="@+id/minimize_gallery"
-            android:layout_width="20dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
             android:layout_marginBottom="6dp"
-            android:adjustViewBounds="true"
-            android:src="@drawable/down_arrow" />
+            android:src="@drawable/direct_uparrow"
+            android:rotation="180"
+            android:background="@null"/>
     </RelativeLayout>
 
     <GridView xmlns:android="http://schemas.android.com/apk/res/android"
