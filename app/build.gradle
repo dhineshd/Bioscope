@@ -21,10 +21,20 @@ android {
         jniLibs.srcDir 'src/main/libs'
     }
 
+    signingConfigs {
+        release {
+            storeFile file("../keystore/privatekey.jks") //check that the file exists
+            storePassword "rohitdhineshphil"
+            keyAlias "chameleon key store"
+            keyPassword "rohitdhineshphil"
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
         debug {
             debuggable true
