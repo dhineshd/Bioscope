@@ -14,6 +14,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,6 +41,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ReceiveConnectionInfoFragment extends Fragment {
     private static final String CONNECTION_STATUS_TEXT_KEY = "CONNECTION_STATUS_TEXT";
+    private static final long MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS = 10000;
+    private static final int MAX_ATTEMPTS_TO_ADD_NETWORK = 3;
     private Gson mGson = new Gson();
     private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
     private TextView connectionStatusTextView;
@@ -48,6 +51,8 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     private Button cancelButton;
     private Activity attachedActivity;
     private Set<AsyncTask<Void, Void, Void>> asyncTasks = new HashSet<>();
+    private Handler connectionTimerHandler;
+    private Runnable connectionTimerRunnable;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -79,6 +84,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                 getActivity().finish();
             }
         });
+        connectionTimerHandler = new Handler();
     }
 
     @Override
@@ -114,12 +120,15 @@ public class ReceiveConnectionInfoFragment extends Fragment {
                 task.cancel(true);
             }
         }
+
+        connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
     }
 
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
         attachedActivity = activity;
+        log.info("Fragment attached!");
     }
 
     @Override
@@ -135,7 +144,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         }
     }
 
-    public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo){
+    public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
 
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
@@ -193,6 +202,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 
         connectToWifiNetworkBroadcastReceiver = new BroadcastReceiver() {
+
             @Override
             public void onReceive(Context context, Intent intent) {
                 log.info("onReceive intent = " + intent.getAction());
@@ -239,9 +249,19 @@ public class ReceiveConnectionInfoFragment extends Fragment {
             }
         };
         // Setup listener for connectivity change
-        getActivity().registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
+        attachedActivity.registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
 
-        connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+        connectionTimerRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                log.info("Current thread = {}", Thread.currentThread());
+                connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+                connectionTimerHandler.postDelayed(this, MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS);
+            }
+        };
+
+        connectionTimerHandler.post(connectionTimerRunnable);
     }
 
     private void showProgressBar() {
@@ -297,28 +317,48 @@ public class ReceiveConnectionInfoFragment extends Fragment {
 
     private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
 
-        // Connect only if not already connected
-        if (!networkSSID.equalsIgnoreCase(getCurrentSSID())) {
-            WifiConfiguration conf = new WifiConfiguration();
-            conf.SSID = "\"" + networkSSID + "\"";
-            conf.preSharedKey = "\"" + networkPassword + "\"";
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
-            final WifiManager wifiManager =
-                    (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            int maxAttemptsToAddNetwork = 3;
-            while (maxAttemptsToAddNetwork-- > 0) {
-                int netId = wifiManager.addNetwork(conf);
-                if (netId != -1) {
-                    log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
-                    // Enable only our network and disable others
-                    wifiManager.disconnect();
-                    wifiManager.enableNetwork(netId, true);
-                    break;
+            @Override
+            protected Void doInBackground(Void... params) {
+                // Connect only if not already connected
+                if (!networkSSID.equalsIgnoreCase(getCurrentSSID())) {
+                    WifiConfiguration conf = new WifiConfiguration();
+                    conf.SSID = "\"" + networkSSID + "\"";
+                    conf.preSharedKey = "\"" + networkPassword + "\"";
+
+                    final WifiManager wifiManager =
+                            (WifiManager)getActivity().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                    int remainingAttemptsToAddNetwork = MAX_ATTEMPTS_TO_ADD_NETWORK;
+                    while (remainingAttemptsToAddNetwork-- > 0) {
+                        int netId = wifiManager.addNetwork(conf);
+                        if (netId != -1) {
+                            log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
+                            // Enable only our network and disable others
+                            wifiManager.disconnect();
+                            wifiManager.enableNetwork(netId, true);
+                            break;
+                        }
+                    }
+                } else {
+                    log.info("Already connected to SSID = {}", networkSSID);
                 }
-                try { Thread.sleep(500); } catch (InterruptedException e) {}
+                return null;
             }
-        } else {
-            log.info("Already connected to SSID = {}", networkSSID);
-        }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                log.info("Connection initiation task completed!");
+            }
+        };
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                asyncTasks.add(task);
+            }
+        });
     }
 }
