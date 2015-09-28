@@ -15,6 +15,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -43,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 5;
+    private static final int MAX_NUM_IMAGES = 3;
     private final Context context;
     private final CameraManager cameraManager;
     private CameraInfo cameraInfo;
@@ -275,6 +276,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         try {
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                     CaptureRequest.CONTROL_AF_MODE_OFF);
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                    Range.create(20, 20));
+
 
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
