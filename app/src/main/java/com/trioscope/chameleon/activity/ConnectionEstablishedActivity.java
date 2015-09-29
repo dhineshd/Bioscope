@@ -333,8 +333,10 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     @Override
     protected void onPause() {
         super.onPause();
-        log.info("onPause invoked! Performing cleanup");
-        cleanup();
+        log.info("onPause invoked!");
+        if (isFinishing()) {
+            cleanup();
+        }
     }
 
     @Override

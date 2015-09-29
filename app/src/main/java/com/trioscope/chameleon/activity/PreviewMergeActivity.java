@@ -295,7 +295,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     @Override
     protected void onPause() {
         super.onPause();
-        cleanup();
+        if (isFinishing()) {
+            cleanup();
+        }
     }
 
     private void cleanup() {
