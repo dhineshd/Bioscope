@@ -1,17 +1,38 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.FragmentManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.PorterDuff;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.fragment.ReceiveConnectionInfoFragment;
+import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.ByteOrder;
+import java.util.HashSet;
+import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,7 +40,17 @@ import lombok.extern.slf4j.Slf4j;
 public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchForNFCMessageActivity {
 
     private Gson gson = new Gson();
-    private TextView mTextViewConnectionStatus;
+    private static final long MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS = 10000;
+    private static final int MAX_ATTEMPTS_TO_ADD_NETWORK = 3;
+    private Gson mGson = new Gson();
+    private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
+    private TextView connectionStatusTextView;
+    private ChameleonApplication chameleonApplication;
+    private ProgressBar progressBar;
+    private Button cancelButton;
+    private Set<AsyncTask<Void, Void, Void>> asyncTasks = new HashSet<>();
+    private Handler connectionTimerHandler;
+    private Runnable connectionTimerRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,16 +58,40 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         setContentView(R.layout.activity_receive_connection_info_nfc);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-
         // Tear down Wifi hotspot since we are going to join
         // the peer's hotspot.
         ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
 
-        mTextViewConnectionStatus = (TextView) findViewById(R.id.textView_receiver_connection_status);
-
         log.debug("ReceiveConnectionInfoNFCActivity {}", this);
 
         ((ChameleonApplication)getApplication()).startConnectionServerIfNotRunning();
+
+        connectionStatusTextView = (TextView) findViewById(R.id.textView_receiver_connection_status);
+        progressBar = (ProgressBar) findViewById(R.id.receive_conn_info_prog_bar);
+        chameleonApplication = (ChameleonApplication) getApplication();
+        cancelButton = (Button) findViewById(R.id.button_cancel_receive_connection_info);
+        cancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Finishing current activity will take us back to previous activity
+                // since it is in the back stack
+                chameleonApplication.stopConnectionServer();
+                finish();
+            }
+        });
+        connectionTimerHandler = new Handler();
+
+        String connectionInfoAsJson = getIntent().getStringExtra(
+                ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA);
+
+        if (connectionInfoAsJson != null) {
+            connectionStatusTextView.setVisibility(TextView.VISIBLE);
+            final WiFiNetworkConnectionInfo connectionInfo =
+                    gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
+            enableWifiAndEstablishConnection(connectionInfo);
+        } else {
+            log.warn("connectionInfoAsJson is null");
+        }
     }
 
 
@@ -63,27 +118,229 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        log.info("onPause invoked!");
+        cleanup();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
 
-        String connectionInfoAsJson = getIntent().getStringExtra(ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA);
+        // Setup receiver to listen for connectivity change
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
 
-        if(connectionInfoAsJson != null) {
+    }
 
-            if(mTextViewConnectionStatus.getVisibility() == TextView.INVISIBLE) {
-                mTextViewConnectionStatus.setVisibility(TextView.VISIBLE);
-            }
-
-            final WiFiNetworkConnectionInfo connectionInfo =
-                gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
-
-            // find the fragment from previous instance of activity (if any)
-            FragmentManager fm = getFragmentManager();
-            ReceiveConnectionInfoFragment fragment = (ReceiveConnectionInfoFragment) fm.findFragmentById(R.id.fragment_receive_connection_info);
-            fragment.enableWifiAndEstablishConnection(connectionInfo);
-        } else {
-            log.warn("connectionInfoAsJson is null");
+    private void cleanup() {
+        if (connectToWifiNetworkBroadcastReceiver != null) {
+            chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
+            connectToWifiNetworkBroadcastReceiver = null;
         }
 
+        for (AsyncTask task : asyncTasks) {
+            if (task != null) {
+                task.cancel(true);
+            }
+        }
+
+        connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
+    }
+
+    public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
+
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+                // Turn on Wifi device (if not already on)
+                final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+                if (wifiManager.isWifiEnabled()){
+                    log.info("Wifi already enabled..");
+                    establishConnection(connectionInfo);
+
+                } else {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            showProgressBar();
+                            connectionStatusTextView.setText("Enabling WiFi..");
+                        }
+                    });
+
+                    chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
+                        @Override
+                        public void run() {
+                            establishConnection(connectionInfo);
+                        }
+                    });
+                }
+                return null;
+            }
+        };
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                asyncTasks.add(task);
+            }
+        });
+
+    }
+
+    private void establishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                showProgressBar();
+                connectionStatusTextView.setText("Connecting\nto\n" + connectionInfo.getUserName());
+
+            }
+        });
+
+        connectToWifiNetworkBroadcastReceiver = new BroadcastReceiver() {
+
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                log.info("onReceive intent = " + intent.getAction());
+                final String currentSSID = getCurrentSSID();
+                String localIPAddress = getLocalIpAddressForWifi();
+                log.info("current SSID = {}, local IP = {}", currentSSID, localIPAddress);
+
+                if(currentSSID != null &&
+                        currentSSID.equals(connectionInfo.getSSID()) &&
+                        localIPAddress != null) {
+
+                    progressBar.setVisibility(View.INVISIBLE);
+                    connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
+
+                    try {
+                        InetAddress remoteIp = InetAddress.getByName(connectionInfo.getServerIpAddress());
+                        PeerInfo peerInfo = PeerInfo.builder()
+                                .ipAddress(remoteIp)
+                                .port(connectionInfo.getServerPort())
+                                .role(PeerInfo.Role.DIRECTOR)
+                                .userName(connectionInfo.getUserName())
+                                .build();
+
+                        Intent connectionEstablishedIntent =
+                                new Intent(context, ConnectionEstablishedActivity.class);
+                        connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
+                                mGson.toJson(peerInfo));
+                        startActivity(connectionEstablishedIntent);
+
+                    } catch (UnknownHostException e) {
+                        log.error("Failed to resolve peer IP", e);
+                    }
+
+                }
+            }
+        };
+
+        connectionTimerRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                log.info("Current thread = {}", Thread.currentThread());
+                connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+                connectionTimerHandler.postDelayed(this, MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS);
+            }
+        };
+
+        connectionTimerHandler.post(connectionTimerRunnable);
+    }
+
+    private void showProgressBar() {
+        progressBar.setVisibility(View.VISIBLE);
+        int color = 0xffffa500;
+        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+    }
+
+    public String getCurrentSSID() {
+        String ssid = null;
+        ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+        if (networkInfo.isConnected()) {
+            final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
+            if (connectionInfo != null && connectionInfo.getSSID() != null) {
+                ssid = connectionInfo.getSSID().replace("\"", ""); // Remove quotes
+            }
+        }
+        return ssid;
+    }
+
+    private String getLocalIpAddressForWifi() {
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
+        // Convert little-endian to big-endian if needed
+        if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
+            ipAddress = Integer.reverseBytes(ipAddress);
+        }
+
+        byte[] ipByteArray = BigInteger.valueOf(ipAddress).toByteArray();
+
+        String ipAddressString;
+        try {
+            ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
+            log.info("Local IP address on network = {}", ipAddressString);
+        } catch (UnknownHostException ex) {
+            log.info("Unable to get host address.");
+            ipAddressString = null;
+        }
+        return ipAddressString;
+    }
+
+    private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
+
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+
+            @Override
+            protected Void doInBackground(Void... params) {
+                // Connect only if not already connected
+                if (!networkSSID.equalsIgnoreCase(getCurrentSSID())) {
+                    WifiConfiguration conf = new WifiConfiguration();
+                    conf.SSID = "\"" + networkSSID + "\"";
+                    conf.preSharedKey = "\"" + networkPassword + "\"";
+
+                    final WifiManager wifiManager =
+                            (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                    int remainingAttemptsToAddNetwork = MAX_ATTEMPTS_TO_ADD_NETWORK;
+                    while (remainingAttemptsToAddNetwork-- > 0) {
+                        int netId = wifiManager.addNetwork(conf);
+                        if (netId != -1) {
+                            log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
+                            // Enable only our network and disable others
+                            wifiManager.disconnect();
+                            wifiManager.enableNetwork(netId, true);
+                            break;
+                        }
+                    }
+                } else {
+                    log.info("Already connected to SSID = {}", networkSSID);
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                log.info("Connection initiation task completed!");
+            }
+        };
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                asyncTasks.add(task);
+            }
+        });
     }
 }
