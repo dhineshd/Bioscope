@@ -27,7 +27,7 @@ public class ConnectionServer {
 
     public ConnectionServer(
             final int port,
-            final ServerEventListener serverEventListener,
+            final ServerEventListenerManager serverEventListenerManager,
             final SSLServerSocketFactory sslServerSocketFactory) {
 
         serverThread = new Thread(new Runnable() {
@@ -45,14 +45,14 @@ public class ConnectionServer {
                         if (recvMsg != null){
                             log.info("Message received = {}", recvMsg);
                             PeerMessage messageFromClient = gson.fromJson(recvMsg, PeerMessage.class);
-                            serverEventListener.onClientRequest(socket, messageFromClient);
+                            serverEventListenerManager.onClientRequestReceived(socket, messageFromClient);
                         }
                     }
                 } catch (IOException e) {
                     // Calling serverSocket.close to terminate the thread wil throw exception
                     // which is expected. Ignore that.
                     if (serverSocket.isClosed()){
-                        log.warn("ConnectionServer terminated due to server socket being closed", e);
+                        log.warn("ConnectionServer terminated as expected due to server socket being closed", e);
                     } else {
                         log.error("ConnectionServer terminated unexpectedly", e);
                     }

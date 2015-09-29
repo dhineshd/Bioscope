@@ -268,7 +268,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         if(!publishedDurationMetrics) {
             //publish time metrics
             ChameleonApplication.getMetrics().sendTime(
-                    MetricNames.Category.VIDEO.getName(), MetricNames.Label.DURATION.getName(), majorVideoMediaPlayer.getDuration());
+                    MetricNames.Category.VIDEO.getName(),
+                    MetricNames.Label.DURATION.getName(),
+                    majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
 

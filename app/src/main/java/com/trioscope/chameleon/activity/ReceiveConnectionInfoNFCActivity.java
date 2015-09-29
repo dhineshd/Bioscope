@@ -206,6 +206,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                 log.info("Current SSID = {}", currentSSID);
 
                 if(currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
+                    unregisterReceiver(this);
                     retrieveIpAddressAndEstablishConnection();
                 }
             }

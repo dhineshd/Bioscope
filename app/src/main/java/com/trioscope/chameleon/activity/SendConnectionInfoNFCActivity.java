@@ -29,12 +29,17 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
+import com.trioscope.chameleon.stream.ServerEventListener;
+import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.net.SocketException;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -47,7 +52,7 @@ import static android.nfc.NdefRecord.createMime;
 @Slf4j
 public class SendConnectionInfoNFCActivity
         extends EnableForegroundDispatchForNFCMessageActivity
-        implements NfcAdapter.CreateNdefMessageCallback {
+        implements NfcAdapter.CreateNdefMessageCallback, ServerEventListener {
     private static final int MAX_ATTEMPTS_TO_CREATE_WIFI_HOTSPOT = 3;
     private TextView connectionStatusTextView;
     private ProgressBar progressBar;
@@ -59,6 +64,7 @@ public class SendConnectionInfoNFCActivity
     private Gson mGson = new Gson();
     private ChameleonApplication chameleonApplication;
     private Set<Intent> processedIntents = new HashSet<Intent>();
+    private Gson gson = new Gson();
     private boolean isUserNavigatingInsideApp;
 
     @Override
@@ -90,6 +96,8 @@ public class SendConnectionInfoNFCActivity
 
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
+
+        chameleonApplication.getServerEventListenerManager().addListener(this);
     }
 
     @Override
@@ -168,6 +176,7 @@ public class SendConnectionInfoNFCActivity
     }
 
     private void cleanup() {
+        chameleonApplication.getServerEventListenerManager().removeListener(this);
 
         if (setupWifiHotspotTask != null) {
             setupWifiHotspotTask.cancel(true);
@@ -181,7 +190,26 @@ public class SendConnectionInfoNFCActivity
         if (wifiP2pGroupInfoListener != null) {
             wifiP2pGroupInfoListener = null;
         }
+    }
 
+    @Override
+    public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
+        try {
+            chameleonApplication.setStreamingDestOutputStream(clientSocket.getOutputStream());
+            log.info("Successfully set dest outputstream = {}", chameleonApplication.getStreamingDestOutputStream());
+        } catch (IOException e) {
+            log.error("Failed to set dest output stream");
+        }
+        log.info("Starting connection establshed activity!");
+        Intent intent = new Intent(this, ConnectionEstablishedActivity.class);
+        PeerInfo peerInfo = PeerInfo.builder()
+                .ipAddress(clientSocket.getInetAddress())
+                .port(ChameleonApplication.SERVER_PORT)
+                .role(PeerInfo.Role.CREW_MEMBER)
+                .userName(messageFromClient.getSenderUserName())
+                .build();
+        intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
+        startActivity(intent);
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void>{

@@ -3,10 +3,6 @@ package com.trioscope.chameleon.stream;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.ImageFormat;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
-import android.media.Image;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -25,7 +21,6 @@ import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
 import com.trioscope.chameleon.types.Size;
-import com.trioscope.chameleon.util.ColorConversionUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -36,7 +31,6 @@ import java.lang.ref.WeakReference;
 import java.net.Socket;
 
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +38,6 @@ import lombok.extern.slf4j.Slf4j;
  * Created by dhinesh.dharman on 6/28/15.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class VideoStreamFrameListener implements CameraFrameAvailableListener, ServerEventListener {
     private static final int STREAMING_FRAMES_PER_SEC = 15;
     private static final int STREAMING_COMPRESSION_QUALITY = 30; // 0 worst - 100 best
@@ -52,6 +45,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
+
     @Setter
     private volatile boolean isStreamingStarted;
     private volatile OutputStream destOutputStream;
@@ -67,6 +61,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
 
     @Setter
     private Handler sendVideoToPeerHandler;
+
+    public VideoStreamFrameListener(ChameleonApplication chameleonApplication) {
+        this.chameleonApplication = chameleonApplication;
+    }
 
     @Override
     //@Timed
@@ -90,18 +88,17 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
                     byte[] byteArray = null;
 
                     if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                        if (data.getImage() != null) {
-                            byteArray = convertYUV420888ImageToJPEGByteArray(
-                                    data.getImage(), cameraWidth, cameraHeight, targetWidth, targetHeight);
-                        } else if (data.getBytes() != null) {
-                            byteArray = convertYUV420888ByteArrayToJPEGByteArray(
-                                    data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight,
-                                    frameInfo.isHorizontallyFlipped());
+                        if (data.getBytes() != null) {
+                            byteArray = CameraFrameUtil.convertYUV420888ByteArrayToJPEGByteArray(
+                                    data.getBytes(), stream, cameraWidth, cameraHeight, targetWidth, targetHeight,
+                                    frameInfo.isHorizontallyFlipped(), STREAMING_COMPRESSION_QUALITY);
                         }
                     } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
-                        byteArray = convertNV21ToJPEGByteArray(data.getBytes(), cameraWidth, cameraHeight, targetWidth, targetHeight);
+                        byteArray = CameraFrameUtil.convertNV21ToJPEGByteArray(data.getBytes(),
+                                stream, cameraWidth, cameraHeight, targetWidth, targetHeight,
+                                STREAMING_COMPRESSION_QUALITY);
                     } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.RGBA_8888) {
-                        new WeakReference<Bitmap>(convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
+                        new WeakReference<Bitmap>(CameraFrameUtil.convertToBmp(data.getInts(), cameraWidth, cameraHeight)).get()
                                 .compress(Bitmap.CompressFormat.JPEG, STREAMING_COMPRESSION_QUALITY, stream);
                         byteArray = stream.toByteArray();
                     }
@@ -123,90 +120,10 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         }
     }
 
-    private byte[] convertYUV420888ByteArrayToJPEGByteArray(
-            final byte[] frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight,
-            final boolean verticallyFlipped) {
-        finalFrameData = ColorConversionUtil.scaleAndConvertI420ToNV21AndReturnByteArray(
-                frameData, frameWidth, frameHeight, targetWidth, targetHeight, verticallyFlipped);
-        YuvImage yuvimage = new YuvImage(
-                finalFrameData,
-                ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
-    private byte[] convertYUV420888ImageToJPEGByteArray(
-            final Image frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight) {
-        Image.Plane[] imagePlanes = frameData.getPlanes();
-        ColorConversionUtil.scaleAndConvertI420ToNV21Method2(
-                imagePlanes[0].getBuffer(), imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
-                finalFrameData, frameWidth, frameHeight, targetWidth, targetHeight);
-        YuvImage yuvimage = new YuvImage(
-                finalFrameData,
-                ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
-    private byte[] getPaddedFrameData(final byte[] frameData) {
-        int padding = 0;
-
-            padding = (cameraFrameSize.getWidth() * cameraFrameSize.getHeight()) % 2048;
-            log.debug("padding = {}", padding);
-            byte[] frameDataWithPadding = new byte[padding + frameData.length];
-
-            System.arraycopy(frameData, 0, frameDataWithPadding, 0, frameData.length);
-            int offset = cameraFrameSize.getWidth() * cameraFrameSize.getHeight();
-            System.arraycopy(frameData, offset, frameDataWithPadding,
-                    offset + padding, frameData.length - offset);
-            return frameDataWithPadding;
-    }
-
-    private byte[] convertNV21ToJPEGByteArray(
-            final byte[] frameData,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight) {
-        YuvImage yuvimage = new YuvImage(frameData, ImageFormat.NV21,
-                frameWidth, frameHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                STREAMING_COMPRESSION_QUALITY, stream);
-        return stream.toByteArray();
-    }
-
     private boolean shouldStreamCurrentFrame() {
         return ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC));
     }
-
-    private Bitmap convertToBmp(final int[] pixelsBuffer, final int width, final int height) {
-        int screenshotSize = width * height;
-        for (int i = 0; i < screenshotSize; ++i) {
-            // The alpha and green channels' positions are preserved while the red and blue are swapped
-            // since the received frame is in RGB but Bitmap expects BGR. May need to revisit the
-            // efficiency of this approach and see if we can get the frame directly in BGR.
-            // Refer: https://www.khronos.org/registry/gles/extensions/EXT/EXT_read_format_bgra.txt
-            pixelsBuffer[i] =
-                    ((pixelsBuffer[i] & 0xff00ff00))
-                            | ((pixelsBuffer[i] & 0x000000ff) << 16)
-                            | ((pixelsBuffer[i] & 0x00ff0000) >> 16);
-        }
-        Bitmap bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bmp.setPixels(pixelsBuffer, screenshotSize - width, -width, 0, 0, width, height);
-        return bmp;
-    }
-
 
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
@@ -216,7 +133,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         switch (messageFromClient.getType()) {
             case START_SESSION:
                 String peerUserName = messageFromClient.getSenderUserName();
-                startStreaming(clientSocket, peerUserName);
+                //startStreaming(clientSocket, peerUserName);
                 break;
             case TERMINATE_SESSION:
                 terminateSession();
@@ -242,6 +159,8 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
     private void startStreaming(final Socket clientSocket, String peerUserName) {
         try {
             destOutputStream = clientSocket.getOutputStream();
+            //chameleonApplication.setStreamingDestOutputStream(clientSocket.getOutputStream());
+
             log.debug("Destination output stream set in Thread = {}", Thread.currentThread());
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -250,6 +169,7 @@ public class VideoStreamFrameListener implements CameraFrameAvailableListener, S
         Context context = chameleonApplication.getApplicationContext();
         if (context != null && !isStreamingStarted) {
             Intent intent = new Intent(context, ConnectionEstablishedActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             PeerInfo peerInfo = PeerInfo.builder()
                     .ipAddress(clientSocket.getInetAddress())

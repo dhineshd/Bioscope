@@ -14,7 +14,6 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.view.SurfaceView;
 
-import com.google.android.gms.analytics.HitBuilders;
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.CameraOpener;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
@@ -24,8 +23,8 @@ import com.trioscope.chameleon.listener.impl.UpdateRateListener;
 import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
+import com.trioscope.chameleon.stream.ServerEventListenerManager;
 import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
-import com.trioscope.chameleon.stream.VideoStreamFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
@@ -35,6 +34,7 @@ import com.trioscope.chameleon.types.ThreadWithHandler;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -95,6 +95,10 @@ public class ChameleonApplication extends Application {
     @Getter
     private CameraOpener cameraOpener;
 
+    @Setter
+    @Getter
+    private volatile OutputStream streamingDestOutputStream;
+
     @Getter
     private CameraInfo cameraInfo;
 
@@ -120,9 +124,11 @@ public class ChameleonApplication extends Application {
     private PeerInfo peerInfo;
 
     @Getter
-    private volatile VideoStreamFrameListener streamListener;
-    @Getter
     private volatile VideoRecordingFrameListener recordingFrameListener;
+
+    @Getter
+    private ServerEventListenerManager serverEventListenerManager = new ServerEventListenerManager();
+
     @Setter
     private ConnectionServer connectionServer;
     @Getter
@@ -157,11 +163,12 @@ public class ChameleonApplication extends Application {
 
         recordingFrameListener = new VideoRecordingFrameListener(this);
 
-        streamListener = new VideoStreamFrameListener(this);
-        //cameraFrameBuffer.addListener(streamListener);
+        //streamListener = new VideoStreamFrameListener(this);
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
+
+        //serverEventListenerManager.addListener(streamListener);
 
         startup();
     }
@@ -171,7 +178,7 @@ public class ChameleonApplication extends Application {
         if (connectionServer == null) {
             connectionServer = new ConnectionServer(
                     ChameleonApplication.SERVER_PORT,
-                    streamListener,
+                    serverEventListenerManager,
                     getInitializedSSLServerSocketFactory());
             connectionServer.start();
         }
@@ -346,8 +353,8 @@ public class ChameleonApplication extends Application {
 //        log.info("Registered IncomingPhoneCallBroadcastReceiver");
 
         // Reset session flags
-        sessionStatus = SessionStatus.DISCONNECTED;
-        streamListener.setStreamingStarted(false);
+        //sessionStatus = SessionStatus.DISCONNECTED;
+        //streamListener.setStreamingStarted(false);
 
     }
 
@@ -361,8 +368,8 @@ public class ChameleonApplication extends Application {
         }
 
         // Reset session flags
-        sessionStatus = SessionStatus.DISCONNECTED;
-        streamListener.setStreamingStarted(false);
+        //sessionStatus = SessionStatus.DISCONNECTED;
+        //streamListener.setStreamingStarted(false);
 
         // Tear down Wifi hotspot
         tearDownWifiHotspot();

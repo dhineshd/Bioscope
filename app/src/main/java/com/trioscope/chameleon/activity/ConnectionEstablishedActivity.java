@@ -13,8 +13,6 @@ import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.view.Menu;
@@ -33,14 +31,14 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.stream.PreviewStreamer;
+import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
 import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
-import com.trioscope.chameleon.types.SendVideoToPeerMetadata;
-import com.trioscope.chameleon.types.SessionStatus;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -74,7 +72,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class ConnectionEstablishedActivity
+        extends EnableForegroundDispatchForNFCMessageActivity
+        implements ServerEventListener {
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
@@ -99,6 +99,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
     private Handler timerHandler;
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
+    private PreviewStreamer previewStreamer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,29 +117,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         initializeRecordingTimer();
 
-        Handler sendVideoToPeerHandler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-
-                if (msg.what == ChameleonApplication.SEND_VIDEO_TO_PEER_MESSAGE) {
-
-                    SendVideoToPeerMetadata metadata = (SendVideoToPeerMetadata) msg.obj;
-                    sendVideoToPeerTask = new SendVideoToPeerTask(
-                            metadata.getClientSocket(),
-                            metadata.getVideoFile(),
-                            metadata.getRecordingStartTimeMillis(),
-                            metadata.isRecordingHorizontallyFlipped());
-                    sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                } else {
-                    super.handleMessage(msg);
-                }
-
-            }
-        };
-
         chameleonApplication = (ChameleonApplication) getApplication();
-
-        chameleonApplication.getStreamListener().setSendVideoToPeerHandler(sendVideoToPeerHandler);
 
         sslSocketFactory = getInitializedSSLSocketFactory();
 
@@ -159,12 +138,12 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         log.debug("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
-        // Start camera frame listener for streaming
-        chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getStreamListener());
+        // Start streaming preview
+        previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
+        log.info("stream dest out = {}", chameleonApplication.getStreamingDestOutputStream());
+        previewStreamer.startStreaming(chameleonApplication.getStreamingDestOutputStream());
 
-        // Start streaming the preview
-        chameleonApplication.setSessionStatus(SessionStatus.CONNECTED);
-        chameleonApplication.getStreamListener().setStreamingStarted(true);
+        chameleonApplication.getServerEventListenerManager().addListener(this);
 
         // Start camera frame listener for recording
         chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getRecordingFrameListener());
@@ -329,7 +308,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         }
     }
 
-
     @Override
     protected void onPause() {
         super.onPause();
@@ -353,6 +331,14 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
     private void cleanup() {
         log.info("Cleanup invoked!");
+
+        if (previewStreamer != null) {
+            previewStreamer.stopStreaming();
+            previewStreamer = null;
+        }
+
+        chameleonApplication.getServerEventListenerManager().removeListener(this);
+
         chameleonApplication.tearDownWifiHotspot();
 
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
@@ -372,16 +358,11 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             sendVideoToPeerTask = null;
         }
 
-        chameleonApplication.getStreamListener().setStreamingStarted(false);
         timerHandler.removeCallbacks(timerRunnable);
         chameleonApplication.stopPreview();
 
         // Stop camera frame listener for recording
         chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getRecordingFrameListener());
-
-        // Stop camera frame listener for streaming
-        chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getStreamListener());
-
         chameleonApplication.stopConnectionServer();
     }
 
@@ -406,6 +387,83 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
             log.error("Failed to initialize SSL socket factory", e);
         }
         return sslSocketFactory;
+    }
+
+    @Override
+    public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
+
+        switch (messageFromClient.getType()) {
+            case START_SESSION:
+                startStreamingToPeer(clientSocket);
+                break;
+            case TERMINATE_SESSION:
+                break;
+            case SESSION_HEARTBEAT:
+                break;
+            case START_RECORDING:
+                startRecording(clientSocket);
+                break;
+            case STOP_RECORDING:
+                stopRecording();
+                break;
+            case SEND_RECORDED_VIDEO:
+                sendRecordedVideo(clientSocket);
+                break;
+            default:
+                log.debug("Unknown message received from client. Type = {}",
+                        messageFromClient.getType());
+        }
+    }
+
+    public void startStreamingToPeer(Socket peerSocket) {
+        if (previewStreamer != null) {
+            try {
+                log.debug("Ready to start streaming to peer! dest os = {}", peerSocket.getOutputStream());
+                previewStreamer.startStreaming(peerSocket.getOutputStream());
+            } catch (IOException e) {
+                log.error("Failed to start streaming", e);
+            }
+        }
+    }
+
+    private void startRecording(final Socket clientSocket) {
+        log.debug("Received message to start recording!");
+        try {
+            PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
+            StartRecordingResponse response = StartRecordingResponse.builder()
+                    .currentTimeMillis(System.currentTimeMillis()).build();
+            PeerMessage responseMsg = PeerMessage.builder()
+                    .type(PeerMessage.Type.START_RECORDING_RESPONSE)
+                    .contents(gson.toJson(response)).build();
+            log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+            pw.println(gson.toJson(responseMsg));
+            pw.close();
+        } catch (IOException e) {
+            log.error("Failed to send START_RECORDING_RESPONSE", e);
+        }
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
+        manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
+    }
+
+    private void stopRecording() {
+        log.debug("Received message to stop recording!");
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
+        manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
+    }
+
+    private void sendRecordedVideo(final Socket clientSocket) {
+        log.debug("Received message to send recorded video!");
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                sendVideoToPeerTask = new SendVideoToPeerTask(
+                        clientSocket,
+                        chameleonApplication.getVideoFile(),
+                        chameleonApplication.getRecordingStartTimeMillis(),
+                        chameleonApplication.isRecordingHorizontallyFlipped());
+                sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        });
     }
 
     @AllArgsConstructor
@@ -582,25 +640,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected void onPostExecute(Void aVoid) {
 
-            chameleonApplication.tearDownWifiHotspot();
-
-            chameleonApplication.stopConnectionServer();
-
-            // Stop receiving stream
-            if (streamFromPeerTask != null) {
-                streamFromPeerTask.cancel(true);
-                streamFromPeerTask = null;
-            }
-
-            // Stop sending stream
-            chameleonApplication.getStreamListener().terminateSession();
-
-            // Sending message to terminate session
-            PeerMessage terminateSessionMsg = PeerMessage.builder()
-                    .type(PeerMessage.Type.TERMINATE_SESSION).build();
-            new SendMessageToPeerTask(terminateSessionMsg, peerIp, port)
-                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
             hideProgressBar();
 
             // Adjust recording start time for remote recording to account for
@@ -696,7 +735,7 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
                     totalBytesSent += bytesRead;
                     publishProgress((int) (100 * totalBytesSent / fileSizeBytes));
                 }
-                log.debug("Successfully sent recorded file!");
+                log.info("Successfully sent recorded file!");
             } catch (IOException e) {
                 log.error("Failed to send recorded video file", e);
             } finally {
@@ -725,17 +764,6 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
 
         @Override
         protected void onPostExecute(Void aVoid) {
-
-            chameleonApplication.stopConnectionServer();
-
-            // Stop receiving stream
-            if (streamFromPeerTask != null) {
-                streamFromPeerTask.cancel(true);
-                streamFromPeerTask = null;
-            }
-
-            // Stop sending stream
-            chameleonApplication.getStreamListener().terminateSession();
 
             hideProgressBar();
 
@@ -776,9 +804,9 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         @Override
         protected Void doInBackground(Void... params) {
             int attemptsLeft = 3;
-            while (attemptsLeft-- > 0) {
+            while (!isCancelled()) {
                 try {
-                    log.debug("Connect to remote host invoked Thread = {}", Thread.currentThread());
+                    log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
 
                     if (!isIpReachable(peerIp)) {
                         log.warn("Peer IP = {} not reachable. Unable to receive stream!", peerIp.getHostAddress());
