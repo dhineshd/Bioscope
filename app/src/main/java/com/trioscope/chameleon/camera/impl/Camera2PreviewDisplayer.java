@@ -15,6 +15,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -275,8 +276,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         try {
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                     CaptureRequest.CONTROL_AF_MODE_OFF);
-//                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-//                                    Range.create(20, 20));
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                    Range.create(20, 20));
 
 
                             // Finally, we start displaying the camera preview.
