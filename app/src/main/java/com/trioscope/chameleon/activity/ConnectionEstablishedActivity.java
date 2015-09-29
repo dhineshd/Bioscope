@@ -351,6 +351,13 @@ public class ConnectionEstablishedActivity extends EnableForegroundDispatchForNF
         manager.registerReceiver(this.recordEventReceiver, filter);
     }
 
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving!");
+        cleanup();
+    }
+
     private void cleanup() {
         log.info("Cleanup invoked!");
         chameleonApplication.tearDownWifiHotspot();

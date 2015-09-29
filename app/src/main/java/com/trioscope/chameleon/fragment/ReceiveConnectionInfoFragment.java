@@ -111,17 +111,7 @@ public class ReceiveConnectionInfoFragment extends Fragment {
     public void onPause() {
         super.onPause();
         log.info("Fragment onPause invoked");
-
-        chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
-        connectToWifiNetworkBroadcastReceiver = null;
-
-        for (AsyncTask task : asyncTasks) {
-            if (task != null) {
-                task.cancel(true);
-            }
-        }
-
-        connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
+        cleanup();
     }
 
     @Override
@@ -136,6 +126,20 @@ public class ReceiveConnectionInfoFragment extends Fragment {
         super.onDetach();
         attachedActivity = null;
         log.info("Fragment detached!");
+    }
+
+    private void cleanup() {
+
+        chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
+        connectToWifiNetworkBroadcastReceiver = null;
+
+        for (AsyncTask task : asyncTasks) {
+            if (task != null) {
+                task.cancel(true);
+            }
+        }
+
+        connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
     }
 
     private void runOnUiThread(Runnable runnable) {

@@ -72,6 +72,12 @@ public class SendConnectionInfoNFCActivity
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        log.info("onPause invoked!");
+    }
+
+    @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         if (wiFiNetworkConnectionInfo != null){
             String text = mGson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);

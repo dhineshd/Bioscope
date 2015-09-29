@@ -295,12 +295,22 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     @Override
     protected void onPause() {
         super.onPause();
+        log.info("onPause invoked!");
         if (isFinishing()) {
             cleanup();
         }
     }
 
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving!");
+        cleanup();
+    }
+
     private void cleanup() {
+        log.info("Performing cleanup");
+
         // Release mediaplayers
         if (majorVideoMediaPlayer != null) {
             majorVideoMediaPlayer.setSurface(null);

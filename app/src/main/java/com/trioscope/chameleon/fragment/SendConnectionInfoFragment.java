@@ -3,7 +3,6 @@ package com.trioscope.chameleon.fragment;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.PorterDuff;
-import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
@@ -120,17 +119,7 @@ public class SendConnectionInfoFragment extends Fragment {
     public void onPause() {
         super.onPause();
         log.info("Fragment onPause invoked");
-        if (setupWifiHotspotTask != null) {
-            setupWifiHotspotTask.cancel(true);
-        }
-        for (AsyncTask task : asyncTasks) {
-            if (task != null) {
-                task.cancel(true);
-            }
-        }
-        if (wifiP2pGroupInfoListener != null) {
-            wifiP2pGroupInfoListener = null;
-        }
+        cleanup();
     }
 
     @Override
@@ -144,6 +133,21 @@ public class SendConnectionInfoFragment extends Fragment {
         super.onDetach();
         attachedActivity = null;
         log.info("Fragment detached!");
+    }
+
+    private void cleanup() {
+        if (setupWifiHotspotTask != null) {
+            setupWifiHotspotTask.cancel(true);
+            setupWifiHotspotTask = null;
+        }
+        for (AsyncTask task : asyncTasks) {
+            if (task != null) {
+                task.cancel(true);
+            }
+        }
+        if (wifiP2pGroupInfoListener != null) {
+            wifiP2pGroupInfoListener = null;
+        }
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void>{
