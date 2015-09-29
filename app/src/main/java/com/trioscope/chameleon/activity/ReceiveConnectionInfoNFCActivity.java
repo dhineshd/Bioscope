@@ -51,6 +51,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     private Set<AsyncTask<Void, Void, Void>> asyncTasks = new HashSet<>();
     private Handler connectionTimerHandler;
     private Runnable connectionTimerRunnable;
+    private WiFiNetworkConnectionInfo connectionInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,9 +87,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
         if (connectionInfoAsJson != null) {
             connectionStatusTextView.setVisibility(TextView.VISIBLE);
-            final WiFiNetworkConnectionInfo connectionInfo =
-                    gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
-            enableWifiAndEstablishConnection(connectionInfo);
+            connectionInfo = gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
+            enableWifiAndEstablishConnection();
         } else {
             log.warn("connectionInfoAsJson is null");
         }
@@ -127,13 +127,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     @Override
     public void onResume() {
         super.onResume();
-
-        // Setup receiver to listen for connectivity change
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-        registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
-
     }
 
     private void cleanup() {
@@ -151,7 +144,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
     }
 
-    public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
+    public void enableWifiAndEstablishConnection() {
 
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
@@ -210,38 +203,19 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             public void onReceive(Context context, Intent intent) {
                 log.info("onReceive intent = " + intent.getAction());
                 final String currentSSID = getCurrentSSID();
-                String localIPAddress = getLocalIpAddressForWifi();
-                log.info("current SSID = {}, local IP = {}", currentSSID, localIPAddress);
+                log.info("Current SSID = {}", currentSSID);
 
-                if(currentSSID != null &&
-                        currentSSID.equals(connectionInfo.getSSID()) &&
-                        localIPAddress != null) {
-
-                    progressBar.setVisibility(View.INVISIBLE);
-                    connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
-
-                    try {
-                        InetAddress remoteIp = InetAddress.getByName(connectionInfo.getServerIpAddress());
-                        PeerInfo peerInfo = PeerInfo.builder()
-                                .ipAddress(remoteIp)
-                                .port(connectionInfo.getServerPort())
-                                .role(PeerInfo.Role.DIRECTOR)
-                                .userName(connectionInfo.getUserName())
-                                .build();
-
-                        Intent connectionEstablishedIntent =
-                                new Intent(context, ConnectionEstablishedActivity.class);
-                        connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
-                                mGson.toJson(peerInfo));
-                        startActivity(connectionEstablishedIntent);
-
-                    } catch (UnknownHostException e) {
-                        log.error("Failed to resolve peer IP", e);
-                    }
-
+                if(currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
+                    retrieveIpAddressAndEstablishConnection();
                 }
             }
         };
+
+        // Setup receiver to listen for connectivity change
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        registerReceiver(connectToWifiNetworkBroadcastReceiver, filter);
 
         connectionTimerRunnable = new Runnable() {
 
@@ -324,6 +298,9 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                     }
                 } else {
                     log.info("Already connected to SSID = {}", networkSSID);
+                    // No need to create another connection task
+                    connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
+                    retrieveIpAddressAndEstablishConnection();
                 }
                 return null;
             }
@@ -342,5 +319,59 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                 asyncTasks.add(task);
             }
         });
+    }
+
+    private void retrieveIpAddressAndEstablishConnection() {
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
+            String ipAddress = null;
+            @Override
+            protected Void doInBackground(Void... params) {
+                do {
+                    ipAddress = getLocalIpAddressForWifi();
+                } while (!isCancelled() && ipAddress == null);
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                if (ipAddress != null) {
+                    log.info("Successfully retrieved local IP = {}", ipAddress);
+                    performConnectionEstablishedActions();
+                }
+            }
+        };
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                asyncTasks.add(task);
+            }
+        });
+    }
+
+    private void performConnectionEstablishedActions() {
+        progressBar.setVisibility(View.INVISIBLE);
+        connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
+
+        try {
+            InetAddress remoteIp = InetAddress.getByName(connectionInfo.getServerIpAddress());
+            PeerInfo peerInfo = PeerInfo.builder()
+                    .ipAddress(remoteIp)
+                    .port(connectionInfo.getServerPort())
+                    .role(PeerInfo.Role.DIRECTOR)
+                    .userName(connectionInfo.getUserName())
+                    .build();
+
+            Intent connectionEstablishedIntent =
+                    new Intent(this, ConnectionEstablishedActivity.class);
+            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
+                    mGson.toJson(peerInfo));
+            startActivity(connectionEstablishedIntent);
+
+        } catch (UnknownHostException e) {
+            log.error("Failed to resolve peer IP", e);
+        }
     }
 }
