@@ -143,7 +143,7 @@ public class DepackageUtil {
         File outputFile = new File(outputDir.getPath() + File.separator + outputName);
 
         if (outputFile.exists()) {
-            log.info("Output file {} already exists - not going to depackage again");
+            log.info("Output file {} already exists - not going to depackage again", outputFile.getAbsolutePath());
             return true;
         }
 

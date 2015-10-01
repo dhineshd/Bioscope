@@ -25,7 +25,11 @@ import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.storage.BioscopeDBHelper;
+import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.util.ui.GestureUtils;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.util.Arrays;
@@ -42,6 +46,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private GestureDetectorCompat gestureDetector;
+
+    // Newest files first comparator
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
         @Override
         public int compare(File lhs, File rhs) {
@@ -132,6 +138,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 log.warn("Unable to create thumbnail from video file {}", videoFile);
             }
 
+            BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
             MediaMetadataRetriever mmr = new MediaMetadataRetriever();
             mmr.setDataSource(videoFile.getAbsolutePath());
 
@@ -144,8 +151,18 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             videoAgoTextView.setText(timeAgo);
             videoAgoTextView.setTypeface(appFontTypeface);
 
+
+            //Load the other videographers from db
+            List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
+            helper.close();
+            String videoWith = "Unknown";
+            if (!videographers.isEmpty()) {
+                videoWith = StringUtils.join(videographers, ", ");
+            } else {
+                log.warn("Unable to retrieve any videographers for {}", videoFile.getName());
+            }
             TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
-            videoWithTextView.setText("Video with");
+            videoWithTextView.setText("with " + videoWith);
             videoWithTextView.setTypeface(appFontTypeface);
 
             TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);

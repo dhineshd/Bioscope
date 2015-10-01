@@ -15,4 +15,5 @@ public class RecordingMetadata {
     @NonNull
     private Long startTimeMillis;
     private boolean horizontallyFlipped;
+    private String videographer;
 }

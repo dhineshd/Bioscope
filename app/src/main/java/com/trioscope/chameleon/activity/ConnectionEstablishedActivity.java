@@ -135,7 +135,7 @@ public class ConnectionEstablishedActivity
 
         // Retrieve peer info to start streaming
         Intent intent = getIntent();
-        log.debug("Intent = {}", intent);
+        log.info("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
         // Start streaming preview
@@ -148,7 +148,7 @@ public class ConnectionEstablishedActivity
         // Start camera frame listener for recording
         chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getRecordingFrameListener());
 
-        log.debug("PeerInfo = {}", peerInfo);
+        log.info("PeerInfo = {}", peerInfo);
 
         peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
 
@@ -255,8 +255,7 @@ public class ConnectionEstablishedActivity
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(
                         chameleonApplication.getVideoFile(),
                         peerVideoFile,
-                        peerInfo.getIpAddress(),
-                        peerInfo.getPort());
+                        peerInfo);
 
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
@@ -523,9 +522,8 @@ public class ConnectionEstablishedActivity
         @NonNull
         private File remoteVideoFile;
         @NonNull
-        private InetAddress peerIp;
-        @NonNull
-        private Integer port;
+        private PeerInfo peerInfo;
+
         private Long remoteRecordingStartTimeMillis;
         private boolean remoteRecordingHorizontallyFlipped;
         private long remoteClockAheadOfLocalClockMillis = 0L;
@@ -543,12 +541,12 @@ public class ConnectionEstablishedActivity
             try {
 
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                if (!isIpReachable(peerIp)) {
-                    log.warn("Peer = {} not reachable! Unable to receive video", peerIp.getHostAddress());
+                if (!isIpReachable(peerInfo.getIpAddress())) {
+                    log.warn("Peer = {} not reachable! Unable to receive video", peerInfo.getIpAddress().getHostAddress());
                     return null;
                 }
 
-                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
                 socket.setEnabledProtocols(new String[]{"TLSv1.2"});
                 log.debug("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
                 log.debug("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
@@ -566,6 +564,7 @@ public class ConnectionEstablishedActivity
                 pw.println(serializedMessageToSend);
                 pw.close();
 
+                log.debug("Waiting for SEND_RECORDED_VIDEO_RESPONSE");
                 // Receive recorded file size from peer
                 long fileSizeBytes = -1;
                 String recvMsg = bufferedReader.readLine();
@@ -613,6 +612,8 @@ public class ConnectionEstablishedActivity
                     }
                     log.debug("Successfully received recorded video!");
                 }
+
+                log.info("Done receiving video from peer!");
             } catch (IOException e) {
                 log.error("Failed to receive recorded video..", e);
             } finally {
@@ -639,7 +640,6 @@ public class ConnectionEstablishedActivity
 
         @Override
         protected void onPostExecute(Void aVoid) {
-
             hideProgressBar();
 
             // Adjust recording start time for remote recording to account for
@@ -647,9 +647,9 @@ public class ConnectionEstablishedActivity
             long clockAdjustmentMs = (remoteClockAheadOfLocalClockMillis + clockDifferenceMs) / 2;
             remoteRecordingStartTimeMillis -= clockAdjustmentMs;
 
-            log.debug("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
-            log.debug("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
-            log.debug("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
+            log.info("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
+            log.info("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
+            log.info("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
             RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(localVideoFile.getAbsolutePath())
                     .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
@@ -659,17 +659,19 @@ public class ConnectionEstablishedActivity
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
                     .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
+                    .videographer(peerInfo.getUserName())
                     .build();
 
             MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
             metadataRetriever.setDataSource(localVideoFile.getAbsolutePath());
-            log.debug("Local recording create time metadata = {}",
+            log.info("Local recording create time metadata = {}",
                     metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
             metadataRetriever.setDataSource(remoteVideoFile.getAbsolutePath());
-            log.debug("Remote recording create time metadata = {}",
+            log.info("Remote recording create time metadata = {}",
                     metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-            log.debug("Local filename = {}", localVideoFile.getName());
-            log.debug("Remote filename = {}", remoteVideoFile.getName());
+            log.info("Local filename = {}", localVideoFile.getName());
+            log.info("Remote filename = {}", remoteVideoFile.getName());
+            cleanup();
 
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));

@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
-        implements ProgressUpdatable{
+        implements ProgressUpdatable {
     private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
@@ -85,8 +85,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
 
         minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
-
-
 
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
 
@@ -185,11 +183,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
                         "BIOSCOPE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4");
-                        taskFragment = FfmpegTaskFragment.newInstance(
-                                serializedMajorVideoMetadata,
-                                serializedMinorVideoMetadata,
-                                majorVideoAheadOfMinorVideoByMillis,
-                                outputFile.getAbsolutePath());
+                taskFragment = FfmpegTaskFragment.newInstance(
+                        serializedMajorVideoMetadata,
+                        serializedMinorVideoMetadata,
+                        majorVideoAheadOfMinorVideoByMillis,
+                        outputFile.getAbsolutePath());
                 fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
             }
         });
@@ -265,7 +263,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.start();
         minorVideoMediaPlayer.start();
 
-        if(!publishedDurationMetrics) {
+        if (!publishedDurationMetrics) {
             //publish time metrics
             ChameleonApplication.getMetrics().sendTime(
                     MetricNames.Category.VIDEO.getName(),
