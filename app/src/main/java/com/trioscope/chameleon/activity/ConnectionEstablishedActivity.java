@@ -11,14 +11,11 @@ import android.graphics.Matrix;
 import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
@@ -35,6 +32,8 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.record.MediaCodecRecorder;
+import com.trioscope.chameleon.record.VideoRecorder;
 import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
@@ -43,6 +42,9 @@ import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
+import com.trioscope.chameleon.util.network.IpUtil;
+import com.trioscope.chameleon.util.network.WifiUtil;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -58,17 +60,10 @@ import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.Arrays;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManagerFactory;
 
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -83,7 +78,6 @@ public class ConnectionEstablishedActivity
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     public static final String PEER_INFO = "PEER_INFO";
-    private static final int MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE = 10000; // 10 secs
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
@@ -91,7 +85,6 @@ public class ConnectionEstablishedActivity
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
-    private BroadcastReceiver recordEventReceiver;
     private ProgressBar progressBar;
     private ImageView imageViewProgressBarBackground;
     private TextView textViewFileTransfer;
@@ -104,7 +97,10 @@ public class ConnectionEstablishedActivity
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
     private PreviewStreamer previewStreamer;
+    private VideoRecorder recorder;
     private BroadcastReceiver wifiBroadcastReceiver;
+    private ImageButton switchCamerasButton;
+    private RecordingMetadata localRecordingMetadata;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,7 +120,7 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        sslSocketFactory = getInitializedSSLSocketFactory();
+        sslSocketFactory = SSLUtil.getInitializedSSLSocketFactory(this);
 
         // Prepare camera preview
         chameleonApplication.preparePreview();
@@ -132,7 +128,8 @@ public class ConnectionEstablishedActivity
         chameleonApplication.getPreviewDisplayer().addOnPreparedCallback(new Runnable() {
             @Override
             public void run() {
-                log.info("Preview displayer is ready to display a preview - adding one to the ConnectionEstablished activity");
+                log.info("Preview displayer is ready to display a preview - " +
+                        "adding one to the ConnectionEstablished activity");
                 addCameraPreviewSurface();
                 chameleonApplication.startPreview();
             }
@@ -143,24 +140,26 @@ public class ConnectionEstablishedActivity
         log.debug("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
-        // Start streaming preview
+        // Start streaming preview to peer
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
         log.info("stream dest out = {}", chameleonApplication.getStreamingDestOutputStream());
         previewStreamer.startStreaming(chameleonApplication.getStreamingDestOutputStream());
 
+        // Start streaming preview from peer
+        streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
+        streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        // Start listening for server events
         chameleonApplication.getServerEventListenerManager().addListener(this);
 
-        // Start camera frame listener for recording
-        chameleonApplication.getCameraFrameBuffer().addListener(chameleonApplication.getRecordingFrameListener());
+        // Create recorder
+        recorder = new MediaCodecRecorder(chameleonApplication, chameleonApplication.getCameraFrameBuffer());
 
         log.debug("PeerInfo = {}", peerInfo);
 
         peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
 
-        streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
-        streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-        final ImageButton switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
+        switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -174,20 +173,20 @@ public class ConnectionEstablishedActivity
             @Override
             public void onClick(View view) {
 
-                LocalBroadcastManager manager = LocalBroadcastManager.getInstance(getApplicationContext());
-
                 if (isRecording) {
                     recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
 
-                    // Sending message to peer to stop recording
-                    PeerMessage peerMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.STOP_RECORDING)
-                            .build();
-                    new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
-                            .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    // Director should send message to crew to stop recording
+                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                        PeerMessage peerMsg = PeerMessage.builder()
+                                .type(PeerMessage.Type.STOP_RECORDING)
+                                .build();
+                        new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
+                                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    }
 
-                    // Stopping local video recording
-                    manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
+                    stopRecording();
+
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
@@ -197,61 +196,35 @@ public class ConnectionEstablishedActivity
                 } else {
                     recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
-                    // Sending message to peer to start remote recording
-                    PeerMessage peerMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.START_RECORDING)
-                            .build();
-                    new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
-                            .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    // Director should send message to crew to start recording
+                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                        PeerMessage peerMsg = PeerMessage.builder()
+                                .type(PeerMessage.Type.START_RECORDING)
+                                .build();
+                        new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
+                                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    }
 
-                    // Starting local video recording
-                    manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
+                    startRecording();
 
                     isRecording = true;
                 }
             }
         });
 
-        if (PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
-            // If peer role is director, this is crew
-            chameleonApplication.tearDownWifiHotspot();
-        } else {
-            // If peer is not director, then I am the director
-            // So, should be able to start/stop recording.
+        if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+            // I am the director. So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
             recordSessionButton.setVisibility(View.VISIBLE);
+        } else {
+            chameleonApplication.tearDownWifiHotspot();
         }
-
-
-        recordEventReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (ChameleonApplication.START_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Start recording event received!!");
-                    // Start recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStartRecording(System.currentTimeMillis());
-                    log.debug("Video recording started");
-                    recordingStartTime = System.currentTimeMillis();
-                    timerHandler.postDelayed(timerRunnable, 500);
-                    // Show button to switch cameras
-                    switchCamerasButton.setVisibility(View.INVISIBLE);
-                } else if (ChameleonApplication.STOP_RECORDING_ACTION.equals(intent.getAction())) {
-                    log.debug("Stop recording event received!!");
-                    // Stop recording using MediaCodec method
-                    chameleonApplication.getRecordingFrameListener().onStopRecording();
-                    log.debug("Video recording stopped");
-                    timerHandler.removeCallbacks(timerRunnable);
-                    recordingTimerTextView.setVisibility(View.INVISIBLE);
-                    // Show button to switch cameras
-                    switchCamerasButton.setVisibility(View.VISIBLE);
-                }
-            }
-        };
 
         wifiBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                log.info("onReceive : intent = {}, current SSID = {}", intent.getAction(), getCurrentSSID());
+                log.info("onReceive : intent = {}, current SSID = {}", intent.getAction(),
+                        WifiUtil.getCurrentSSID(context));
             }
         };
 
@@ -264,13 +237,9 @@ public class ConnectionEstablishedActivity
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                final File peerVideoFile = chameleonApplication.getOutputMediaFile("PeerVideo.mp4");
-
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(
-                        chameleonApplication.getVideoFile(),
-                        peerVideoFile,
                         peerInfo.getIpAddress(),
                         peerInfo.getPort());
 
@@ -283,24 +252,48 @@ public class ConnectionEstablishedActivity
             @Override
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
-
                 recordSessionButton.setEnabled(true);
             }
         });
     }
 
-    private String getCurrentSSID() {
-        String ssid = null;
-        ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-        if (networkInfo.isConnected()) {
-            final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-            final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
-            if (connectionInfo != null && connectionInfo.getSSID() != null) {
-                ssid = connectionInfo.getSSID().replace("\"", ""); // Remove quotes
+    private void startRecording() {
+        log.debug("Start recording event received!!");
+
+        // Hide button to switch cameras
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                switchCamerasButton.setVisibility(View.INVISIBLE);
             }
-        }
-        return ssid;
+        });
+
+        // Start recorder
+        recorder.startRecording();
+        log.debug("Video recording started");
+        recordingStartTime = System.currentTimeMillis();
+        timerHandler.postDelayed(timerRunnable, 500);
+    }
+
+    private void stopRecording() {
+
+        //Stop recorder
+        log.debug("Stop recording event received!!");
+        localRecordingMetadata = recorder.stopRecording();
+        log.debug("Video recording stopped");
+        timerHandler.removeCallbacks(timerRunnable);
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                recordingTimerTextView.setVisibility(View.INVISIBLE);
+
+                // Show button to switch cameras
+                switchCamerasButton.setVisibility(View.VISIBLE);
+            }
+        });
+
+
     }
 
     private void initializeRecordingTimer() {
@@ -331,7 +324,8 @@ public class ConnectionEstablishedActivity
             ChameleonApplication chameleonApplication = (ChameleonApplication) getApplication();
             RelativeLayout layout = (RelativeLayout) findViewById(R.id.relativeLayout_session_preview);
             previewDisplay = chameleonApplication.createPreviewDisplay();
-            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+            RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
             layout.addView(previewDisplay, layoutParams);
         } catch (Exception e) {
             log.error("Failed to add camera preview surface", e);
@@ -346,26 +340,13 @@ public class ConnectionEstablishedActivity
             cleanup();
         }
 
-        // Unregister record event receiver
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        manager.unregisterReceiver(recordEventReceiver);
-
         // Unregister wifi receiver
-        unregisterReceiver(wifiBroadcastReceiver);
-
-
+        chameleonApplication.unregisterReceiverSafely(wifiBroadcastReceiver);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Register to listen for recording events
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        IntentFilter recordActionfilter = new IntentFilter();
-        recordActionfilter.addAction(ChameleonApplication.START_RECORDING_ACTION);
-        recordActionfilter.addAction(ChameleonApplication.STOP_RECORDING_ACTION);
-        log.debug("Registering record event receiver");
-        manager.registerReceiver(this.recordEventReceiver, recordActionfilter);
 
         // Register to listen for wifi events
         IntentFilter wifiFilter = new IntentFilter();
@@ -386,7 +367,6 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication.tearDownWifiHotspot();
 
-
         if (streamFromPeerTask != null) {
             streamFromPeerTask.cancel(true);
             streamFromPeerTask = null;
@@ -403,32 +383,9 @@ public class ConnectionEstablishedActivity
         timerHandler.removeCallbacks(timerRunnable);
         chameleonApplication.stopPreview();
 
-        // Stop camera frame listener for recording
-        chameleonApplication.getCameraFrameBuffer().removeListener(chameleonApplication.getRecordingFrameListener());
         chameleonApplication.stopConnectionServer();
-    }
 
-    private SSLSocketFactory getInitializedSSLSocketFactory() {
-        SSLSocketFactory sslSocketFactory = null;
-        try {
-            // Load the keyStore that includes self-signed cert as a "trusted" entry.
-            KeyStore trustStore = KeyStore.getInstance("BKS");
-            InputStream trustStoreInputStream = getApplicationContext().getResources().openRawResource(R.raw.chameleon_truststore);
-            trustStore.load(trustStoreInputStream, "poiuyt".toCharArray());
-            trustStoreInputStream.close();
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            tmf.init(trustStore);
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, tmf.getTrustManagers(), null);
-            sslSocketFactory = ctx.getSocketFactory();
-        } catch (IOException |
-                NoSuchAlgorithmException |
-                KeyStoreException |
-                KeyManagementException |
-                CertificateException e) {
-            log.error("Failed to initialize SSL socket factory", e);
-        }
-        return sslSocketFactory;
+        wifiBroadcastReceiver = null;
     }
 
     @Override
@@ -443,7 +400,7 @@ public class ConnectionEstablishedActivity
             case SESSION_HEARTBEAT:
                 break;
             case START_RECORDING:
-                startRecording(clientSocket);
+                processStartRecordingMessage(clientSocket);
                 break;
             case STOP_RECORDING:
                 stopRecording();
@@ -468,7 +425,7 @@ public class ConnectionEstablishedActivity
         }
     }
 
-    private void startRecording(final Socket clientSocket) {
+    private void processStartRecordingMessage(final Socket clientSocket) {
         log.debug("Received message to start recording!");
         try {
             PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
@@ -480,17 +437,12 @@ public class ConnectionEstablishedActivity
             log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
             pw.println(gson.toJson(responseMsg));
             pw.close();
+
+            startRecording();
+
         } catch (IOException e) {
             log.error("Failed to send START_RECORDING_RESPONSE", e);
         }
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
-        manager.sendBroadcast(new Intent(ChameleonApplication.START_RECORDING_ACTION));
-    }
-
-    private void stopRecording() {
-        log.debug("Received message to stop recording!");
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(chameleonApplication);
-        manager.sendBroadcast(new Intent(ChameleonApplication.STOP_RECORDING_ACTION));
     }
 
     private void sendRecordedVideo(final Socket clientSocket) {
@@ -500,9 +452,7 @@ public class ConnectionEstablishedActivity
             public void run() {
                 sendVideoToPeerTask = new SendVideoToPeerTask(
                         clientSocket,
-                        chameleonApplication.getVideoFile(),
-                        chameleonApplication.getRecordingStartTimeMillis(),
-                        chameleonApplication.isRecordingHorizontallyFlipped());
+                        localRecordingMetadata);
                 sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         });
@@ -518,7 +468,7 @@ public class ConnectionEstablishedActivity
         protected Void doInBackground(Void... params) {
             try {
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                if (!isIpReachable(peerIp)) {
+                if (!IpUtil.isIpReachable(peerIp)) {
                     log.warn("Peer = {} not reachable. Unable to send message = {}", peerIp, peerMsg);
                     return null;
                 }
@@ -561,16 +511,14 @@ public class ConnectionEstablishedActivity
     @RequiredArgsConstructor
     class ReceiveVideoFromPeerTask extends AsyncTask<Void, Integer, Void> {
         @NonNull
-        private File localVideoFile;
-        @NonNull
-        private File remoteVideoFile;
-        @NonNull
         private InetAddress peerIp;
         @NonNull
         private Integer port;
+
         private Long remoteRecordingStartTimeMillis;
         private boolean remoteRecordingHorizontallyFlipped;
         private long remoteClockAheadOfLocalClockMillis = 0L;
+        private File remoteVideoFile;
 
         @Override
         protected void onPreExecute() {
@@ -585,7 +533,7 @@ public class ConnectionEstablishedActivity
             try {
 
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                if (!isIpReachable(peerIp)) {
+                if (!IpUtil.isIpReachable(peerIp)) {
                     log.warn("Peer = {} not reachable! Unable to receive video", peerIp.getHostAddress());
                     return null;
                 }
@@ -637,7 +585,7 @@ public class ConnectionEstablishedActivity
 
                 int totalBytesReceived = 0;
 
-                // TODO Generate filename based on sessionId
+                remoteVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
                 if (remoteVideoFile.exists()) {
                     remoteVideoFile.delete();
                 }
@@ -690,28 +638,14 @@ public class ConnectionEstablishedActivity
             remoteRecordingStartTimeMillis -= clockAdjustmentMs;
 
             log.debug("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
-            log.debug("Local recording start time = {} ms", chameleonApplication.getRecordingStartTimeMillis());
+            log.debug("Local recording start time = {} ms", localRecordingMetadata.getStartTimeMillis());
             log.debug("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
-            RecordingMetadata localRecordingMetadata = RecordingMetadata.builder()
-                    .absoluteFilePath(localVideoFile.getAbsolutePath())
-                    .startTimeMillis(chameleonApplication.getRecordingStartTimeMillis())
-                    .horizontallyFlipped(chameleonApplication.isRecordingHorizontallyFlipped())
-                    .build();
+
             RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
                     .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
                     .build();
-
-            MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-            metadataRetriever.setDataSource(localVideoFile.getAbsolutePath());
-            log.debug("Local recording create time metadata = {}",
-                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-            metadataRetriever.setDataSource(remoteVideoFile.getAbsolutePath());
-            log.debug("Remote recording create time metadata = {}",
-                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
-            log.debug("Local filename = {}", localVideoFile.getName());
-            log.debug("Remote filename = {}", remoteVideoFile.getName());
 
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
@@ -727,11 +661,7 @@ public class ConnectionEstablishedActivity
         @NonNull
         private final Socket clientSocket;
         @NonNull
-        private final File fileToSend;
-        @NonNull
-        private final Long recordingStartTimeMillis;
-        @NonNull
-        private final boolean recordingHorizontallyFlipped;
+        private final RecordingMetadata recordingMetadata;
 
         @Override
         protected void onPreExecute() {
@@ -744,14 +674,15 @@ public class ConnectionEstablishedActivity
 
             OutputStream outputStream = null;
             InputStream inputStream = null;
+            File fileToSend = new File(recordingMetadata.getAbsoluteFilePath());
             Long fileSizeBytes = fileToSend.length();
 
             try {
                 PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
                         .fileSizeBytes(fileSizeBytes)
-                        .recordingStartTimeMillis(recordingStartTimeMillis)
-                        .recordingHorizontallyFlipped(recordingHorizontallyFlipped)
+                        .recordingStartTimeMillis(recordingMetadata.getStartTimeMillis())
+                        .recordingHorizontallyFlipped(recordingMetadata.isHorizontallyFlipped())
                         .currentTimeMillis(System.currentTimeMillis()).build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
@@ -850,7 +781,7 @@ public class ConnectionEstablishedActivity
                 try {
                     log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
 
-                    if (!isIpReachable(peerIp)) {
+                    if (!IpUtil.isIpReachable(peerIp)) {
                         log.warn("Peer IP = {} not reachable. Unable to receive stream!", peerIp.getHostAddress());
                         continue;
                     }
@@ -914,19 +845,6 @@ public class ConnectionEstablishedActivity
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(
                 this.chameleonApplication.getApplicationContext());
         return settings.getString(getString(R.string.pref_user_name_key), "");
-    }
-
-    private boolean isIpReachable(final InetAddress ipAddress) throws IOException {
-        // Wait till we can reach the remote host. May take time to refresh ARP cache
-        long startTime = System.currentTimeMillis();
-        while ((System.currentTimeMillis() - startTime
-                < MAX_WAIT_TIME_MSEC_FOR_IP_TO_BE_REACHABLE)) {
-            if (ipAddress.isReachable(1000)) {
-                log.debug("IP = {} is reachable!", ipAddress.getHostAddress());
-                return true;
-            }
-        }
-        return false;
     }
 
     @Override

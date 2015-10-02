@@ -1,14 +1,15 @@
-package com.trioscope.chameleon.camera;
+package com.trioscope.chameleon.record;
 
 import android.content.Context;
 import android.hardware.Camera;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.trioscope.chameleon.types.RecordingMetadata;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -42,23 +43,13 @@ public class TwoPreviewRecorder extends SurfaceView implements VideoRecorder, Su
     }
 
     @Override
-    public void stopRecording() {
-
+    public RecordingMetadata stopRecording() {
+        return null;
     }
 
     @Override
     public boolean isRecording() {
         return false;
-    }
-
-    @Override
-    public void setOutputFile(File outputFile) {
-
-    }
-
-    @Override
-    public void setCamera(Camera c) {
-
     }
 
     @Override

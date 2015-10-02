@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.camera;
+package com.trioscope.chameleon.record;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -11,6 +11,7 @@ import android.os.IBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderBinder;
 import com.trioscope.chameleon.service.BackgroundRecorderService;
 import com.trioscope.chameleon.stream.RecordingEventListener;
+import com.trioscope.chameleon.types.RecordingMetadata;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,12 +88,13 @@ public class BackgroundRecorder implements VideoRecorder {
     }
 
     @Override
-    public void stopRecording() {
+    public RecordingMetadata stopRecording() {
         if (serviceBound) {
             context.unbindService(connection);
             serviceBound = false;
         }
         recording = false;
+        return null;
     }
 
 }

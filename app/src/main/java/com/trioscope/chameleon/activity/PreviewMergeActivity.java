@@ -26,14 +26,11 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
-import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -179,17 +176,16 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     serializedMinorVideoMetadata = gson.toJson(localRecordingMetadata);
                 }
 
+                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
+                        ChameleonApplication.MEDIA_TYPE_VIDEO);
+
                 // Initialize merge fragment
                 FragmentManager fm = getFragmentManager();
-                //taskFragment = (FfmpegTaskFragment) fm.findFragmentByTag(TASK_FRAGMENT_TAG);
-
-                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
-                        "BIOSCOPE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4");
-                        taskFragment = FfmpegTaskFragment.newInstance(
-                                serializedMajorVideoMetadata,
-                                serializedMinorVideoMetadata,
-                                majorVideoAheadOfMinorVideoByMillis,
-                                outputFile.getAbsolutePath());
+                taskFragment = FfmpegTaskFragment.newInstance(
+                        serializedMajorVideoMetadata,
+                        serializedMinorVideoMetadata,
+                        majorVideoAheadOfMinorVideoByMillis,
+                        outputFile.getAbsolutePath());
                 fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
             }
         });
@@ -218,6 +214,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             final String majorVideoPath,
             final String minorVideoPath,
             final int majorVideoAheadOfMinorVideoByMillis) {
+
+        // TODO : Use majorVideoAheadOfMinorVideoByMillis to ensure playback of both videos is in sync
 
         // Local video will be shown on outer player and remote video on inner player
 
@@ -267,10 +265,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         if(!publishedDurationMetrics) {
             //publish time metrics
-            ChameleonApplication.getMetrics().sendTime(
-                    MetricNames.Category.VIDEO.getName(),
-                    MetricNames.Label.DURATION.getName(),
-                    majorVideoMediaPlayer.getDuration());
+//            ChameleonApplication.getMetrics().sendTime(
+//                    MetricNames.Category.VIDEO.getName(),
+//                    MetricNames.Label.DURATION.getName(),
+//                    majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
 

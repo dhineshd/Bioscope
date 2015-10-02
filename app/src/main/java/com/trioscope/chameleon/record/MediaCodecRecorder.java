@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.stream;
+package com.trioscope.chameleon.record;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -14,8 +14,10 @@ import android.os.Build;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
+import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.types.CameraInfo;
+import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.util.ColorConversionUtil;
 import com.trioscope.chameleon.util.ImageUtil;
@@ -25,13 +27,19 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Created by dhinesh.dharman on 7/25/15.
+ * Record Audio + Video using MediaCodec and MediaMuxer.
+ *
+ * Created by dhinesh.dharman on 10/1/15.
  */
+
 @Slf4j
-public class VideoRecordingFrameListener implements CameraFrameAvailableListener, RecordingEventListener {
+@RequiredArgsConstructor
+public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableListener {
+
     private static final long TIMEOUT_MICROSECONDS = 5000;
     private static final String MIME_TYPE_AUDIO = "audio/mp4a-latm";
     private static final String MIME_TYPE_VIDEO = "video/avc";
@@ -50,6 +58,8 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
+    @NonNull
+    private volatile CameraFrameBuffer cameraFrameBuffer;
 
     private volatile boolean isRecording;
     private volatile MediaCodec videoEncoder;
@@ -62,11 +72,84 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
 
     private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
-    private byte[] finalFrameData;//= new byte[ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getWidth() *
-                    //ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE.getHeight() * 3 / 2];
+    private byte[] finalFrameData;
+    private File outputFile;
+    private RecordingMetadata recordingMetadata;
 
-    public VideoRecordingFrameListener(ChameleonApplication chameleonApplication) {
-        this.chameleonApplication = chameleonApplication;
+    @Override
+    public boolean startRecording() {
+        firstFrameReceivedForRecordingTimeMillis = null;
+        videoTrackIndex = -1;
+        audioTrackIndex = -1;
+
+        setupVideoEncoder();
+
+        //Setup MediaMuxer to save MediaCodec output to given file
+        try {
+            recordingMetadata = null;
+            outputFile = chameleonApplication.getOutputMediaFile(
+                    ChameleonApplication.MEDIA_TYPE_VIDEO);
+            if (outputFile.exists()) {
+                outputFile.delete();
+            }
+            mediaMuxer = new MediaMuxer(
+                    outputFile.getAbsolutePath(),
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+
+            // Start audio recording task
+            startAudioRecordingTask();
+
+            // Start listening for camera frames
+            cameraFrameBuffer.addListener(this);
+
+            isRecording = true;
+
+            return true;
+
+        } catch (IOException e) {
+            log.error("Failed to start recording!", e);
+            mediaMuxer = null;
+        }
+        return false;
+    }
+
+    @Override
+    public RecordingMetadata stopRecording() {
+        isRecording = false;
+        muxerStarted = false;
+
+        // Stop listening for camera frames
+        cameraFrameBuffer.removeListener(this);
+
+        // Stop audio recording task
+        audioRecordTask.cancel(true);
+
+        try {
+            if (videoEncoder != null) {
+                videoEncoder.stop();
+                videoEncoder.release();
+                videoEncoder = null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop videoEncoder", e);
+        }
+
+        try {
+            if (mediaMuxer != null) {
+                mediaMuxer.stop();
+                mediaMuxer.release();
+                mediaMuxer = null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop mediaMuxer", e);
+        }
+
+        return recordingMetadata;
+    }
+
+    @Override
+    public boolean isRecording() {
+        return isRecording;
     }
 
     private void setupVideoEncoder() {
@@ -116,25 +199,24 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
     }
 
     @Override
-    //@Timed
     public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
         cameraFrameSize = cameraInfo.getCameraResolution();
-        if (isRecording) {
-            long frameReceiveTimeMillis = System.currentTimeMillis();
-            long frameReceiveTimeNanos = System.nanoTime();
-            long framePresentationTimeMicros = frameInfo.getTimestampNanos() / 1000;
-            long frameReceiveDelayMillis = (frameReceiveTimeNanos / 1000000)  - (framePresentationTimeMicros / 1000);
+        long frameReceiveTimeMillis = System.currentTimeMillis();
+        long frameReceiveTimeNanos = System.nanoTime();
+        long framePresentationTimeMicros = frameInfo.getTimestampNanos() / 1000;
+        long frameReceiveDelayMillis = (frameReceiveTimeNanos / 1000000)  - (framePresentationTimeMicros / 1000);
 
-            log.debug("SystemClock.elapsedRealtimeNanos = {} ns, frame time = {} ns", System.nanoTime(), frameInfo.getTimestampNanos());
-            log.debug("Frame delay = {} ms, presentation time = {} us", frameReceiveDelayMillis, framePresentationTimeMicros);
+        log.debug("SystemClock.elapsedRealtimeNanos = {} ns, frame time = {} ns",
+                System.nanoTime(), frameInfo.getTimestampNanos());
+        log.debug("Frame delay = {} ms, presentation time = {} us",
+                frameReceiveDelayMillis, framePresentationTimeMicros);
 
-            if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
-                    try {
-                        long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameReceiveDelayMillis;
-                        processFrame(data, frameInfo, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
-                    } catch (Exception e) {
-                        log.error("Failed to record frame", e);
-                    }
+        if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
+            try {
+                long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameReceiveDelayMillis;
+                processFrame(data, frameInfo, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
+            } catch (Exception e) {
+                log.error("Failed to record frame", e);
             }
         }
     }
@@ -227,8 +309,10 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
                 if (firstFrameReceivedForRecordingTimeMillis == null) {
                     firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis;
-                    chameleonApplication.setRecordingStartTimeMillis(frameReceiveTimeMillis);
-                    chameleonApplication.setRecordingHorizontallyFlipped(frameInfo.isHorizontallyFlipped());
+                    recordingMetadata = RecordingMetadata.builder()
+                            .absoluteFilePath(outputFile.getAbsolutePath())
+                            .startTimeMillis(frameReceiveTimeMillis)
+                            .horizontallyFlipped(frameInfo.isHorizontallyFlipped()).build();
                     log.debug("First video presentation time = {}", videoBufferInfo.presentationTimeUs);
                 }
 
@@ -304,36 +388,7 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
 
     }
 
-    @Override
-    public void onStartRecording(long recordingStartTimeMillis) {
-        firstFrameReceivedForRecordingTimeMillis = null;
-        videoTrackIndex = -1;
-        audioTrackIndex = -1;
-
-        setupVideoEncoder();
-
-        //Setup MediaMuxer to save MediaCodec output to file
-        try {
-            File outputFile = chameleonApplication.getOutputMediaFile("LocalVideo.mp4");
-            if (outputFile.exists()) {
-                outputFile.delete();
-            }
-            chameleonApplication.setVideoFile(outputFile);
-            mediaMuxer = new MediaMuxer(
-                    chameleonApplication.getVideoFile().getAbsolutePath(),
-                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-
-            startAudioProcessingTask();
-
-            isRecording = true;
-
-        } catch (IOException e) {
-            log.error("Failed to start recording!", e);
-            mediaMuxer = null;
-        }
-    }
-
-    private void startAudioProcessingTask() {
+    private void startAudioRecordingTask() {
 
         // Process audio in a separate thread
         audioRecordTask = new AsyncTask<Void, Void, Void>(){
@@ -379,32 +434,5 @@ public class VideoRecordingFrameListener implements CameraFrameAvailableListener
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-    }
-
-
-    @Override
-    public void onStopRecording() {
-        isRecording = false;
-        muxerStarted = false;
-        audioRecordTask.cancel(true);
-        try {
-            if (videoEncoder != null) {
-                videoEncoder.stop();
-                videoEncoder.release();
-                videoEncoder = null;
-            }
-        } catch (Exception e) {
-            log.error("Failed to stop videoEncoder", e);
-        }
-
-        try {
-            if (mediaMuxer != null) {
-                mediaMuxer.stop();
-                mediaMuxer.release();
-                mediaMuxer = null;
-            }
-        } catch (Exception e) {
-            log.error("Failed to stop mediaMuxer", e);
-        }
     }
 }

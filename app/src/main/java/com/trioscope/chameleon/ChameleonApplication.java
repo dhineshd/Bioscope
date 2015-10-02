@@ -24,28 +24,17 @@ import com.trioscope.chameleon.metrics.MetricsHelper;
 import com.trioscope.chameleon.state.RotationState;
 import com.trioscope.chameleon.stream.ConnectionServer;
 import com.trioscope.chameleon.stream.ServerEventListenerManager;
-import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
-import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.microedition.khronos.egl.EGLConfig;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocketFactory;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -59,16 +48,12 @@ public class ChameleonApplication extends Application {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
     public static final int MEDIA_TYPE_AUDIO = 3;
-    public static final String START_RECORDING_ACTION = "START_RECORDING";
-    public static final String STOP_RECORDING_ACTION = "STOP_RECORDING";
-
-    public static final int SEND_VIDEO_TO_PEER_MESSAGE = 101;
 
     // Stream image buffer size is set to be the same as minimum socket buffer size
     // which ensures that each image can be transferred in a single send eliminating
     // the need to maintain sequence numbers when sending data. So, we
     // need to ensure that the compressed stream image size is less than this value.
-    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 1024 * 16;
+    public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 16 * 1024;
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final double DEFAULT_ASPECT_WIDTH_RATIO = 16;
     public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
@@ -79,17 +64,6 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private RotationState rotationState = new RotationState();
-
-    @Getter
-    @Setter
-    private volatile File videoFile;
-
-    @Getter
-    @Setter
-    private volatile Long recordingStartTimeMillis;
-    @Getter
-    @Setter
-    private volatile boolean recordingHorizontallyFlipped;
 
     @Getter
     private CameraOpener cameraOpener;
@@ -119,13 +93,6 @@ public class ChameleonApplication extends Application {
     private WifiP2pManager.Channel wifiP2pChannel;
 
     @Getter
-    @Setter
-    private PeerInfo peerInfo;
-
-    @Getter
-    private volatile VideoRecordingFrameListener recordingFrameListener;
-
-    @Getter
     private volatile ServerEventListenerManager serverEventListenerManager = new ServerEventListenerManager();
 
     @Setter
@@ -145,7 +112,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         log.info("Starting application");
 
-        metrics = new MetricsHelper(this);
+        //metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
@@ -157,14 +124,8 @@ public class ChameleonApplication extends Application {
             enableWifiAndPerformActionWhenEnabled(null);
         }
 
-        recordingFrameListener = new VideoRecordingFrameListener(this);
-
-        //streamListener = new VideoStreamFrameListener(this);
-
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
-
-        //serverEventListenerManager.addListener(streamListener);
 
         startup();
     }
@@ -175,7 +136,7 @@ public class ChameleonApplication extends Application {
             connectionServer = new ConnectionServer(
                     ChameleonApplication.SERVER_PORT,
                     serverEventListenerManager,
-                    getInitializedSSLServerSocketFactory());
+                    SSLUtil.getInitializedSSLServerSocketFactory(getApplicationContext()));
             connectionServer.start();
         }
     }
@@ -185,31 +146,6 @@ public class ChameleonApplication extends Application {
             connectionServer.stop();
             connectionServer = null;
         }
-    }
-
-    private SSLServerSocketFactory getInitializedSSLServerSocketFactory() {
-        SSLServerSocketFactory sslServerSocketFactory = null;
-        try {
-            // Load the keyStore that includes self-signed cert as a "trusted" entry.
-            KeyStore keyStore = KeyStore.getInstance("BKS");
-            InputStream keyStoreInputStream = getApplicationContext().getResources().openRawResource(R.raw.chameleon_keystore);
-            char[] password = "poiuyt".toCharArray();
-            keyStore.load(keyStoreInputStream, password);
-            keyStoreInputStream.close();
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            kmf.init(keyStore, password);
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(kmf.getKeyManagers(), null, new SecureRandom());
-            sslServerSocketFactory = sslContext.getServerSocketFactory();
-        } catch (IOException |
-                NoSuchAlgorithmException |
-                KeyStoreException |
-                KeyManagementException |
-                CertificateException |
-                UnrecoverableKeyException e) {
-            log.error("Failed to initialize SSL server socket factory", e);
-        }
-        return sslServerSocketFactory;
     }
 
     public PreviewDisplayer getPreviewDisplayer() {
@@ -441,18 +377,17 @@ public class ChameleonApplication extends Application {
         File mediaStorageDir = getMediaStorageDir();
 
         // Create a media file name
-        //String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String timeStamp = String.valueOf(System.currentTimeMillis());
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
         if (type == MEDIA_TYPE_IMAGE) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_" + timeStamp + ".jpg");
+                    "BIOSCOPE_" + timeStamp + ".jpg");
         } else if (type == MEDIA_TYPE_VIDEO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "CHAMELEON_" + timeStamp + ".mp4");
+                    "BIOSCOPE" + timeStamp + ".mp4");
         } else if (type == MEDIA_TYPE_AUDIO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "AUD_" + timeStamp + ".3gp");
+                    "BIOSCOPE_" + timeStamp + ".3gp");
         } else {
             return null;
         }
@@ -513,8 +448,6 @@ public class ChameleonApplication extends Application {
     public void enableWifiAndPerformActionWhenEnabled(final Runnable runnable) {
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-
-        final long startTime = System.currentTimeMillis();
 
         final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
