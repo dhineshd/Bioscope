@@ -28,17 +28,17 @@
         />
 
     <ImageButton
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginTop="9dp"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_marginTop="3dp"
         android:layout_marginRight="18dp"
-        android:padding="12dp"
         android:id="@+id/enterNameButton"
         android:layout_alignRight="@+id/editUserNameText"
         android:layout_alignTop="@+id/editUserNameText"
         android:src="@drawable/next_icon"
-        android:background="@null"
         android:visibility="invisible"
+        android:background="@null"
+        android:scaleType="center"
     />
 
 </RelativeLayout>
