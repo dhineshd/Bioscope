@@ -10,6 +10,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -100,6 +104,7 @@ public class ConnectionEstablishedActivity
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
     private PreviewStreamer previewStreamer;
+    private BroadcastReceiver wifiBroadcastReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -206,7 +211,11 @@ public class ConnectionEstablishedActivity
                 }
             }
         });
-        if (!PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
+
+        if (PeerInfo.Role.DIRECTOR.equals(peerInfo.getRole())) {
+            // If peer role is director, this is crew
+            chameleonApplication.tearDownWifiHotspot();
+        } else {
             // If peer is not director, then I am the director
             // So, should be able to start/stop recording.
             recordSessionButton.setEnabled(true);
@@ -236,6 +245,13 @@ public class ConnectionEstablishedActivity
                     // Show button to switch cameras
                     switchCamerasButton.setVisibility(View.VISIBLE);
                 }
+            }
+        };
+
+        wifiBroadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                log.info("onReceive : intent = {}, current SSID = {}", intent.getAction(), getCurrentSSID());
             }
         };
 
@@ -271,6 +287,20 @@ public class ConnectionEstablishedActivity
                 recordSessionButton.setEnabled(true);
             }
         });
+    }
+
+    private String getCurrentSSID() {
+        String ssid = null;
+        ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+        if (networkInfo.isConnected()) {
+            final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
+            if (connectionInfo != null && connectionInfo.getSSID() != null) {
+                ssid = connectionInfo.getSSID().replace("\"", ""); // Remove quotes
+            }
+        }
+        return ssid;
     }
 
     private void initializeRecordingTimer() {
@@ -315,6 +345,15 @@ public class ConnectionEstablishedActivity
         if (isFinishing()) {
             cleanup();
         }
+
+        // Unregister record event receiver
+        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
+        manager.unregisterReceiver(recordEventReceiver);
+
+        // Unregister wifi receiver
+        unregisterReceiver(wifiBroadcastReceiver);
+
+
     }
 
     @Override
@@ -322,11 +361,17 @@ public class ConnectionEstablishedActivity
         super.onResume();
         // Register to listen for recording events
         LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(ChameleonApplication.START_RECORDING_ACTION);
-        filter.addAction(ChameleonApplication.STOP_RECORDING_ACTION);
+        IntentFilter recordActionfilter = new IntentFilter();
+        recordActionfilter.addAction(ChameleonApplication.START_RECORDING_ACTION);
+        recordActionfilter.addAction(ChameleonApplication.STOP_RECORDING_ACTION);
         log.debug("Registering record event receiver");
-        manager.registerReceiver(this.recordEventReceiver, filter);
+        manager.registerReceiver(this.recordEventReceiver, recordActionfilter);
+
+        // Register to listen for wifi events
+        IntentFilter wifiFilter = new IntentFilter();
+        wifiFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        wifiFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        registerReceiver(wifiBroadcastReceiver, wifiFilter);
     }
 
     private void cleanup() {
@@ -341,9 +386,6 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication.tearDownWifiHotspot();
 
-        LocalBroadcastManager manager = LocalBroadcastManager.getInstance(this);
-        log.debug("Unregistering record event receiver");
-        manager.unregisterReceiver(this.recordEventReceiver);
 
         if (streamFromPeerTask != null) {
             streamFromPeerTask.cancel(true);

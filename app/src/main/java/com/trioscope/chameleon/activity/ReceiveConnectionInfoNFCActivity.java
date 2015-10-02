@@ -76,7 +76,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             public void onClick(View v) {
                 // Finishing current activity will take us back to previous activity
                 // since it is in the back stack
-                chameleonApplication.stopConnectionServer();
                 finish();
             }
         });

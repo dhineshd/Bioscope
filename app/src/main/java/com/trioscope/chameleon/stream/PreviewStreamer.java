@@ -30,6 +30,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private static final int STREAMING_FRAMES_PER_SEC = 15;
     private static final int STREAMING_COMPRESSION_QUALITY = 30; // 0 worst - 100 best
     private static final Size DEFAULT_STREAM_IMAGE_SIZE = new Size(480, 270); // 16 : 9
+    private static final int MAX_TOLERABLE_CONSECUTIVE_FAILURE_COUNT = 0;
 
     @NonNull
     private volatile CameraFrameBuffer cameraFrameBuffer;
@@ -42,12 +43,14 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private long previousFrameSendTimeMs = System.currentTimeMillis();
     private int streamPreviewWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
     private int streamPreviewHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
+    private int consecutiveFailureCount = 0;
 
     @Override
     public void startStreaming(OutputStream destOs) {
         if (destOs != null) {
             destOutputStream = destOs;
             cameraFrameBuffer.addListener(this);
+            consecutiveFailureCount = 0;
         }
     }
 
@@ -95,7 +98,9 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     destOutputStream.write(byteArray, 0, byteArray.length);
                 }
                 previousFrameSendTimeMs = System.currentTimeMillis();
+                consecutiveFailureCount = 0;
             } catch (Exception e) {
+                consecutiveFailureCount++;
                 log.error("Failed to send data to client", e);
             }
         }
@@ -103,6 +108,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
 
     private boolean shouldStreamCurrentFrame() {
         return ((destOutputStream != null) &&
+                (consecutiveFailureCount <= MAX_TOLERABLE_CONSECUTIVE_FAILURE_COUNT) &&
                 ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC)));
     }

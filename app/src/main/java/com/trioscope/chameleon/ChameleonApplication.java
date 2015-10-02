@@ -27,7 +27,6 @@ import com.trioscope.chameleon.stream.ServerEventListenerManager;
 import com.trioscope.chameleon.stream.VideoRecordingFrameListener;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.PeerInfo;
-import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
 
@@ -127,13 +126,10 @@ public class ChameleonApplication extends Application {
     private volatile VideoRecordingFrameListener recordingFrameListener;
 
     @Getter
-    private ServerEventListenerManager serverEventListenerManager = new ServerEventListenerManager();
+    private volatile ServerEventListenerManager serverEventListenerManager = new ServerEventListenerManager();
 
     @Setter
     private ConnectionServer connectionServer;
-    @Getter
-    @Setter
-    private volatile SessionStatus sessionStatus = SessionStatus.DISCONNECTED;
 
     @Getter
     private static MetricsHelper metrics;
