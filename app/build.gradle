@@ -74,7 +74,9 @@ dependencies {
     compile 'org.apache.commons:commons-collections4:4.0'
 
     // To resolve dependency, ensure Google Play Services are installed as an extra through the Android SDK manager
-    compile 'com.google.android.gms:play-services-analytics:7.5.0'
+    compile 'com.google.android.gms:play-services-analytics:8.1.0'
+
+    apply plugin: 'com.google.gms.google-services'
 
 }
 
