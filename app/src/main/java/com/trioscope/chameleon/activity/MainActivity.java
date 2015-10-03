@@ -130,7 +130,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     public void onBackPressed() {
         super.onBackPressed();
         log.info("User pressed back button");
-        //chameleonApplication.cleanupAndExit();
+        chameleonApplication.cleanupAndExit();
     }
 
     @Override
