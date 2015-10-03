@@ -30,6 +30,8 @@ import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.SessionStatus;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
+import com.trioscope.chameleon.util.merge.VideoMerger;
 
 import java.io.File;
 import java.io.IOException;
@@ -137,6 +139,9 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private static MetricsHelper metrics;
+
+    @Getter
+    private VideoMerger videoMerger = new FfmpegVideoMerger(this);
 
     // Receivers
     private BroadcastReceiver enableWifiBroadcastReceiver;

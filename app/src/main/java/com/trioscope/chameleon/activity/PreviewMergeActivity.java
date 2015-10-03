@@ -1,6 +1,5 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.FragmentManager;
 import android.content.Intent;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
@@ -27,8 +26,13 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
 import com.trioscope.chameleon.metrics.MetricNames;
+import com.trioscope.chameleon.storage.BioscopeDBHelper;
+import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.RecordingMetadata;
+import com.trioscope.chameleon.util.merge.MergeConfiguration;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
+import com.trioscope.chameleon.util.merge.VideoConfiguration;
+import com.trioscope.chameleon.util.merge.VideoMerger;
 
 import java.io.File;
 import java.io.IOException;
@@ -163,32 +167,64 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         startMergeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 // Don't let user click again
                 startMergeButton.setEnabled(false);
 
                 // Decide which is major video depending on user's latest choice of preview playback
-                String serializedMajorVideoMetadata, serializedMinorVideoMetadata;
+                RecordingMetadata majorMetadata, minorMetadata;
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
-                    serializedMajorVideoMetadata = gson.toJson(localRecordingMetadata);
-                    serializedMinorVideoMetadata = gson.toJson(remoteRecordingMetadata);
+                    majorMetadata = localRecordingMetadata;
+                    minorMetadata = remoteRecordingMetadata;
                 } else {
-                    serializedMajorVideoMetadata = gson.toJson(remoteRecordingMetadata);
-                    serializedMinorVideoMetadata = gson.toJson(localRecordingMetadata);
+                    majorMetadata = remoteRecordingMetadata;
+                    minorMetadata = localRecordingMetadata;
                 }
+                String serializedMajorVideoMetadata = gson.toJson(majorMetadata);
+                String serializedMinorVideoMetadata = gson.toJson(minorMetadata);
 
                 // Initialize merge fragment
-                FragmentManager fm = getFragmentManager();
+                //FragmentManager fm = getFragmentManager();
                 //taskFragment = (FfmpegTaskFragment) fm.findFragmentByTag(TASK_FRAGMENT_TAG);
 
-                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
-                        "BIOSCOPE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4");
-                taskFragment = FfmpegTaskFragment.newInstance(
+                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile("BIOSCOPE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4");
+                /*taskFragment = FfmpegTaskFragment.newInstance(
                         serializedMajorVideoMetadata,
                         serializedMinorVideoMetadata,
                         majorVideoAheadOfMinorVideoByMillis,
-                        outputFile.getAbsolutePath());
-                fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
+                        outputFile.getAbsolutePath());*/
+                //fm.beginTransaction().add(taskFragment, TASK_FRAGMENT_TAG).commit();
+
+
+                VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
+
+                MergeConfiguration.MergeConfigurationBuilder config = MergeConfiguration.builder();
+                config.videoStartOffsetMilli((long) majorVideoAheadOfMinorVideoByMillis);
+                videoMerger.mergeVideos(
+                        VideoConfiguration.builder()
+                                .file(new File(majorMetadata.getAbsoluteFilePath()))
+                                .horizontallyFlipped(majorMetadata.isHorizontallyFlipped()).build(),
+                        VideoConfiguration.builder()
+                                .file(new File(minorMetadata.getAbsoluteFilePath()))
+                                .horizontallyFlipped(minorMetadata.isHorizontallyFlipped()).build(),
+                        new File(outputFile.getAbsolutePath()),
+                        config.build());
+
+
+                // Log aggregate metadata into local DB
+                log.info("Adding metadata (videographer) to local DB");
+                BioscopeDBHelper helper = new BioscopeDBHelper(PreviewMergeActivity.this);
+                if (minorMetadata.getVideographer() != null) {
+                    log.info("Inserting {} as minor videographer", minorMetadata.getVideographer());
+                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, minorMetadata.getVideographer());
+                }
+                if (majorMetadata.getVideographer() != null) {
+                    log.info("Inserting {} as major videographer", majorMetadata.getVideographer());
+                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, majorMetadata.getVideographer());
+                }
+                helper.close();
+
+                Intent moveToLibrary = new Intent(PreviewMergeActivity.this, VideoLibraryGridActivity.class);
+                startActivity(moveToLibrary);
             }
         });
 
