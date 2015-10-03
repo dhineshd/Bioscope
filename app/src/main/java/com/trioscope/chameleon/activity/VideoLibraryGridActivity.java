@@ -28,6 +28,7 @@ import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.util.FileUtil;
@@ -41,9 +42,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -53,7 +54,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private GestureDetectorCompat gestureDetector;
-    private HashSet<File> mergingFiles = new HashSet<>();
 
     // Newest files first comparator
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
@@ -98,18 +98,17 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         Collections.addAll(libraryFiles, folder.listFiles());
         libraryFiles.removeAll(videoMerger.getTemporaryFiles());
         Collections.sort(libraryFiles, LAST_MODIFIED_COMPARATOR);
+
+
         BioscopeDBHelper db = new BioscopeDBHelper(this);
-
-
         List<String> mergingFileNames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
         for (String fileName : mergingFileNames) {
             File file = FileUtil.getMergedOutputFile(fileName);
             libraryFiles.add(0, file);
-            mergingFiles.add(file);
         }
         db.close();
 
-        log.info("Showing {} library files, including {} currently being merged ({})", libraryFiles.size(), mergingFiles.size(), mergingFiles);
+        log.info("Showing {} library files, including {} currently being merged ({})", libraryFiles.size(), mergingFileNames.size(), mergingFileNames);
 
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);
         GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
@@ -133,12 +132,15 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     }
 
     private class LibraryGridAdapter extends ArrayAdapter<File> {
+        @Setter
+        private volatile int percentageMerged = 0;
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
         }
 
         @Override
+        @Timed
         public View getView(int position, View convertView, ViewGroup parent) {
             // Get the data item for this position
             final File videoFile = getItem(position);
@@ -160,22 +162,39 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
 
             BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+            List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
 
             // Check if this video is being merged
             VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
-            if (mergingFiles.contains(videoFile)) {
+            if (isBeingMergedValues.size() > 0) {
                 log.info("{} is currently being merged, we'll show progress", videoFile);
-                videoMerger.setProgressUpdatable(new UpdateVideoMerge(convertView));
+                videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
 
                 convertView.findViewById(R.id.video_grid_title).setVisibility(View.INVISIBLE);
                 convertView.findViewById(R.id.video_grid_duration).setVisibility(View.INVISIBLE);
                 convertView.findViewById(R.id.video_grid_age).setVisibility(View.INVISIBLE);
                 convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.INVISIBLE);
 
-                convertView.findViewById(R.id.library_progress_bar).setVisibility(View.VISIBLE);
-                convertView.findViewById(R.id.library_progress_text).setVisibility(View.VISIBLE);
+                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
+                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
                 convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.VISIBLE);
+                progressText.setVisibility(View.VISIBLE);
+                progressBar.setVisibility(View.VISIBLE);
+
+                progressBar.setProgress(percentageMerged);
+                progressText.setText(percentageMerged + "%");
             } else {
+                convertView.findViewById(R.id.video_grid_title).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_duration).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_age).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.VISIBLE);
+                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
+                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
+                convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.INVISIBLE);
+                progressText.setVisibility(View.INVISIBLE);
+                progressBar.setVisibility(View.INVISIBLE);
+
+
                 String videoDuration, creationDate;
 
                 MediaMetadataRetriever mmr = new MediaMetadataRetriever();
@@ -234,30 +253,43 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     }
 
     private class UpdateVideoMerge implements ProgressUpdatable {
-        private final View convertView;
         private final Handler handler;
+        private final File file;
+        int lastPercent = 0;
 
-        private UpdateVideoMerge(View convertView) {
-            this.convertView = convertView;
+        private UpdateVideoMerge(File file) {
+            this.file = file;
             this.handler = new Handler(Looper.getMainLooper());
         }
 
         @Override
         public void onProgress(final double progress, final double outOf) {
             log.info("Progress is now {}/{}", progress, outOf);
+            int percent = getPercent(progress, outOf);
+            if (percent > lastPercent) {
+                lastPercent = percent;
+                updateVideoGridWithPercentage(percent);
+            }
+        }
+
+        private void updateVideoGridWithPercentage(final int percent) {
+            // TODO: Performace: We can speed this up by not calling getView but instead calling view.findViewById after finding the child
+
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        int percent = getPercent(progress, outOf);
-                        log.info("Percent is {}", percent);
-                        ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
-                        progressBar.setProgress(percent);
-
-                        TextView textView = (TextView) convertView.findViewById(R.id.library_progress_text);
-                        textView.setText(String.format("%d%%", percent));
-                    } catch (Exception e) {
-                        log.error("Caught exception while handling progress update", e);
+                    GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
+                    int start = videoGrid.getFirstVisiblePosition();
+                    for (int i = start, j = videoGrid.getLastVisiblePosition(); i <= j; i++) {
+                        if (file.equals(videoGrid.getItemAtPosition(i))) {
+                            // The file in question is on the screen as position i
+                            View view = videoGrid.getChildAt(i - start);
+                            // Calling getView will refresh the view
+                            LibraryGridAdapter adapter = (LibraryGridAdapter) videoGrid.getAdapter();
+                            adapter.setPercentageMerged(percent);
+                            adapter.getView(i, view, videoGrid);
+                            break;
+                        }
                     }
                 }
             });
@@ -266,6 +298,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         @Override
         public void onCompleted() {
             log.info("Video is complete!");
+            updateVideoGridWithPercentage(100);
         }
 
         private int getPercent(double progress, double outOf) {
