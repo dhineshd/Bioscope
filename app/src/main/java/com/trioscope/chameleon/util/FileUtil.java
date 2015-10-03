@@ -51,7 +51,7 @@ public class FileUtil {
     }
 
     private static File getMergedOutputDirectory() {
-        File mergedOutputDirectory = new File(getDCIMDirectory(), "chameleon/merged/");
+        File mergedOutputDirectory = new File(getDCIMDirectory(), "chameleon/");
 
         // Create the storage directory if it does not exist
         if (!mergedOutputDirectory.exists()) {
