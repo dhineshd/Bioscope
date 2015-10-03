@@ -80,6 +80,7 @@
                 android:background="@null"
                 android:layout_marginBottom="36dp"
                 android:visibility="invisible"
+                android:stateListAnimator="@anim/button_elevation_anim"
                 android:enabled="false" />
 
             <TextView
