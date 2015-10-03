@@ -104,7 +104,10 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         List<String> mergingFileNames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
         for (String fileName : mergingFileNames) {
             File file = FileUtil.getMergedOutputFile(fileName);
-            libraryFiles.add(0, file);
+            if (!libraryFiles.contains(file)) {
+                log.info("File {} is being merged, but the output file hasnt yet been created. We want to include it anyways", file);
+                libraryFiles.add(0, file);
+            }
         }
         db.close();
 
@@ -153,6 +156,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
             Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
+            //TODO: we might want to do this only for files that exist and use some other method for currently merging videos. 
             Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
             if (bitmap != null) {
                 ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
