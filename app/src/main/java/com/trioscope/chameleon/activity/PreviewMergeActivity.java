@@ -26,6 +26,7 @@ import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
@@ -265,10 +266,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         if(!publishedDurationMetrics) {
             //publish time metrics
-//            ChameleonApplication.getMetrics().sendTime(
-//                    MetricNames.Category.VIDEO.getName(),
-//                    MetricNames.Label.DURATION.getName(),
-//                    majorVideoMediaPlayer.getDuration());
+            ChameleonApplication.getMetrics().sendTime(
+                    MetricNames.Category.VIDEO.getName(),
+                    MetricNames.Label.DURATION.getName(),
+                    majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
 

@@ -108,7 +108,7 @@ public class ChameleonApplication extends Application {
         super.onCreate();
         log.info("Starting application");
 
-        //metrics = new MetricsHelper(this);
+        metrics = new MetricsHelper(this);
 
         isWifiEnabledInitially = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).isWifiEnabled();
 
