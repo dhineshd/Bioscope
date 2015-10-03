@@ -28,6 +28,8 @@ import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
 import com.trioscope.chameleon.util.security.SSLUtil;
+import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
+import com.trioscope.chameleon.util.merge.VideoMerger;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -96,6 +98,9 @@ public class ChameleonApplication extends Application {
 
     @Getter
     private static MetricsHelper metrics;
+
+    @Getter
+    private VideoMerger videoMerger = new FfmpegVideoMerger(this);
 
     // Receivers
     private BroadcastReceiver enableWifiBroadcastReceiver;

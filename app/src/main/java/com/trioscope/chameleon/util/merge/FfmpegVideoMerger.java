@@ -1,8 +1,16 @@
 package com.trioscope.chameleon.util.merge;
 
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
 
+import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.storage.BioscopeDBHelper;
+import com.trioscope.chameleon.storage.VideoInfoType;
+import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.DepackageUtil;
 import com.trioscope.chameleon.util.FileUtil;
 
@@ -11,9 +19,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,9 +51,11 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String DEPACKAGED_LIB_OPENH = "libopenh264.so.bz2";
     private static final String URL_LIBOPENH = "http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2";
 
-
     private static final Pattern INPUT_DURATION_PATTERN = Pattern.compile("Duration: (\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
     private static final Pattern STATUS_DURATION_PATTERN = Pattern.compile("time=(\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
+
+    private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
+    private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
 
     private Context context;
     private DepackageUtil depackageUtil;
@@ -45,6 +63,11 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     @Setter
     private ProgressUpdatable progressUpdatable;
+
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private Future<?> currentRunningTask;
+    private Notification.Builder notificationBuilder;
+    private Set<File> tempFiles = new HashSet<>();
 
     public FfmpegVideoMerger(Context context) {
         setContext(context);
@@ -86,12 +109,39 @@ public class FfmpegVideoMerger implements VideoMerger {
         if (!prepared)
             prepare();
 
+        if (currentRunningTask != null && !currentRunningTask.isDone()) {
+            log.warn("Not yet done merging previous running task. We only support one runnable right now");
+            return;
+        }
+
         VideoMergeTaskParams params = new VideoMergeTaskParams();
         params.setConfiguration(configuration);
         params.setFirstVideoConfig(videoConfig1);
         params.setSecondVideoConfig(videoConfig2);
         params.setOutputFile(outputFile);
-        AsyncTask<VideoMergeTaskParams, Double, Boolean> task = new AsyncVideoMergeTask().execute(params);
+
+        BioscopeDBHelper db = new BioscopeDBHelper(context);
+        db.insertVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED, "true");
+        db.close();
+
+        tempFiles.add(videoConfig1.getFile());
+        tempFiles.add(videoConfig2.getFile());
+        Runnable task = new VideoMergeRunnable(params);
+
+        currentRunningTask = executorService.submit(task);
+
+        NotificationManager notificationManager = (NotificationManager) this.context.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationBuilder = new Notification.Builder(this.context)
+                .setContentTitle("Chameleon Video Merge")
+                .setContentText("Chameleon video merge is in progress")
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setOngoing(true)
+                .setProgress(100, 0, false);
+        notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
+    }
+
+    public Collection<File> getTemporaryFiles() {
+        return Collections.unmodifiableCollection(tempFiles);
     }
 
     private List<String> constructPIPArguments(
@@ -118,10 +168,10 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("5000k");
         params.add("-filter_complex");
         params.add("[0] " +
-                (shouldHorizontallyFlipMajorVideo? "hflip," : "") +
+                (shouldHorizontallyFlipMajorVideo ? "hflip," : "") +
                 "scale=1080:1920 [major]; " +
                 "[1] " +
-                (shouldHorizontallyFlipMinorVideo? "hflip," : "") +
+                (shouldHorizontallyFlipMinorVideo ? "hflip," : "") +
                 "scale=412:732 [minor]; " +
                 "[major][minor] overlay=54:1134,drawbox=54:1134:412:732:white:t=8");
         //OpenH264 doesnt support preset
@@ -186,6 +236,174 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     public boolean hasRequiredComponents() {
         return depackageUtil.hasDownloaded(DEPACKAGED_LIB_OPENH);
+    }
+
+
+    private class VideoMergeRunnable implements Runnable {
+        private long start, end;
+        private double maxInputTime = 0;
+        private VideoConfiguration minorVideoConfig, majorVideoConfig;
+        private File outputFile;
+        private MergeConfiguration mergeConfiguration;
+
+        public VideoMergeRunnable(VideoMergeTaskParams params) {
+            start = System.currentTimeMillis();
+            minorVideoConfig = params.getFirstVideoConfig();
+            majorVideoConfig = params.getSecondVideoConfig();
+            mergeConfiguration = params.getConfiguration();
+            outputFile = params.getOutputFile();
+        }
+
+        @Override
+        public void run() {
+            try {
+                merge();
+                complete();
+            } catch (Exception e) {
+                log.error("Error merging videos {} and {} to {}", majorVideoConfig, minorVideoConfig, outputFile, e);
+            } finally {
+                log.info("Removing {} from list of files being merged", outputFile);
+                BioscopeDBHelper db = new BioscopeDBHelper(context);
+                db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
+                db.close();
+            }
+        }
+
+        private void complete() {
+            end = System.currentTimeMillis();
+
+            log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
+
+            // Delete input videos since we now have merged video
+            File majorVideo = majorVideoConfig.getFile();
+            File minorVideo = minorVideoConfig.getFile();
+            if (majorVideo.exists()) {
+                majorVideo.delete();
+            }
+            if (minorVideo.exists()) {
+                minorVideo.delete();
+            }
+
+            //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
+            Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+            addVideoIntent.setData(Uri.fromFile(outputFile));
+            context.sendBroadcast(addVideoIntent);
+
+            if (progressUpdatable != null)
+                progressUpdatable.onCompleted();
+        }
+
+        private void merge() {
+            File majorVideo = majorVideoConfig.getFile();
+            File minorVideo = minorVideoConfig.getFile();
+
+            log.info("Running ffmpeg to merge {} and {} into {}", majorVideo, minorVideo, outputFile);
+            File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
+            String cmdLocation = ffmpeg.getAbsolutePath();
+
+            if (!majorVideo.exists() || !minorVideo.exists()) {
+                log.info("One of {} or {} do not exist -- cannot merge", majorVideo, minorVideo);
+                return;
+            }
+
+            try {
+                if (outputFile.exists()) {
+                    log.info("Deleting {} first", outputFile);
+                    outputFile.delete();
+                    log.info("Existing file at {} is deleted", outputFile);
+                }
+                List<String> cmdParams = constructPIPArguments(
+                        majorVideo.getAbsolutePath(),
+                        majorVideoConfig.isHorizontallyFlipped(),
+                        minorVideo.getAbsolutePath(),
+                        minorVideoConfig.isHorizontallyFlipped(),
+                        outputFile.getAbsolutePath(),
+                        mergeConfiguration);
+                cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
+                log.info("Ffmpeg parameters are {}", cmdParams);
+                ProcessBuilder builder = new ProcessBuilder(cmdParams);
+                builder.redirectErrorStream(true);
+
+                // Append libopenh264.so to LD_LIBRARY_PATH
+                String ldLibraryPath = depackageUtil.getOutputDirectory().getAbsolutePath();
+                Map<String, String> env = builder.environment();
+                env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
+
+                Process p = builder.start();
+
+                String line;
+                BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                while ((line = in.readLine()) != null) {
+                    line = line.trim();
+                    log.debug("Output: {}", line);
+
+                    Matcher m = INPUT_DURATION_PATTERN.matcher(line);
+                    if (m.find()) {
+                        double sec = getSecondsFromTimeFormat(m);
+                        log.debug("Found a duration input of {}s", sec);
+                        maxInputTime = Math.max(sec, maxInputTime);
+                    } else {
+                        m = STATUS_DURATION_PATTERN.matcher(line);
+                        if (m.find()) {
+                            double sec = getSecondsFromTimeFormat(m);
+                            log.debug("Found a status update of {}s", sec);
+                            if (maxInputTime > 0)
+                                updateProgress(sec, maxInputTime);
+                        } else {
+                            log.info("Non-status line: {}", line);
+                        }
+                    }
+                }
+                in.close();
+
+                log.info("Done running cmd, exitValue={}", p.waitFor());
+            } catch (IOException e) {
+                log.error("Error running ffmpeg", e);
+            } catch (InterruptedException e) {
+                log.error("Error running ffmpeg", e);
+            } catch (Exception e) {
+                log.error("Error running ffmpeg", e);
+            }
+        }
+
+        private void updateProgress(double progress, double outOf) {
+            int progressPerc = getPercent(progress, outOf);
+            int remaining = 100 - progressPerc;
+            long elapsed = System.currentTimeMillis() - start;
+            Double timeRemainingMilli;
+            if (remaining == 100)
+                timeRemainingMilli = (double) TimeUnit.MINUTES.convert(2, TimeUnit.MILLISECONDS);
+            else
+                timeRemainingMilli = (100 * elapsed) / (100.0 - remaining);
+
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationBuilder.setProgress(100, progressPerc, false);
+            String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
+            notificationBuilder.setContentText("Chameleon video merge is in progress (" + String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
+            notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
+
+            if (progressUpdatable != null)
+                progressUpdatable.onProgress(progress, outOf);
+        }
+
+    }
+
+    private static String getMinutesAndSeconds(double time) {
+        int timeSec = (int) Math.round(time);
+        String res = "";
+        if (timeSec >= 60) {
+            res += (int) Math.floor(timeSec / 60) + ":";
+        }
+        res += String.format("%02d", timeSec % 60);
+
+        if (timeSec < 60)
+            res += "s";
+
+        return res;
+    }
+
+    private static int getPercent(double progress, double outOf) {
+        return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
     }
 
     private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {
@@ -271,16 +489,6 @@ public class FfmpegVideoMerger implements VideoMerger {
             return null;
         }
 
-        private double getSecondsFromTimeFormat(Matcher m) {
-            double sec = Double.valueOf(m.group(3));
-            int min = Integer.valueOf(m.group(2));
-            int hr = Integer.valueOf(m.group(1));
-
-            min += hr * 60;
-            sec += min * 60;
-            return sec;
-        }
-
         @Override
         protected void onPreExecute() {
             log.info("About to run video merge as an async task");
@@ -298,7 +506,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
             log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
 
-            // Delete input videos since we no have merged video
+            // Delete input videos since we now have merged video
             if (majorVideo.exists()) {
                 majorVideo.delete();
             }
@@ -319,8 +527,16 @@ public class FfmpegVideoMerger implements VideoMerger {
             super.onCancelled(aBoolean);
             onCancelled();
         }
+    }
 
+    private double getSecondsFromTimeFormat(Matcher m) {
+        double sec = Double.valueOf(m.group(3));
+        int min = Integer.valueOf(m.group(2));
+        int hr = Integer.valueOf(m.group(1));
 
+        min += hr * 60;
+        sec += min * 60;
+        return sec;
     }
 
     @Data

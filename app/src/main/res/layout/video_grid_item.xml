@@ -12,15 +12,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_centerInParent="true"
-        android:src="@drawable/direct_logo"
-        android:scaleType="centerCrop" />
+        android:scaleType="centerCrop"
+        android:src="@drawable/direct_logo" />
 
     <TextView
         android:id="@+id/video_grid_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
+        android:layout_marginLeft="20dp"
         android:layout_marginTop="18dp"
+        android:gravity="center"
         android:textColor="#F47B4C"
         android:textSize="18sp"
         android:textStyle="bold" />
@@ -64,5 +66,41 @@
 
             />
     </RelativeLayout>
+
+    <ProgressBar
+        android:id="@+id/library_progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:gravity="center"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/circular_progress_bar"
+        android:visibility="invisible" />
+
+    <ImageView
+        android:id="@+id/video_grid_progress_interior"
+        android:layout_width="63dp"
+        android:layout_height="63dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_gravity="center"
+        android:src="@drawable/progress_bar_interior"
+        android:visibility="invisible" />
+
+    <TextView
+        android:id="@+id/library_progress_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerInParent="true"
+        android:layout_centerVertical="true"
+        android:text="0%"
+        android:textColor="#F47B4C"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="invisible" />
 
 </RelativeLayout>

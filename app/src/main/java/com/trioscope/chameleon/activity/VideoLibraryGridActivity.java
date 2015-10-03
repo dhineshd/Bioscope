@@ -8,6 +8,8 @@ import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.support.v4.view.GestureDetectorCompat;
 import android.text.format.DateUtils;
@@ -21,18 +23,28 @@ import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.aop.Timed;
+import com.trioscope.chameleon.storage.BioscopeDBHelper;
+import com.trioscope.chameleon.storage.VideoInfoType;
+import com.trioscope.chameleon.util.FileUtil;
+import com.trioscope.chameleon.util.merge.ProgressUpdatable;
+import com.trioscope.chameleon.util.merge.VideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.File;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -42,6 +54,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private GestureDetectorCompat gestureDetector;
+
+    // Newest files first comparator
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
         @Override
         public int compare(File lhs, File rhs) {
@@ -78,12 +92,23 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
         });
 
+        VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
         File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
-        final List<File> libraryFiles = Arrays.asList(folder.listFiles());
-
-        log.info("Showing {} library files", libraryFiles.size());
-
+        final List<File> libraryFiles = new ArrayList<File>();
+        Collections.addAll(libraryFiles, folder.listFiles());
+        libraryFiles.removeAll(videoMerger.getTemporaryFiles());
         Collections.sort(libraryFiles, LAST_MODIFIED_COMPARATOR);
+
+
+        BioscopeDBHelper db = new BioscopeDBHelper(this);
+        List<String> mergingFileNames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
+        for (String fileName : mergingFileNames) {
+            File file = FileUtil.getMergedOutputFile(fileName);
+            libraryFiles.add(0, file);
+        }
+        db.close();
+
+        log.info("Showing {} library files, including {} currently being merged ({})", libraryFiles.size(), mergingFileNames.size(), mergingFileNames);
 
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);
         GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
@@ -107,15 +132,19 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     }
 
     private class LibraryGridAdapter extends ArrayAdapter<File> {
+        @Setter
+        private volatile int percentageMerged = 0;
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
         }
 
         @Override
+        @Timed
         public View getView(int position, View convertView, ViewGroup parent) {
             // Get the data item for this position
             final File videoFile = getItem(position);
+            log.info("Getting view for videoFile {}", videoFile);
 
             // Check if an existing view is being reused, otherwise inflate the view
             if (convertView == null) {
@@ -132,38 +161,84 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 log.warn("Unable to create thumbnail from video file {}", videoFile);
             }
 
-            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-            mmr.setDataSource(videoFile.getAbsolutePath());
+            BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+            List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
 
-            String videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-            String creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
-            log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
+            // Check if this video is being merged
+            VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
+            if (isBeingMergedValues.size() > 0) {
+                log.info("{} is currently being merged, we'll show progress", videoFile);
+                videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
 
-            String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
-            TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
-            videoAgoTextView.setText(timeAgo);
-            videoAgoTextView.setTypeface(appFontTypeface);
+                convertView.findViewById(R.id.video_grid_title).setVisibility(View.INVISIBLE);
+                convertView.findViewById(R.id.video_grid_duration).setVisibility(View.INVISIBLE);
+                convertView.findViewById(R.id.video_grid_age).setVisibility(View.INVISIBLE);
+                convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.INVISIBLE);
 
-            TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
-            videoWithTextView.setText("Video with");
-            videoWithTextView.setTypeface(appFontTypeface);
+                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
+                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
+                convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.VISIBLE);
+                progressText.setVisibility(View.VISIBLE);
+                progressBar.setVisibility(View.VISIBLE);
 
-            TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
-            videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
-            videoDurationTextView.setTypeface(appFontTypeface);
+                progressBar.setProgress(percentageMerged);
+                progressText.setText(percentageMerged + "%");
+            } else {
+                convertView.findViewById(R.id.video_grid_title).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_duration).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_age).setVisibility(View.VISIBLE);
+                convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.VISIBLE);
+                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
+                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
+                convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.INVISIBLE);
+                progressText.setVisibility(View.INVISIBLE);
+                progressBar.setVisibility(View.INVISIBLE);
 
-            ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
-            shareButton.setFocusable(false);
-            shareButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent shareIntent = new Intent();
-                    shareIntent.setAction(Intent.ACTION_SEND);
-                    shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
-                    shareIntent.setType("video/mpeg");
-                    startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
+
+                String videoDuration, creationDate;
+
+                MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                mmr.setDataSource(videoFile.getAbsolutePath());
+                videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
+                log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
+
+                String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
+                TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
+                videoAgoTextView.setText(timeAgo);
+                videoAgoTextView.setTypeface(appFontTypeface);
+
+
+                //Load the other videographers from db
+                List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
+                helper.close();
+                String videoWith = "Unknown";
+                if (!videographers.isEmpty()) {
+                    videoWith = StringUtils.join(videographers, ", ");
+                } else {
+                    log.warn("Unable to retrieve any videographers for {}", videoFile.getName());
                 }
-            });
+                TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
+                videoWithTextView.setText("with " + videoWith);
+                videoWithTextView.setTypeface(appFontTypeface);
+
+                TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
+                videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
+                videoDurationTextView.setTypeface(appFontTypeface);
+
+                ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
+                shareButton.setFocusable(false);
+                shareButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent shareIntent = new Intent();
+                        shareIntent.setAction(Intent.ACTION_SEND);
+                        shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
+                        shareIntent.setType("video/mpeg");
+                        startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
+                    }
+                });
+            }
 
             return convertView;
         }
@@ -177,4 +252,57 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         return String.format("%d:%02d", minutes, seconds);
     }
 
+    private class UpdateVideoMerge implements ProgressUpdatable {
+        private final Handler handler;
+        private final File file;
+        int lastPercent = 0;
+
+        private UpdateVideoMerge(File file) {
+            this.file = file;
+            this.handler = new Handler(Looper.getMainLooper());
+        }
+
+        @Override
+        public void onProgress(final double progress, final double outOf) {
+            log.info("Progress is now {}/{}", progress, outOf);
+            int percent = getPercent(progress, outOf);
+            if (percent > lastPercent) {
+                lastPercent = percent;
+                updateVideoGridWithPercentage(percent);
+            }
+        }
+
+        private void updateVideoGridWithPercentage(final int percent) {
+            // TODO: Performace: We can speed this up by not calling getView but instead calling view.findViewById after finding the child
+
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
+                    int start = videoGrid.getFirstVisiblePosition();
+                    for (int i = start, j = videoGrid.getLastVisiblePosition(); i <= j; i++) {
+                        if (file.equals(videoGrid.getItemAtPosition(i))) {
+                            // The file in question is on the screen as position i
+                            View view = videoGrid.getChildAt(i - start);
+                            // Calling getView will refresh the view
+                            LibraryGridAdapter adapter = (LibraryGridAdapter) videoGrid.getAdapter();
+                            adapter.setPercentageMerged(percent);
+                            adapter.getView(i, view, videoGrid);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        @Override
+        public void onCompleted() {
+            log.info("Video is complete!");
+            updateVideoGridWithPercentage(100);
+        }
+
+        private int getPercent(double progress, double outOf) {
+            return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
+        }
+    }
 }

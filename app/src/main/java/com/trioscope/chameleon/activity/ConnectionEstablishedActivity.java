@@ -144,7 +144,7 @@ public class ConnectionEstablishedActivity
 
         // Retrieve peer info to start streaming
         Intent intent = getIntent();
-        log.debug("Intent = {}", intent);
+        log.info("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
@@ -156,7 +156,7 @@ public class ConnectionEstablishedActivity
         // Create recorder
         recorder = new MediaCodecRecorder(chameleonApplication, chameleonApplication.getCameraFrameBuffer());
 
-        log.debug("PeerInfo = {}", peerInfo);
+        log.info("PeerInfo = {}", peerInfo);
 
         peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
 
@@ -240,9 +240,7 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
-                receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(
-                        peerInfo.getIpAddress(),
-                        peerInfo.getPort());
+                receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
 
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
@@ -519,9 +517,7 @@ public class ConnectionEstablishedActivity
     @RequiredArgsConstructor
     class ReceiveVideoFromPeerTask extends AsyncTask<Void, Integer, Void> {
         @NonNull
-        private InetAddress peerIp;
-        @NonNull
-        private Integer port;
+        private PeerInfo peerInfo;
 
         private Long remoteRecordingStartTimeMillis;
         private boolean remoteRecordingHorizontallyFlipped;
@@ -541,12 +537,12 @@ public class ConnectionEstablishedActivity
             try {
 
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                if (!IpUtil.isIpReachable(peerIp)) {
-                    log.warn("Peer = {} not reachable! Unable to receive video", peerIp.getHostAddress());
+                if (!IpUtil.isIpReachable(peerInfo.getIpAddress())) {
+                    log.warn("Peer = {} not reachable! Unable to receive video", peerInfo.getIpAddress().getHostAddress());
                     return null;
                 }
 
-                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
                 socket.setEnabledProtocols(new String[]{"TLSv1.2"});
                 log.debug("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
                 log.debug("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
@@ -564,6 +560,7 @@ public class ConnectionEstablishedActivity
                 pw.println(serializedMessageToSend);
                 pw.close();
 
+                log.debug("Waiting for SEND_RECORDED_VIDEO_RESPONSE");
                 // Receive recorded file size from peer
                 long fileSizeBytes = -1;
                 String recvMsg = bufferedReader.readLine();
@@ -611,6 +608,8 @@ public class ConnectionEstablishedActivity
                     }
                     log.debug("Successfully received recorded video!");
                 }
+
+                log.info("Done receiving video from peer!");
             } catch (IOException e) {
                 log.error("Failed to receive recorded video..", e);
             } finally {
@@ -637,7 +636,6 @@ public class ConnectionEstablishedActivity
 
         @Override
         protected void onPostExecute(Void aVoid) {
-
             hideProgressBar();
 
             // Adjust recording start time for remote recording to account for
@@ -653,6 +651,7 @@ public class ConnectionEstablishedActivity
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
                     .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
+                    .videographer(peerInfo.getUserName())
                     .build();
 
             Intent intent = new Intent(getApplicationContext(), PreviewMergeActivity.class);
