@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentMap;
  * Created by dhinesh.dharman on 9/28/15.
  */
 public class ServerEventListenerManager {
-    private ConcurrentMap<ServerEventListener, Boolean> listeners = new ConcurrentHashMap<>();
+    private volatile ConcurrentMap<ServerEventListener, Boolean> listeners = new ConcurrentHashMap<>();
 
     public void onClientRequestReceived(Socket clientSocket, PeerMessage messageFromClient) {
         for (ServerEventListener listener : listeners.keySet())

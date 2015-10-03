@@ -30,7 +30,6 @@ import com.trioscope.chameleon.types.ThreadWithHandler;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
-import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -68,10 +67,6 @@ public class ChameleonApplication extends Application {
     @Getter
     private CameraOpener cameraOpener;
 
-    @Setter
-    @Getter
-    private volatile OutputStream streamingDestOutputStream;
-
     @Getter
     private CameraInfo cameraInfo;
 
@@ -93,7 +88,8 @@ public class ChameleonApplication extends Application {
     private WifiP2pManager.Channel wifiP2pChannel;
 
     @Getter
-    private volatile ServerEventListenerManager serverEventListenerManager = new ServerEventListenerManager();
+    private volatile ServerEventListenerManager serverEventListenerManager =
+            new ServerEventListenerManager();
 
     @Setter
     private ConnectionServer connectionServer;

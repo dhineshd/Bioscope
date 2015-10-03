@@ -34,6 +34,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.record.MediaCodecRecorder;
 import com.trioscope.chameleon.record.VideoRecorder;
+import com.trioscope.chameleon.stream.NetworkStreamer;
 import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
@@ -96,7 +97,7 @@ public class ConnectionEstablishedActivity
     private Handler timerHandler;
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
-    private PreviewStreamer previewStreamer;
+    private NetworkStreamer previewStreamer;
     private VideoRecorder recorder;
     private BroadcastReceiver wifiBroadcastReceiver;
     private ImageButton switchCamerasButton;
@@ -135,22 +136,22 @@ public class ConnectionEstablishedActivity
             }
         });
 
+
+        chameleonApplication.startConnectionServerIfNotRunning();
+
+        // Start listening for server events
+        chameleonApplication.getServerEventListenerManager().addListener(this);
+
         // Retrieve peer info to start streaming
         Intent intent = getIntent();
         log.debug("Intent = {}", intent);
         final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
-        // Start streaming preview to peer
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
-        log.info("stream dest out = {}", chameleonApplication.getStreamingDestOutputStream());
-        previewStreamer.startStreaming(chameleonApplication.getStreamingDestOutputStream());
 
         // Start streaming preview from peer
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-        // Start listening for server events
-        chameleonApplication.getServerEventListenerManager().addListener(this);
 
         // Create recorder
         recorder = new MediaCodecRecorder(chameleonApplication, chameleonApplication.getCameraFrameBuffer());
@@ -391,8 +392,10 @@ public class ConnectionEstablishedActivity
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
 
+        log.info("Received message from client = {}", messageFromClient.getType());
+
         switch (messageFromClient.getType()) {
-            case START_SESSION:
+            case SEND_STREAM:
                 startStreamingToPeer(clientSocket);
                 break;
             case TERMINATE_SESSION:
@@ -417,8 +420,13 @@ public class ConnectionEstablishedActivity
     public void startStreamingToPeer(Socket peerSocket) {
         if (previewStreamer != null) {
             try {
-                log.debug("Ready to start streaming to peer! dest os = {}", peerSocket.getOutputStream());
-                previewStreamer.startStreaming(peerSocket.getOutputStream());
+                log.info("Ready to send stream to peer! dest os = {}", peerSocket.getOutputStream());
+                if (!previewStreamer.isStreaming()) {
+                    log.info("Starting stream..");
+                    previewStreamer.startStreaming(peerSocket.getOutputStream());
+                } else {
+                    log.info("Already streaming.. ignoring");
+                }
             } catch (IOException e) {
                 log.error("Failed to start streaming", e);
             }
@@ -771,13 +779,16 @@ public class ConnectionEstablishedActivity
 
     @AllArgsConstructor
     class StreamFromPeerTask extends AsyncTask<Void, Void, Void> {
+        private static final int STREAM_MESSAGE_INTERVAL_MSEC = 5000;
+        private static final int MAX_ATTEMPTS_TO_STREAM = 3;
+
         private InetAddress peerIp;
         private int port;
 
         @Override
         protected Void doInBackground(Void... params) {
-            int attemptsLeft = 3;
             while (!isCancelled()) {
+
                 try {
                     log.info("Connect to remote host invoked Thread = {}", Thread.currentThread());
 
@@ -791,21 +802,29 @@ public class ConnectionEstablishedActivity
 
                     final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 
-                    PrintWriter pw = new PrintWriter(socket.getOutputStream());
-                    PeerMessage peerMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.START_SESSION)
-                            .contents("abc")
-                            .senderUserName(getUserName()) //Send this user's name
-                            .build();
-                    log.debug("Sending msg = {}", gson.toJson(peerMsg));
-                    pw.println(gson.toJson(peerMsg));
-                    pw.close();
                     final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
                     InputStream inputStream = socket.getInputStream();
                     final Matrix matrix = new Matrix();
-                    while (!isCancelled()) {
-                        // TODO More robust
-                        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                    PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
+
+                    // Send SEND_STREAM message periodically
+                    PeerMessage peerMsg = PeerMessage.builder()
+                            .type(PeerMessage.Type.SEND_STREAM)
+                            .contents("abc")
+                            .senderUserName(getUserName()) //Send this user's name
+                            .build();
+                    log.info("Sending msg = {}", gson.toJson(peerMsg));
+
+                    pw.println(gson.toJson(peerMsg));
+
+                    int attemptsLeft = MAX_ATTEMPTS_TO_STREAM;
+
+                    while (!isCancelled() && attemptsLeft > 0) {
+
+                        boolean streamImageReceived = false;
+                        BufferedReader bufferedReader = new BufferedReader(
+                                new InputStreamReader(socket.getInputStream()));
                         String recvMsg = bufferedReader.readLine();
                         if (recvMsg != null) {
                             StreamMetadata streamMetadata = gson.fromJson(recvMsg, StreamMetadata.class);
@@ -813,7 +832,8 @@ public class ConnectionEstablishedActivity
                             matrix.postRotate(90);
                             final int bytesRead = inputStream.read(buffer);
                             if (bytesRead != -1) {
-                                //log.debug("Received preview image from remote server bytes = " + bytesRead);
+                                streamImageReceived = true;
+                                log.debug("Received preview image from remote server bytes = " + bytesRead);
                                 final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
                                         BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
                                 runOnUiThread(new Runnable() {
@@ -831,9 +851,12 @@ public class ConnectionEstablishedActivity
                                 });
                             }
                         }
+                        if (!streamImageReceived) {
+                            attemptsLeft--;
+                        }
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to stream from peer attemptsLeft = " + attemptsLeft, e);
+                    log.warn("Failed to stream from peer. Retrying again..", e);
                 }
             }
             log.debug("Finishing StreamFromPeerTask..");

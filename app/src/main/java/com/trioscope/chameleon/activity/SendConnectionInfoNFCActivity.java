@@ -36,7 +36,6 @@ import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -199,12 +198,6 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
-        try {
-            chameleonApplication.setStreamingDestOutputStream(clientSocket.getOutputStream());
-            log.info("Successfully set dest outputstream = {}", chameleonApplication.getStreamingDestOutputStream());
-        } catch (IOException e) {
-            log.error("Failed to set dest output stream");
-        }
         log.info("Starting connection establshed activity!");
         Intent intent = new Intent(this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
@@ -214,6 +207,7 @@ public class SendConnectionInfoNFCActivity
                 .userName(messageFromClient.getSenderUserName())
                 .build();
         intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
+
         isAppCleanupRequired = false;
         startActivity(intent);
     }
@@ -377,11 +371,10 @@ public class SendConnectionInfoNFCActivity
                 wifiP2pGroupInfoListener = new WifiP2pManager.GroupInfoListener() {
                     @Override
                     public void onGroupInfoAvailable(WifiP2pGroup group) {
-                        log.info("Group info = {}", group);
 
-                        if (group != null) {
+                        if (group != null && wiFiNetworkConnectionInfo == null) {
+
                             try {
-                                log.info("Wifi hotspot details {}, Thread = {}", group, Thread.currentThread());
 
                                 log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
                                         group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());

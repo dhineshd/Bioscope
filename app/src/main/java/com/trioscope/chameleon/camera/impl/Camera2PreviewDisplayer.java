@@ -324,7 +324,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
                                         @Override
                                         public void onCaptureFailed(CameraCaptureSession session, CaptureRequest request, CaptureFailure failure) {
-                                            log.error("Error on capture request {}, failure is {}", request, failure);
+                                            log.error("Error on capture request {}, failure is {}", request, failure.getReason());
                                         }
 
                                         @Override

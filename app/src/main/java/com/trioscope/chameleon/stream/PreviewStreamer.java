@@ -35,12 +35,12 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     @NonNull
     private volatile CameraFrameBuffer cameraFrameBuffer;
     private volatile OutputStream destOutputStream;
+    private volatile long previousFrameSendTimeMs = 0;
 
     private final ByteArrayOutputStream stream =
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
     private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
-    private long previousFrameSendTimeMs = System.currentTimeMillis();
     private int streamPreviewWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
     private int streamPreviewHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
     private int consecutiveFailureCount = 0;
@@ -51,6 +51,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
             destOutputStream = destOs;
             cameraFrameBuffer.addListener(this);
             consecutiveFailureCount = 0;
+            previousFrameSendTimeMs = 0;
         }
     }
 
@@ -61,7 +62,13 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     }
 
     @Override
-    public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, FrameInfo frameInfo) {
+    public boolean isStreaming() {
+        // Sent something recently
+        return (System.currentTimeMillis() - previousFrameSendTimeMs) <= 1000;
+    }
+
+    @Override
+    public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, final FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
