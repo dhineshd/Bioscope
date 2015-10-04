@@ -10,6 +10,8 @@ import android.os.Bundle;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.storage.BioscopeDBHelper;
+import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
@@ -94,6 +96,8 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         log.info("Local video started before remote video offset millis = {}",
                 majorVideoStartedBeforeMinorVideoOffsetMillis);
 
+        log.info("Minor video videographer: {}, major video videographer: {}", minorVideoMetadata.getVideographer(), majorVideoMetadata.getVideographer());
+
         videoMerger.setContext(currentContext);
         videoMerger.setProgressUpdatable(this);
         videoMerger.prepare();
@@ -171,6 +175,20 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
     public void onCompleted() {
         if (currentContext != null)
             ((ProgressUpdatable) currentContext).onCompleted();
+
+        // Log aggregate metadata into local DB
+        log.info("Adding metadata (videographer) to local DB");
+        File outputFile = new File(outputFilename);
+        BioscopeDBHelper helper = new BioscopeDBHelper(currentContext);
+        if (minorVideoMetadata.getVideographer() != null) {
+            log.info("Inserting {} as minor videographer", minorVideoMetadata.getVideographer());
+            helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, minorVideoMetadata.getVideographer());
+        }
+        if (majorVideoMetadata.getVideographer() != null) {
+            log.info("Inserting {} as major videographer", majorVideoMetadata.getVideographer());
+            helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, majorVideoMetadata.getVideographer());
+        }
+        helper.close();
 
         NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(MERGING_NOTIFICATION_ID);

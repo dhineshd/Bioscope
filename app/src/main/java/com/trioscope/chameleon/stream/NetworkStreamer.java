@@ -8,4 +8,5 @@ import java.io.OutputStream;
 public interface NetworkStreamer {
     void startStreaming(OutputStream destOutputStream);
     void stopStreaming();
+    boolean isStreaming();
 }

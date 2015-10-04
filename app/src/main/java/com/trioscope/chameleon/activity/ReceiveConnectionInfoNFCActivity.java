@@ -6,9 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.PorterDuff;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -26,11 +24,10 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.util.network.WifiUtil;
 
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteOrder;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -76,7 +73,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             public void onClick(View v) {
                 // Finishing current activity will take us back to previous activity
                 // since it is in the back stack
-                chameleonApplication.stopConnectionServer();
                 finish();
             }
         });
@@ -202,7 +198,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             @Override
             public void onReceive(Context context, Intent intent) {
                 log.info("onReceive intent = " + intent.getAction());
-                final String currentSSID = getCurrentSSID();
+                final String currentSSID = WifiUtil.getCurrentSSID(context);
                 log.info("Current SSID = {}", currentSSID);
 
                 if(currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
@@ -237,41 +233,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
-    public String getCurrentSSID() {
-        String ssid = null;
-        ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-        if (networkInfo.isConnected()) {
-            final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-            final WifiInfo connectionInfo = wifiManager.getConnectionInfo();
-            if (connectionInfo != null && connectionInfo.getSSID() != null) {
-                ssid = connectionInfo.getSSID().replace("\"", ""); // Remove quotes
-            }
-        }
-        return ssid;
-    }
-
-    private String getLocalIpAddressForWifi() {
-        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        int ipAddress = wifiManager.getConnectionInfo().getIpAddress();
-        // Convert little-endian to big-endian if needed
-        if (ByteOrder.nativeOrder().equals(ByteOrder.LITTLE_ENDIAN)) {
-            ipAddress = Integer.reverseBytes(ipAddress);
-        }
-
-        byte[] ipByteArray = BigInteger.valueOf(ipAddress).toByteArray();
-
-        String ipAddressString;
-        try {
-            ipAddressString = InetAddress.getByAddress(ipByteArray).getHostAddress();
-            log.info("Local IP address on network = {}", ipAddressString);
-        } catch (UnknownHostException ex) {
-            log.info("Unable to get host address.");
-            ipAddressString = null;
-        }
-        return ipAddressString;
-    }
-
     private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
 
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
@@ -279,7 +240,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             @Override
             protected Void doInBackground(Void... params) {
                 // Connect only if not already connected
-                if (!networkSSID.equalsIgnoreCase(getCurrentSSID())) {
+                if (!networkSSID.equalsIgnoreCase(WifiUtil.getCurrentSSID(getApplicationContext()))) {
                     WifiConfiguration conf = new WifiConfiguration();
                     conf.SSID = "\"" + networkSSID + "\"";
                     conf.preSharedKey = "\"" + networkPassword + "\"";
@@ -328,7 +289,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             @Override
             protected Void doInBackground(Void... params) {
                 do {
-                    ipAddress = getLocalIpAddressForWifi();
+                    ipAddress = WifiUtil.getLocalIpAddressForWifi(getApplicationContext());
                 } while (!isCancelled() && ipAddress == null);
                 return null;
             }

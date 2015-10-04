@@ -38,7 +38,6 @@ import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 
 import org.apache.http.conn.util.InetAddressUtils;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -69,6 +68,7 @@ public class SendConnectionInfoNFCActivity
     private Gson gson = new Gson();
     private boolean isUserNavigatingInsideApp;
     private VideoView nfcTutVideoView;
+    private boolean isAppCleanupRequired = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,8 +88,6 @@ public class SendConnectionInfoNFCActivity
             public void onClick(View v) {
                 // Finishing current activity will take us back to previous activity
                 // since it is in the back stack
-                chameleonApplication.tearDownWifiHotspot();
-                chameleonApplication.stopConnectionServer();
                 finish();
             }
         });
@@ -194,6 +192,7 @@ public class SendConnectionInfoNFCActivity
     }
 
     private void cleanup() {
+
         chameleonApplication.getServerEventListenerManager().removeListener(this);
 
         if (setupWifiHotspotTask != null) {
@@ -208,16 +207,16 @@ public class SendConnectionInfoNFCActivity
         if (wifiP2pGroupInfoListener != null) {
             wifiP2pGroupInfoListener = null;
         }
+
+        // If we detect user is leaving app, perform additional cleanup
+        if (isAppCleanupRequired) {
+            chameleonApplication.tearDownWifiHotspot();
+            chameleonApplication.stopConnectionServer();
+        }
     }
 
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
-        try {
-            chameleonApplication.setStreamingDestOutputStream(clientSocket.getOutputStream());
-            log.info("Successfully set dest outputstream = {}", chameleonApplication.getStreamingDestOutputStream());
-        } catch (IOException e) {
-            log.error("Failed to set dest output stream");
-        }
         log.info("Starting connection establshed activity!");
         Intent intent = new Intent(this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
@@ -227,6 +226,8 @@ public class SendConnectionInfoNFCActivity
                 .userName(messageFromClient.getSenderUserName())
                 .build();
         intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
+
+        isAppCleanupRequired = false;
         startActivity(intent);
     }
 
@@ -389,11 +390,10 @@ public class SendConnectionInfoNFCActivity
                 wifiP2pGroupInfoListener = new WifiP2pManager.GroupInfoListener() {
                     @Override
                     public void onGroupInfoAvailable(WifiP2pGroup group) {
-                        log.info("Group info = {}", group);
 
-                        if (group != null) {
+                        if (group != null && wiFiNetworkConnectionInfo == null) {
+
                             try {
-                                log.info("Wifi hotspot details {}, Thread = {}", group, Thread.currentThread());
 
                                 log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
                                         group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());

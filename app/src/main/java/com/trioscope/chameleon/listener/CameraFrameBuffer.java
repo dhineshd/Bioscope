@@ -2,26 +2,26 @@ package com.trioscope.chameleon.listener;
 
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.types.CameraInfo;
-
-import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by phand on 6/11/15.
  */
 public class CameraFrameBuffer {
-    private volatile Set<CameraFrameAvailableListener> listeners = new HashSet<>();
+    private volatile ConcurrentMap<CameraFrameAvailableListener, Boolean> listeners = new ConcurrentHashMap<>();
 
     public void frameAvailable(CameraInfo cameraInfo, CameraFrameData frameData, FrameInfo frameInfo) {
-        for (CameraFrameAvailableListener listener : listeners)
+        for (CameraFrameAvailableListener listener : listeners.keySet()) {
             listener.onFrameAvailable(cameraInfo, frameData, frameInfo);
+        }
     }
 
-    public synchronized void addListener(CameraFrameAvailableListener listener) {
-        listeners.add(listener);
+    public void addListener(CameraFrameAvailableListener listener) {
+        listeners.putIfAbsent(listener, false);
     }
 
-    public synchronized void removeListener(CameraFrameAvailableListener listener) {
+    public void removeListener(CameraFrameAvailableListener listener) {
         listeners.remove(listener);
     }
 }

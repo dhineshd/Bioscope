@@ -30,24 +30,28 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private static final int STREAMING_FRAMES_PER_SEC = 15;
     private static final int STREAMING_COMPRESSION_QUALITY = 30; // 0 worst - 100 best
     private static final Size DEFAULT_STREAM_IMAGE_SIZE = new Size(480, 270); // 16 : 9
+    private static final int MAX_TOLERABLE_CONSECUTIVE_FAILURE_COUNT = 0;
 
     @NonNull
     private volatile CameraFrameBuffer cameraFrameBuffer;
     private volatile OutputStream destOutputStream;
+    private volatile long previousFrameSendTimeMs = 0;
 
     private final ByteArrayOutputStream stream =
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
     private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
-    private long previousFrameSendTimeMs = System.currentTimeMillis();
     private int streamPreviewWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
     private int streamPreviewHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
+    private int consecutiveFailureCount = 0;
 
     @Override
     public void startStreaming(OutputStream destOs) {
         if (destOs != null) {
             destOutputStream = destOs;
             cameraFrameBuffer.addListener(this);
+            consecutiveFailureCount = 0;
+            previousFrameSendTimeMs = 0;
         }
     }
 
@@ -58,7 +62,13 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     }
 
     @Override
-    public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, FrameInfo frameInfo) {
+    public boolean isStreaming() {
+        // Sent something recently
+        return (System.currentTimeMillis() - previousFrameSendTimeMs) <= 1000;
+    }
+
+    @Override
+    public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, final FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
 
@@ -95,7 +105,9 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     destOutputStream.write(byteArray, 0, byteArray.length);
                 }
                 previousFrameSendTimeMs = System.currentTimeMillis();
+                consecutiveFailureCount = 0;
             } catch (Exception e) {
+                consecutiveFailureCount++;
                 log.error("Failed to send data to client", e);
             }
         }
@@ -103,6 +115,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
 
     private boolean shouldStreamCurrentFrame() {
         return ((destOutputStream != null) &&
+                (consecutiveFailureCount <= MAX_TOLERABLE_CONSECUTIVE_FAILURE_COUNT) &&
                 ((System.currentTimeMillis() - previousFrameSendTimeMs) >=
                 (1000 / STREAMING_FRAMES_PER_SEC)));
     }
