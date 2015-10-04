@@ -104,7 +104,10 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         List<String> mergingFileNames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
         for (String fileName : mergingFileNames) {
             File file = FileUtil.getMergedOutputFile(fileName);
-            libraryFiles.add(0, file);
+            if (!libraryFiles.contains(file)) {
+                log.info("File {} is being merged, but the output file hasnt yet been created. We want to include it anyways", file);
+                libraryFiles.add(0, file);
+            }
         }
         db.close();
 
@@ -153,6 +156,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
             Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
+            //TODO: we might want to do this only for files that exist and use some other method for currently merging videos. 
             Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
             if (bitmap != null) {
                 ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
@@ -170,30 +174,13 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 log.info("{} is currently being merged, we'll show progress", videoFile);
                 videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
 
-                convertView.findViewById(R.id.video_grid_title).setVisibility(View.INVISIBLE);
-                convertView.findViewById(R.id.video_grid_duration).setVisibility(View.INVISIBLE);
-                convertView.findViewById(R.id.video_grid_age).setVisibility(View.INVISIBLE);
-                convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.INVISIBLE);
-
+                setProgressVisible(convertView, true);
                 ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
                 TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
-                convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.VISIBLE);
-                progressText.setVisibility(View.VISIBLE);
-                progressBar.setVisibility(View.VISIBLE);
-
                 progressBar.setProgress(percentageMerged);
                 progressText.setText(percentageMerged + "%");
             } else {
-                convertView.findViewById(R.id.video_grid_title).setVisibility(View.VISIBLE);
-                convertView.findViewById(R.id.video_grid_duration).setVisibility(View.VISIBLE);
-                convertView.findViewById(R.id.video_grid_age).setVisibility(View.VISIBLE);
-                convertView.findViewById(R.id.video_grid_buttons).setVisibility(View.VISIBLE);
-                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
-                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
-                convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(View.INVISIBLE);
-                progressText.setVisibility(View.INVISIBLE);
-                progressBar.setVisibility(View.INVISIBLE);
-
+                setProgressVisible(convertView, false);
 
                 String videoDuration, creationDate;
 
@@ -211,7 +198,6 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 //Load the other videographers from db
                 List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
-                helper.close();
                 String videoWith = "Unknown";
                 if (!videographers.isEmpty()) {
                     videoWith = StringUtils.join(videographers, ", ");
@@ -239,8 +225,23 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                     }
                 });
             }
+            helper.close();
 
             return convertView;
+        }
+
+        private void setProgressVisible(View convertView, boolean isVisible) {
+            int statusA = isVisible ? View.INVISIBLE : View.VISIBLE;
+            int statusB = isVisible ? View.VISIBLE : View.INVISIBLE;
+
+            convertView.findViewById(R.id.video_grid_title).setVisibility(statusA);
+            convertView.findViewById(R.id.video_grid_duration).setVisibility(statusA);
+            convertView.findViewById(R.id.video_grid_age).setVisibility(statusA);
+            convertView.findViewById(R.id.video_grid_buttons).setVisibility(statusA);
+
+            convertView.findViewById(R.id.library_progress_bar).setVisibility(statusB);
+            convertView.findViewById(R.id.library_progress_text).setVisibility(statusB);
+            convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(statusB);
         }
     }
 
