@@ -163,12 +163,17 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 // Decide which is major video depending on user's latest choice of preview playback
                 RecordingMetadata majorMetadata, minorMetadata;
+                long offsetMillis = 0;
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
                     majorMetadata = localRecordingMetadata;
                     minorMetadata = remoteRecordingMetadata;
+                    offsetMillis =  localRecordingMetadata.getStartTimeMillis() -
+                            remoteRecordingMetadata.getStartTimeMillis();
                 } else {
                     majorMetadata = remoteRecordingMetadata;
                     minorMetadata = localRecordingMetadata;
+                    offsetMillis =  remoteRecordingMetadata.getStartTimeMillis() -
+                            localRecordingMetadata.getStartTimeMillis();
                 }
 
                 outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
@@ -177,7 +182,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
                 MergeConfiguration.MergeConfigurationBuilder config = MergeConfiguration.builder();
-                config.videoStartOffsetMilli((long) majorVideoAheadOfMinorVideoByMillis);
+                config.videoStartOffsetMilli(offsetMillis);
                 videoMerger.mergeVideos(
                         VideoConfiguration.builder()
                                 .file(new File(majorMetadata.getAbsoluteFilePath()))

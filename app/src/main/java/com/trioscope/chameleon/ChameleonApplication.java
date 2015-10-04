@@ -381,7 +381,7 @@ public class ChameleonApplication extends Application {
                     "BIOSCOPE_" + timeStamp + ".jpg");
         } else if (type == MEDIA_TYPE_VIDEO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "BIOSCOPE" + timeStamp + ".mp4");
+                    "BIOSCOPE_" + timeStamp + ".mp4");
         } else if (type == MEDIA_TYPE_AUDIO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                     "BIOSCOPE_" + timeStamp + ".3gp");
