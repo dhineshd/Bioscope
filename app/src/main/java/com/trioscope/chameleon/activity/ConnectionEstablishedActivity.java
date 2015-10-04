@@ -3,15 +3,12 @@ package com.trioscope.chameleon.activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
-import android.net.ConnectivityManager;
-import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -338,20 +335,11 @@ public class ConnectionEstablishedActivity
         if (isFinishing()) {
             cleanup();
         }
-
-        // Unregister wifi receiver
-        chameleonApplication.unregisterReceiverSafely(wifiBroadcastReceiver);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Register to listen for wifi events
-        IntentFilter wifiFilter = new IntentFilter();
-        wifiFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        wifiFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-        registerReceiver(wifiBroadcastReceiver, wifiFilter);
     }
 
     private void cleanup() {
@@ -658,6 +646,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
+            finish();
         }
 
     }
@@ -749,10 +738,15 @@ public class ConnectionEstablishedActivity
 
             Toast.makeText(getApplicationContext(), "Session completed!", Toast.LENGTH_LONG).show();
 
+            // Delete video since we have already sent it
+            File videoFile = new File(recordingMetadata.getAbsoluteFilePath());
+            videoFile.delete();
+
             //Re-use MainActivity instance if already present. If not, create new instance.
             Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
             openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             startActivity(openMainActivity);
+            finish();
         }
     }
 

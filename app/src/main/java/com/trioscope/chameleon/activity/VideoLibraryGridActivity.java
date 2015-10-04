@@ -185,6 +185,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 String videoDuration, creationDate;
 
                 MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                log.info("Video file path = {}", videoFile.getAbsolutePath());
                 mmr.setDataSource(videoFile.getAbsolutePath());
                 videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
                 creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);

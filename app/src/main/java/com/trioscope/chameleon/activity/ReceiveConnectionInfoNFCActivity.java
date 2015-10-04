@@ -331,7 +331,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
                     mGson.toJson(peerInfo));
             startActivity(connectionEstablishedIntent);
-
+            finish();
         } catch (UnknownHostException e) {
             log.error("Failed to resolve peer IP", e);
         }

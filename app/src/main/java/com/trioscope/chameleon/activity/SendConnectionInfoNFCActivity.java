@@ -229,6 +229,7 @@ public class SendConnectionInfoNFCActivity
 
         isAppCleanupRequired = false;
         startActivity(intent);
+        finish();
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {

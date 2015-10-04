@@ -3,7 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.content.Intent;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
-import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,7 +23,6 @@ import android.widget.TextView;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.fragment.FfmpegTaskFragment;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
@@ -42,7 +40,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
         implements ProgressUpdatable {
-    private static final String TASK_FRAGMENT_TAG = "ASYNC_TASK_FRAGMENT_TAG";
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
     private int majorVideoAheadOfMinorVideoByMillis;
@@ -52,21 +49,17 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private MediaPlayer minorVideoMediaPlayer;
     private boolean majorVideoSurfaceReady;
     private boolean minorVideoSurfaceReady;
-    private FfmpegTaskFragment taskFragment;
     private File outputFile;
     private TextView touchReplayTextView;
     private Button buttonMerge;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_preview_merge);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
         buttonMerge = (Button) findViewById(R.id.button_merge);
 
@@ -177,8 +170,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     majorMetadata = remoteRecordingMetadata;
                     minorMetadata = localRecordingMetadata;
                 }
-                String serializedMajorVideoMetadata = gson.toJson(majorMetadata);
-                String serializedMinorVideoMetadata = gson.toJson(minorMetadata);
 
                 outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
                         ChameleonApplication.MEDIA_TYPE_VIDEO);
@@ -213,6 +204,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 Intent moveToLibrary = new Intent(PreviewMergeActivity.this, VideoLibraryGridActivity.class);
                 startActivity(moveToLibrary);
+                finish();
             }
         });
 
@@ -328,10 +320,26 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     }
 
     @Override
-    protected void onUserLeaveHint() {
-        super.onUserLeaveHint();
-        log.info("User is leaving!");
-        cleanup();
+    public void onBackPressed() {
+        super.onBackPressed();
+        log.info("User pressed back!");
+        videoCleanup();
+        finish();
+    }
+
+    private void videoCleanup() {
+        log.info("Performing cleanup of single videos since we are not merging them");
+
+        try {
+            if (localRecordingMetadata != null) {
+                new File(localRecordingMetadata.getAbsoluteFilePath()).delete();
+            }
+            if (remoteRecordingMetadata != null) {
+                new File(remoteRecordingMetadata.getAbsoluteFilePath()).delete();
+            }
+        } catch (Exception e) {
+            // Ignore failures
+        }
     }
 
     private void cleanup() {

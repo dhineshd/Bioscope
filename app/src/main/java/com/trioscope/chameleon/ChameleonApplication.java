@@ -300,10 +300,6 @@ public class ChameleonApplication extends Application {
             connectionServer = null;
         }
 
-        // Reset session flags
-        //sessionStatus = SessionStatus.DISCONNECTED;
-        //streamListener.setStreamingStarted(false);
-
         // Tear down Wifi hotspot
         tearDownWifiHotspot();
 
