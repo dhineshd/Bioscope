@@ -13,28 +13,18 @@ android {
         applicationId "com.trioscope.chameleon"
         minSdkVersion 21
         targetSdkVersion 21
-        versionCode 2
-        versionName "2.0"
+        versionCode 3
+        versionName "3.0"
     }
     sourceSets.main {
         jni.srcDirs = []
         jniLibs.srcDir 'src/main/libs'
     }
 
-    signingConfigs {
-        release {
-            storeFile file("../keystore/privatekey.jks") //check that the file exists
-            storePassword "rohitdhineshphil"
-            keyAlias "chameleon key store"
-            keyPassword "rohitdhineshphil"
-        }
-    }
-
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
         }
         debug {
             debuggable true
