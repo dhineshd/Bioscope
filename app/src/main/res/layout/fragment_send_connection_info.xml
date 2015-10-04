@@ -9,7 +9,7 @@
     android:paddingRight="0px"
     android:paddingTop="0px"
     android:paddingBottom="0px"
-    android:background="#92d2c2"
+    android:background="@drawable/nfc_tutorial"
     tools:context="com.trioscope.chameleon.fragment.SendConnectionInfoFragment">
 
     <RelativeLayout

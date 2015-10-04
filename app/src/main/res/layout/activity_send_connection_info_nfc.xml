@@ -12,6 +12,12 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.activity.SendConnectionInfoNFCActivity">
 
+    <VideoView
+        android:id="@+id/nfc_tut_video_view"
+        android:layout_width="480dp"
+        android:layout_height="270dp"
+        android:layout_gravity="center" />
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -61,6 +67,9 @@
         android:layout_width="150dp"
         android:layout_height="150dp"
         android:layout_gravity="center" />
+
+
+
 
 </FrameLayout>
 

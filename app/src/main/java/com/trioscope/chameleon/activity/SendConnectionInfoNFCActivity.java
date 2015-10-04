@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.media.MediaPlayer;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -24,6 +25,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.VideoView;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
@@ -66,6 +68,7 @@ public class SendConnectionInfoNFCActivity
     private Set<Intent> processedIntents = new HashSet<Intent>();
     private Gson gson = new Gson();
     private boolean isUserNavigatingInsideApp;
+    private VideoView nfcTutVideoView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +101,21 @@ public class SendConnectionInfoNFCActivity
         mNfcAdapter.setNdefPushMessageCallback(this, this);
 
         chameleonApplication.getServerEventListenerManager().addListener(this);
+
+        nfcTutVideoView = (VideoView) findViewById(R.id.nfc_tut_video_view);
+        nfcTutVideoView.setVideoPath("android.resource://" + getPackageName() + "/" + R.raw.nfc_tutorial);
+
+        nfcTutVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                                  @Override
+                                                  public void onPrepared(MediaPlayer mp) {
+                                                      mp.setLooping(true);
+                                                      mp.setVolume(0, 0);
+                                                  }
+                                              }
+        );
+
+        nfcTutVideoView.start();
+
     }
 
     @Override
@@ -124,10 +142,10 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
-        if (wiFiNetworkConnectionInfo != null){
+        if (wiFiNetworkConnectionInfo != null) {
             String text = mGson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
             NdefMessage msg = new NdefMessage(
-                    new NdefRecord[] { createMime(
+                    new NdefRecord[]{createMime(
                             getString(R.string.mime_type_nfc_connect_wifi), text.getBytes())
                             /**
                              * The Android Application Record (AAR) is commented out. When a device
@@ -143,7 +161,7 @@ public class SendConnectionInfoNFCActivity
         }
         // TODO: User friendly message?
         log.warn("Wifi connection info not available to send via NFC");
-        return  null;
+        return null;
     }
 
     @Override
@@ -212,7 +230,7 @@ public class SendConnectionInfoNFCActivity
         startActivity(intent);
     }
 
-    class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void>{
+    class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... voids) {
@@ -225,7 +243,7 @@ public class SendConnectionInfoNFCActivity
         }
     }
 
-    private void enableWifiAndCreateHotspot(){
+    private void enableWifiAndCreateHotspot() {
 
         //TODO: Check if p2p is supported on device. What to do? Is there a way in AndroidManifest to check this?
 
@@ -301,7 +319,7 @@ public class SendConnectionInfoNFCActivity
             final long initialDelayMs) {
 
         // Start task after initial delay
-        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
 
             @Override
             protected Void doInBackground(Void... params) {
@@ -363,7 +381,7 @@ public class SendConnectionInfoNFCActivity
             final WifiP2pManager.Channel wifiP2pChannel,
             final long initialDelayMs) {
 
-        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
 
             @Override
             protected Void doInBackground(Void... params) {
@@ -426,21 +444,21 @@ public class SendConnectionInfoNFCActivity
 
     private String getUserName() {
         return PreferenceManager.getDefaultSharedPreferences(getApplicationContext())
-                    .getString(getString(R.string.pref_user_name_key), "");
+                .getString(getString(R.string.pref_user_name_key), "");
     }
 
-    private InetAddress getIpAddressForInterface(final String networkInterfaceName){
+    private InetAddress getIpAddressForInterface(final String networkInterfaceName) {
         log.info("Retrieving IP address for interface = {}", networkInterfaceName);
         try {
             for (Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-                 networkInterfaces.hasMoreElements();){
+                 networkInterfaces.hasMoreElements(); ) {
                 NetworkInterface networkInterface = networkInterfaces.nextElement();
-                if (networkInterface.getName().equalsIgnoreCase(networkInterfaceName)){
+                if (networkInterface.getName().equalsIgnoreCase(networkInterfaceName)) {
                     for (Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
-                         inetAddresses.hasMoreElements();){
+                         inetAddresses.hasMoreElements(); ) {
                         InetAddress inetAddress = inetAddresses.nextElement();
                         if (!inetAddress.isLoopbackAddress() &&
-                                InetAddressUtils.isIPv4Address(inetAddress.getHostAddress())){
+                                InetAddressUtils.isIPv4Address(inetAddress.getHostAddress())) {
                             return inetAddress;
                         }
                     }
