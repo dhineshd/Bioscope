@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -17,7 +16,6 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
@@ -28,7 +26,6 @@ import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.merge.MergeConfiguration;
-import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 import com.trioscope.chameleon.util.merge.VideoConfiguration;
 import com.trioscope.chameleon.util.merge.VideoMerger;
 
@@ -38,8 +35,7 @@ import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
-        implements ProgressUpdatable {
+public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
     private int majorVideoAheadOfMinorVideoByMillis;
@@ -77,10 +73,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer = new MediaPlayer();
         minorVideoMediaPlayer = new MediaPlayer();
 
-        majorVideoPath = localRecordingMetadata.getAbsoluteFilePath();
-
-        minorVideoPath = remoteRecordingMetadata.getAbsoluteFilePath();
-
         majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
 
         majorVideoTextureView.getViewTreeObserver().addOnGlobalLayoutListener(
@@ -104,7 +96,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 majorVideoMediaPlayer.setSurface(new Surface(surface));
                 majorVideoSurfaceReady = true;
                 if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
-                    startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                    startVideos(
+                            localRecordingMetadata.getAbsoluteFilePath(),
+                            remoteRecordingMetadata.getAbsoluteFilePath(),
+                            majorVideoAheadOfMinorVideoByMillis);
                 }
             }
 
@@ -134,8 +129,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 minorVideoSurfaceReady = true;
 
                 if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
-                    startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
-                }
+                    startVideos(
+                            localRecordingMetadata.getAbsoluteFilePath(),
+                            remoteRecordingMetadata.getAbsoluteFilePath(),
+                            majorVideoAheadOfMinorVideoByMillis);                }
             }
 
             @Override
@@ -219,7 +216,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             public void onClick(View view) {
                 // swapping the video paths
                 majorVideoAheadOfMinorVideoByMillis = -majorVideoAheadOfMinorVideoByMillis;
-                //startVideoViews(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
                 startVideos(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
             }
         });
@@ -239,10 +235,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             final int majorVideoAheadOfMinorVideoByMillis) {
 
         // TODO : Use majorVideoAheadOfMinorVideoByMillis to ensure playback of both videos is in sync
-
-        // Local video will be shown on outer player and remote video on inner player
-
-        // TextureView
 
         majorVideoMediaPlayer.reset();
         minorVideoMediaPlayer.reset();
@@ -272,7 +264,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             log.error("Failed to start minor media player", e);
         }
 
-        // Replay both videos continuously on a loop
         majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
@@ -394,40 +385,5 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         }
 
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onProgress(double progress, double outOf) {
-        int progressPerc = getPercent(progress, outOf);
-        ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
-        if (View.VISIBLE != bar.getVisibility()) {
-            bar.setVisibility(View.VISIBLE);
-        }
-        bar.setProgress(progressPerc);
-
-        log.info("Now {}% done", progressPerc);
-    }
-
-    private static int getPercent(double progress, double outOf) {
-        return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
-    }
-
-    @Override
-    public void onCompleted() {
-        ProgressBar bar = (ProgressBar) findViewById(R.id.ffmpeg_progress_bar);
-        bar.setVisibility(View.GONE);
-        log.info("FFMPEG Completed! Going to video library now!");
-
-        //Send a broadcast about the newly added video file for Gallery Apps to recognize the video
-        Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        addVideoIntent.setData(Uri.fromFile(outputFile));
-        sendBroadcast(addVideoIntent);
-
-        openVideoLibrary();
-    }
-
-    private void openVideoLibrary() {
-        Intent openLibraryActivity = new Intent(getApplicationContext(), VideoLibraryGridActivity.class);
-        startActivity(openLibraryActivity);
     }
 }

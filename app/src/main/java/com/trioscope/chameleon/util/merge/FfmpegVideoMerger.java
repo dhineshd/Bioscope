@@ -101,8 +101,8 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     @Override
     public void mergeVideos(
-            final VideoConfiguration videoConfig1,
-            final VideoConfiguration videoConfig2,
+            final VideoConfiguration majorVideoConfig,
+            final VideoConfiguration minorVideoConfig,
             File outputFile,
             final MergeConfiguration configuration) {
 
@@ -116,16 +116,16 @@ public class FfmpegVideoMerger implements VideoMerger {
 
         VideoMergeTaskParams params = new VideoMergeTaskParams();
         params.setConfiguration(configuration);
-        params.setFirstVideoConfig(videoConfig1);
-        params.setSecondVideoConfig(videoConfig2);
+        params.setMajorVideoConfig(majorVideoConfig);
+        params.setMinorVideoConfig(minorVideoConfig);
         params.setOutputFile(outputFile);
 
         BioscopeDBHelper db = new BioscopeDBHelper(context);
         db.insertVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED, "true");
         db.close();
 
-        tempFiles.add(videoConfig1.getFile());
-        tempFiles.add(videoConfig2.getFile());
+        tempFiles.add(majorVideoConfig.getFile());
+        tempFiles.add(minorVideoConfig.getFile());
         Runnable task = new VideoMergeRunnable(params);
 
         currentRunningTask = executorService.submit(task);
@@ -248,8 +248,8 @@ public class FfmpegVideoMerger implements VideoMerger {
 
         public VideoMergeRunnable(VideoMergeTaskParams params) {
             start = System.currentTimeMillis();
-            minorVideoConfig = params.getFirstVideoConfig();
-            majorVideoConfig = params.getSecondVideoConfig();
+            majorVideoConfig = params.getMajorVideoConfig();
+            minorVideoConfig = params.getMinorVideoConfig();
             mergeConfiguration = params.getConfiguration();
             outputFile = params.getOutputFile();
         }
@@ -414,8 +414,8 @@ public class FfmpegVideoMerger implements VideoMerger {
         @Override
         protected Boolean doInBackground(VideoMergeTaskParams... params) {
             start = System.currentTimeMillis();
-            majorVideo = params[0].getFirstVideoConfig().getFile();
-            minorVideo = params[0].getSecondVideoConfig().getFile();
+            majorVideo = params[0].getMajorVideoConfig().getFile();
+            minorVideo = params[0].getMinorVideoConfig().getFile();
 
             File outputFile = params[0].getOutputFile();
 
@@ -436,9 +436,9 @@ public class FfmpegVideoMerger implements VideoMerger {
                 }
                 List<String> cmdParams = constructPIPArguments(
                         majorVideo.getAbsolutePath(),
-                        params[0].getFirstVideoConfig().isHorizontallyFlipped(),
+                        params[0].getMajorVideoConfig().isHorizontallyFlipped(),
                         minorVideo.getAbsolutePath(),
-                        params[0].getSecondVideoConfig().isHorizontallyFlipped(),
+                        params[0].getMinorVideoConfig().isHorizontallyFlipped(),
                         outputFile.getAbsolutePath(),
                         params[0].getConfiguration());
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
@@ -541,7 +541,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     @Data
     private class VideoMergeTaskParams {
-        VideoConfiguration firstVideoConfig, secondVideoConfig;
+        VideoConfiguration majorVideoConfig, minorVideoConfig;
         File outputFile;
         MergeConfiguration configuration;
     }
