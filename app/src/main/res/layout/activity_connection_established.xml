@@ -66,6 +66,7 @@
             android:id="@+id/textview_file_transfer_status"/>
 
         <RelativeLayout
+            android:id="@+id/relativeLayout_session_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center">
@@ -75,6 +76,7 @@
                 android:src="@drawable/start_recording_button_enabled"
                 android:layout_width="80dp"
                 android:layout_height="80dp"
+                android:layout_centerHorizontal="true"
                 android:scaleType="fitCenter"
                 android:layout_below="@+id/textview_recording_timer"
                 android:background="@null"
@@ -98,6 +100,18 @@
                 android:shadowDx="2"
                 android:shadowDy="2"
                 android:shadowRadius="2" />
+
+            <com.trioscope.chameleon.views.TextButton
+                style="@style/textButtonPrimary"
+                android:id="@+id/button_disconnect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:layout_margin="40dp"
+                android:background="@null"
+                android:text="Disconnect"
+                android:textSize="20sp"
+                android:textColor="@android:color/white"/>
 
         </RelativeLayout>
 

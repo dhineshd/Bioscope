@@ -108,7 +108,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                 consecutiveFailureCount = 0;
             } catch (Exception e) {
                 consecutiveFailureCount++;
-                log.error("Failed to send data to client", e);
+                log.warn("Failed to send data to client", e);
             }
         }
     }
