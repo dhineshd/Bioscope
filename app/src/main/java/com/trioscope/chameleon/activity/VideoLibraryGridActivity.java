@@ -145,88 +145,93 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         @Override
         @Timed
         public View getView(int position, View convertView, ViewGroup parent) {
-            // Get the data item for this position
-            final File videoFile = getItem(position);
-            log.info("Getting view for videoFile {}", videoFile);
+            try {
+                // Get the data item for this position
+                final File videoFile = getItem(position);
+                log.info("Getting view for videoFile {}", videoFile);
 
-            // Check if an existing view is being reused, otherwise inflate the view
-            if (convertView == null) {
-                convertView = LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
-            }
-
-            Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
-
-            //TODO: we might want to do this only for files that exist and use some other method for currently merging videos. 
-            Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
-            if (bitmap != null) {
-                ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
-                backgroundImage.setImageBitmap(bitmap);
-            } else {
-                log.warn("Unable to create thumbnail from video file {}", videoFile);
-            }
-
-            BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
-            List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
-
-            // Check if this video is being merged
-            VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
-            if (isBeingMergedValues.size() > 0) {
-                log.info("{} is currently being merged, we'll show progress", videoFile);
-                videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
-
-                setProgressVisible(convertView, true);
-                ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
-                TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
-                progressBar.setProgress(percentageMerged);
-                progressText.setText(percentageMerged + "%");
-            } else {
-                setProgressVisible(convertView, false);
-
-                String videoDuration, creationDate;
-
-                MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-                log.info("Video file path = {}", videoFile.getAbsolutePath());
-                mmr.setDataSource(videoFile.getAbsolutePath());
-                videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-                creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
-                log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
-
-                String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
-                TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
-                videoAgoTextView.setText(timeAgo);
-                videoAgoTextView.setTypeface(appFontTypeface);
-
-
-                //Load the other videographers from db
-                List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
-                String videoWith = "Unknown";
-                if (!videographers.isEmpty()) {
-                    videoWith = StringUtils.join(videographers, ", ");
-                } else {
-                    log.warn("Unable to retrieve any videographers for {}", videoFile.getName());
+                // Check if an existing view is being reused, otherwise inflate the view
+                if (convertView == null) {
+                    convertView = LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
                 }
-                TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
-                videoWithTextView.setText("with " + videoWith);
-                videoWithTextView.setTypeface(appFontTypeface);
 
-                TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
-                videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
-                videoDurationTextView.setTypeface(appFontTypeface);
+                Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
-                ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
-                shareButton.setFocusable(false);
-                shareButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        Intent shareIntent = new Intent();
-                        shareIntent.setAction(Intent.ACTION_SEND);
-                        shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
-                        shareIntent.setType("video/mpeg");
-                        startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
+                //TODO: we might want to do this only for files that exist and use some other method for currently merging videos.
+                Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+                if (bitmap != null) {
+                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
+                    backgroundImage.setImageBitmap(bitmap);
+                } else {
+                    log.warn("Unable to create thumbnail from video file {}", videoFile);
+                }
+
+                BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+                List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
+
+                // Check if this video is being merged
+                VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
+                if (isBeingMergedValues.size() > 0) {
+                    log.info("{} is currently being merged, we'll show progress", videoFile);
+                    videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
+
+                    setProgressVisible(convertView, true);
+                    ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
+                    TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
+                    progressBar.setProgress(percentageMerged);
+                    progressText.setText(percentageMerged + "%");
+                } else {
+                    setProgressVisible(convertView, false);
+
+                    String videoDuration, creationDate;
+
+                    MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                    log.info("Video file path = {}", videoFile.getAbsolutePath());
+                    mmr.setDataSource(videoFile.getAbsolutePath());
+                    videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                    creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
+                    log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
+
+                    String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
+                    TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
+                    videoAgoTextView.setText(timeAgo);
+                    videoAgoTextView.setTypeface(appFontTypeface);
+
+
+                    //Load the other videographers from db
+                    List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
+                    String videoWith = "Unknown";
+                    if (!videographers.isEmpty()) {
+                        videoWith = StringUtils.join(videographers, ", ");
+                    } else {
+                        log.warn("Unable to retrieve any videographers for {}", videoFile.getName());
                     }
-                });
+                    TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
+                    videoWithTextView.setText("with " + videoWith);
+                    videoWithTextView.setTypeface(appFontTypeface);
+
+                    TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
+                    videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
+                    videoDurationTextView.setTypeface(appFontTypeface);
+
+                    ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
+                    shareButton.setFocusable(false);
+                    shareButton.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            Intent shareIntent = new Intent();
+                            shareIntent.setAction(Intent.ACTION_SEND);
+                            shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
+                            shareIntent.setType("video/mpeg");
+                            startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
+                        }
+                    });
+                }
+                helper.close();
+
+            } catch (Exception e) {
+                log.warn("Failed to load view for position = {}", position);
             }
-            helper.close();
 
             return convertView;
         }

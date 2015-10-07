@@ -99,6 +99,7 @@ public class ConnectionEstablishedActivity
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
     private volatile Long latestPeerHeartbeatMessageTimeMs;
+    private boolean isUserLeaving;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,13 +169,13 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        final ImageButton recordSessionButton = (ImageButton) findViewById(R.id.button_record_session);
-        recordSessionButton.setOnClickListener(new View.OnClickListener() {
+        final ImageButton recordButton = (ImageButton) findViewById(R.id.button_record_session);
+        recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
                 if (isRecording) {
-                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
+                    recordButton.setImageResource(R.drawable.start_recording_button_enabled);
 
                     // Director should send message to crew to stop recording
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
@@ -190,12 +191,11 @@ public class ConnectionEstablishedActivity
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
-                    recordSessionButton.setEnabled(false);
                     sessionActionsLayout.setVisibility(View.INVISIBLE);
                     endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
-                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
+                    recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Director should send message to crew to start recording
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
@@ -215,8 +215,8 @@ public class ConnectionEstablishedActivity
 
         if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
             // I am the director. So, should be able to start/stop recording.
-            recordSessionButton.setEnabled(true);
-            recordSessionButton.setVisibility(View.VISIBLE);
+            recordButton.setEnabled(true);
+            recordButton.setVisibility(View.VISIBLE);
         } else {
             chameleonApplication.tearDownWifiHotspot();
         }
@@ -233,10 +233,8 @@ public class ConnectionEstablishedActivity
             @Override
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
-                sessionActionsLayout.setVisibility(View.VISIBLE);
 
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
-
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         });
@@ -247,7 +245,16 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
                 sessionActionsLayout.setVisibility(View.VISIBLE);
-                recordSessionButton.setEnabled(true);
+            }
+        });
+
+        Button disconnectButton = (Button) findViewById(R.id.button_disconnect);
+        disconnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PeerMessage msg = PeerMessage.builder().type(PeerMessage.Type.TERMINATE_SESSION).build();
+                new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                terminateSession("Terminating session..");
             }
         });
 
@@ -259,16 +266,6 @@ public class ConnectionEstablishedActivity
                 heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }, 5000);
-
-        Button disconnectButton = (Button) findViewById(R.id.button_disconnect);
-        disconnectButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                PeerMessage msg = PeerMessage.builder().type(PeerMessage.Type.TERMINATE_SESSION).build();
-                new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                terminateSession("Terminating session..");
-            }
-        });
     }
 
     private void startRecording() {
@@ -353,6 +350,13 @@ public class ConnectionEstablishedActivity
         if (isFinishing()) {
             cleanup();
         }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving! Finishing activity");
+        finish();
     }
 
     @Override
@@ -688,7 +692,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
-            finish();
+            //finish();
         }
 
     }
@@ -795,7 +799,7 @@ public class ConnectionEstablishedActivity
         Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
-        finish();
+        //finish();
     }
 
     private void showProgressBar(final String progressBarText) {

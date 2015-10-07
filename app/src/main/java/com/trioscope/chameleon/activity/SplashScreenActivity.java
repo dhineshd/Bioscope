@@ -3,8 +3,10 @@ package com.trioscope.chameleon.activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.app.ActivityOptionsCompat;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.trioscope.chameleon.R;
@@ -42,8 +44,16 @@ public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageA
             public void run() {
                 /* Create an Intent that will start the Menu-Activity. */
                 Intent mainIntent = new Intent(SplashScreenActivity.this, UserLoginActivity.class);
-                SplashScreenActivity.this.startActivity(mainIntent);
-                SplashScreenActivity.this.finish();
+                // create the transition animation - the images in the layouts
+                // of both activities are defined with android:transitionName="logo"
+
+                // get the common element for the transition in this activity
+                final ImageView logoImageView = (ImageView) findViewById(R.id.splash_logo);
+
+                ActivityOptionsCompat options = ActivityOptionsCompat
+                        .makeSceneTransitionAnimation(SplashScreenActivity.this, logoImageView, "logo");
+                startActivity(mainIntent, options.toBundle());
+                finish();
             }
         }, waitTimeMillis);
     }

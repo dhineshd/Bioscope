@@ -50,6 +50,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private Button buttonMerge;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
+    private boolean isMergeRequested;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -164,13 +165,13 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
                     majorMetadata = localRecordingMetadata;
                     minorMetadata = remoteRecordingMetadata;
-                    offsetMillis =  localRecordingMetadata.getStartTimeMillis() -
-                            remoteRecordingMetadata.getStartTimeMillis();
+                    offsetMillis =  remoteRecordingMetadata.getStartTimeMillis() -
+                            localRecordingMetadata.getStartTimeMillis();
                 } else {
                     majorMetadata = remoteRecordingMetadata;
                     minorMetadata = localRecordingMetadata;
-                    offsetMillis =  remoteRecordingMetadata.getStartTimeMillis() -
-                            localRecordingMetadata.getStartTimeMillis();
+                    offsetMillis =  localRecordingMetadata.getStartTimeMillis() -
+                            remoteRecordingMetadata.getStartTimeMillis();
                 }
 
                 outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
@@ -206,7 +207,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 Intent moveToLibrary = new Intent(PreviewMergeActivity.this, VideoLibraryGridActivity.class);
                 startActivity(moveToLibrary);
-                finish();
+
+                isMergeRequested = true;
             }
         });
 
@@ -316,26 +318,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     }
 
     @Override
-    public void onBackPressed() {
-        super.onBackPressed();
-        log.info("User pressed back!");
-        videoCleanup();
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving. Finishing activity..");
         finish();
-    }
-
-    private void videoCleanup() {
-        log.info("Performing cleanup of single videos since we are not merging them");
-
-        try {
-            if (localRecordingMetadata != null) {
-                new File(localRecordingMetadata.getAbsoluteFilePath()).delete();
-            }
-            if (remoteRecordingMetadata != null) {
-                new File(remoteRecordingMetadata.getAbsoluteFilePath()).delete();
-            }
-        } catch (Exception e) {
-            // Ignore failures
-        }
     }
 
     private void cleanup() {
@@ -361,6 +347,23 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         if (minorVideoTextureView != null &&
                 minorVideoTextureView.getSurfaceTexture() != null) {
             minorVideoTextureView.getSurfaceTexture().release();
+        }
+
+        // Cleanup videos if we are not merging them
+        if (!isMergeRequested) {
+
+            log.info("Performing cleanup of single videos since we are not merging them");
+
+            try {
+                if (localRecordingMetadata != null) {
+                    new File(localRecordingMetadata.getAbsoluteFilePath()).delete();
+                }
+                if (remoteRecordingMetadata != null) {
+                    new File(remoteRecordingMetadata.getAbsoluteFilePath()).delete();
+                }
+            } catch (Exception e) {
+                // Ignore failures
+            }
         }
     }
 
