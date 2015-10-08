@@ -180,6 +180,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                     TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
                     progressBar.setProgress(percentageMerged);
                     progressText.setText(percentageMerged + "%");
+
                 } else {
                     setProgressVisible(convertView, false);
 
@@ -253,18 +254,29 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
     @Timed
     private Bitmap getThumbnail(File videoFile) {
-        try {
-            log.info("Getting thumbnail for videoFile {}", videoFile);
-            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-            retriever.setDataSource(videoFile.getAbsolutePath());
-            int timeInSeconds = 30;
-            Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+        log.info("Getting thumbnail for videoFile {}", videoFile);
+        BioscopeDBHelper helper = new BioscopeDBHelper(this);
+        Bitmap bm = helper.getThumbnail(videoFile.getName());
+        helper.close();
+        if (bm != null) {
+            log.info("Found thumbnail in DB, using that");
 
-            return bitmap;
-        } catch (Exception ex) {
-            log.error("Exception getting thumbnail for file {}", videoFile, ex);
+            return bm;
+        } else {
+            log.info("Creating bitmap on the fly");
+
+            try {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                retriever.setDataSource(videoFile.getAbsolutePath());
+                int timeInSeconds = 30;
+                Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+
+                return bitmap;
+            } catch (Exception ex) {
+                log.error("Exception getting thumbnail for file {}", videoFile, ex);
+            }
+            return null;
         }
-        return null;
     }
 
     private String milliToMinutes(Double aDouble) {

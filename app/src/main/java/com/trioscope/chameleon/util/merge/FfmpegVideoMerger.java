@@ -4,9 +4,13 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.media.ThumbnailUtils;
 import android.net.Uri;
+import android.provider.MediaStore;
 
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.NotificationIds;
@@ -121,6 +125,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
         BioscopeDBHelper db = new BioscopeDBHelper(context);
         db.insertVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED, "true");
+        addThumbnailToDb(majorVideoConfig.getFile(), outputFile, db);
         db.close();
 
         tempFiles.add(majorVideoConfig.getFile());
@@ -137,6 +142,27 @@ public class FfmpegVideoMerger implements VideoMerger {
                 .setOngoing(true)
                 .setProgress(100, 0, false);
         notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
+    }
+
+    @Timed
+    private void addThumbnailToDb(File majorVideo, File outputFile, BioscopeDBHelper db) {
+        Bitmap bm = getThumbnail(majorVideo);
+        if (bm != null) {
+            db.insertThumbnail(outputFile.getName(), bm);
+            log.info("Successfully inserted video thumbnail for {}", outputFile);
+        } else {
+            log.warn("Unable to create video thumbnail for {}", majorVideo);
+        }
+    }
+
+    @Timed
+    private Bitmap getThumbnail(File videoFile) {
+        try {
+            return ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+        } catch (Exception ex) {
+            log.error("Exception getting thumbnail for file {}", videoFile, ex);
+        }
+        return null;
     }
 
     public Collection<File> getTemporaryFiles() {
@@ -308,6 +334,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     outputFile.delete();
                     log.info("Existing file at {} is deleted", outputFile);
                 }
+
                 List<String> cmdParams = constructPIPArguments(
                         majorVideo.getAbsolutePath(),
                         majorVideoConfig.isHorizontallyFlipped(),
