@@ -9,6 +9,7 @@ import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -73,6 +74,7 @@ public class ConnectionEstablishedActivity
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     public static final String PEER_INFO = "PEER_INFO";
+    boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
@@ -99,7 +101,6 @@ public class ConnectionEstablishedActivity
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
     private volatile Long latestPeerHeartbeatMessageTimeMs;
-    private boolean isUserLeaving;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,7 +137,6 @@ public class ConnectionEstablishedActivity
             }
         });
 
-
         chameleonApplication.startConnectionServerIfNotRunning();
 
         // Start listening for server events
@@ -150,6 +150,7 @@ public class ConnectionEstablishedActivity
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
         // Start streaming preview from peer
+
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
@@ -266,6 +267,7 @@ public class ConnectionEstablishedActivity
                 heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }, 5000);
+
     }
 
     private void startRecording() {
@@ -353,10 +355,30 @@ public class ConnectionEstablishedActivity
     }
 
     @Override
+    public void onBackPressed() {
+        if (doubleBackToExitPressedOnce) {
+            super.onBackPressed();
+            return;
+        }
+
+        this.doubleBackToExitPressedOnce = true;
+        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
+
+        new Handler().postDelayed(new Runnable() {
+
+            @Override
+            public void run() {
+                doubleBackToExitPressedOnce=false;
+            }
+        }, 2000);
+    }
+
+    @Override
     protected void onUserLeaveHint() {
-        super.onUserLeaveHint();
-        log.info("User is leaving! Finishing activity");
-        finish();
+
+            super.onUserLeaveHint();
+            log.info("User is leaving! Finishing activity");
+            finish();
     }
 
     @Override
