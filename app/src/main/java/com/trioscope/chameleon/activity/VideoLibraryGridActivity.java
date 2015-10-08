@@ -5,12 +5,10 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
-import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
 import android.support.v4.view.GestureDetectorCompat;
 import android.text.format.DateUtils;
 import android.view.GestureDetector;
@@ -157,7 +155,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
             //TODO: we might want to do this only for files that exist and use some other method for currently merging videos. 
-            Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+            //Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+            Bitmap bitmap = getThumbnail(videoFile);
             if (bitmap != null) {
                 ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
                 backgroundImage.setImageBitmap(bitmap);
@@ -244,6 +243,22 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             convertView.findViewById(R.id.library_progress_text).setVisibility(statusB);
             convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(statusB);
         }
+    }
+
+    @Timed
+    private Bitmap getThumbnail(File videoFile) {
+        try {
+            log.info("Getting thumbnail for videoFile {}", videoFile);
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(videoFile.getAbsolutePath());
+            int timeInSeconds = 30;
+            Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+
+            return bitmap;
+        } catch (Exception ex) {
+            log.error("Exception getting thumbnail for file {}", videoFile, ex);
+        }
+        return null;
     }
 
     private String milliToMinutes(Double aDouble) {

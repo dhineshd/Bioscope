@@ -5,7 +5,6 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.AsyncTask;
 
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
@@ -152,6 +151,7 @@ public class FfmpegVideoMerger implements VideoMerger {
             final String outputPath,
             final MergeConfiguration configuration) {
         List<String> params = new LinkedList<>();
+        params.add("-y"); // Overwrite any output already existing
         params.add("-i");
         params.add(majorVidPath);
         if (configuration.getVideoStartOffsetMilli() != null) {
@@ -167,13 +167,9 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-b:v");
         params.add("5000k");
         params.add("-filter_complex");
-        params.add("[0] " +
-                (shouldHorizontallyFlipMajorVideo ? "hflip," : "") +
-                "scale=1080:1920 [major]; " +
-                "[1] " +
-                (shouldHorizontallyFlipMinorVideo ? "hflip," : "") +
-                "scale=412:732 [minor]; " +
-                "[major][minor] overlay=54:1134,drawbox=54:1134:412:732:white:t=8");
+        params.add("[0] " + (shouldHorizontallyFlipMajorVideo ? "hflip," : "") + "scale=1080:1920 [major]; " +
+                "[1] " + (shouldHorizontallyFlipMinorVideo ? "hflip," : "") + "scale=412:732, drawbox=c=white:t=8, trim=start_frame=2[minor]; " +
+                "[major][minor] overlay=54:1134:eval=init");
         //OpenH264 doesnt support preset
         //params.add("-preset");
         //params.add("ultrafast");
@@ -404,129 +400,6 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     private static int getPercent(double progress, double outOf) {
         return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
-    }
-
-    private class AsyncVideoMergeTask extends AsyncTask<VideoMergeTaskParams, Double, Boolean> {
-        private long start, end;
-        private double maxInputTime = 0;
-        private File majorVideo, minorVideo;
-
-        @Override
-        protected Boolean doInBackground(VideoMergeTaskParams... params) {
-            start = System.currentTimeMillis();
-            majorVideo = params[0].getMajorVideoConfig().getFile();
-            minorVideo = params[0].getMinorVideoConfig().getFile();
-
-            File outputFile = params[0].getOutputFile();
-
-            log.info("Running ffmpeg to merge {} and {} into {}", majorVideo, minorVideo, outputFile);
-            File ffmpeg = depackageUtil.getOutputFile(DEPACKAGED_CMD_NAME);
-            String cmdLocation = ffmpeg.getAbsolutePath();
-
-            if (!majorVideo.exists() || !minorVideo.exists()) {
-                log.info("One of {} or {} do not exist -- cannot merge", majorVideo, minorVideo);
-                return false;
-            }
-
-            try {
-                if (outputFile.exists()) {
-                    log.info("Deleting {} first", outputFile);
-                    outputFile.delete();
-                    log.info("Existing file at {} is deleted", outputFile);
-                }
-                List<String> cmdParams = constructPIPArguments(
-                        majorVideo.getAbsolutePath(),
-                        params[0].getMajorVideoConfig().isHorizontallyFlipped(),
-                        minorVideo.getAbsolutePath(),
-                        params[0].getMinorVideoConfig().isHorizontallyFlipped(),
-                        outputFile.getAbsolutePath(),
-                        params[0].getConfiguration());
-                cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
-                log.info("Ffmpeg parameters are {}", cmdParams);
-                ProcessBuilder builder = new ProcessBuilder(cmdParams);
-                builder.redirectErrorStream(true);
-
-                // Append libopenh264.so to LD_LIBRARY_PATH
-                String ldLibraryPath = depackageUtil.getOutputDirectory().getAbsolutePath();
-                Map<String, String> env = builder.environment();
-                env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
-
-                Process p = builder.start();
-
-                String line;
-                BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
-                while ((line = in.readLine()) != null) {
-                    line = line.trim();
-                    log.debug("Output: {}", line);
-
-                    Matcher m = INPUT_DURATION_PATTERN.matcher(line);
-                    if (m.find()) {
-                        double sec = getSecondsFromTimeFormat(m);
-                        log.debug("Found a duration input of {}s", sec);
-                        maxInputTime = Math.max(sec, maxInputTime);
-                    } else {
-                        m = STATUS_DURATION_PATTERN.matcher(line);
-                        if (m.find()) {
-                            double sec = getSecondsFromTimeFormat(m);
-                            log.debug("Found a status update of {}s", sec);
-                            publishProgress(sec, maxInputTime);
-                        } else {
-                            log.info("Non-status line: {}", line);
-                        }
-                    }
-
-                }
-                in.close();
-
-                log.info("Done running cmd, exitValue={}", p.waitFor());
-            } catch (IOException e) {
-                log.error("Error running ffmpeg", e);
-            } catch (InterruptedException e) {
-                log.error("Error running ffmpeg", e);
-            } catch (Exception e) {
-                log.error("Error running ffmpeg", e);
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            log.info("About to run video merge as an async task");
-        }
-
-        @Override
-        protected void onProgressUpdate(Double... values) {
-            if (values.length == 2 && values[1] > 0 && progressUpdatable != null)
-                progressUpdatable.onProgress(values[0], values[1]);
-        }
-
-        @Override
-        protected void onPostExecute(Boolean aBoolean) {
-            end = System.currentTimeMillis();
-
-            log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
-
-            // Delete input videos since we now have merged video
-            if (majorVideo.exists()) {
-                majorVideo.delete();
-            }
-            if (minorVideo.exists()) {
-                minorVideo.delete();
-            }
-
-            progressUpdatable.onCompleted();
-        }
-
-        @Override
-        protected void onCancelled() {
-            log.info("Task unexpectedly cancelled!");
-        }
-
-        @Override
-        protected void onCancelled(Boolean aBoolean) {
-            super.onCancelled(aBoolean);
-            onCancelled();
-        }
     }
 
     private double getSecondsFromTimeFormat(Matcher m) {
