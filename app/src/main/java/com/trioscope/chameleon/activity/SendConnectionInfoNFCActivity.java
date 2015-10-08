@@ -66,9 +66,8 @@ public class SendConnectionInfoNFCActivity
     private ChameleonApplication chameleonApplication;
     private Set<Intent> processedIntents = new HashSet<Intent>();
     private Gson gson = new Gson();
-    private boolean isUserNavigatingInsideApp;
+    private boolean isWifiHotspotRequiredForNextStep;
     private VideoView nfcTutVideoView;
-    private boolean isAppCleanupRequired = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -188,7 +187,16 @@ public class SendConnectionInfoNFCActivity
     public void onPause() {
         super.onPause();
         log.info("onPause invoked");
-        cleanup();
+        if (isFinishing()) {
+            cleanup();
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving. Finishing activity");
+        finish();
     }
 
     private void cleanup() {
@@ -208,8 +216,8 @@ public class SendConnectionInfoNFCActivity
             wifiP2pGroupInfoListener = null;
         }
 
-        // If we detect user is leaving app, perform additional cleanup
-        if (isAppCleanupRequired) {
+        // Tear down wifi hotspot if not needed anymore
+        if (!isWifiHotspotRequiredForNextStep) {
             chameleonApplication.tearDownWifiHotspot();
             chameleonApplication.stopConnectionServer();
         }
@@ -227,9 +235,8 @@ public class SendConnectionInfoNFCActivity
                 .build();
         intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
 
-        isAppCleanupRequired = false;
+        isWifiHotspotRequiredForNextStep = true;
         startActivity(intent);
-        finish();
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {

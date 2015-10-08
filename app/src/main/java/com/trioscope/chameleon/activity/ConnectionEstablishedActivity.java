@@ -1,7 +1,5 @@
 package com.trioscope.chameleon.activity;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -11,6 +9,7 @@ import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -41,7 +40,6 @@ import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.network.IpUtil;
-import com.trioscope.chameleon.util.network.WifiUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.BufferedInputStream;
@@ -76,10 +74,12 @@ public class ConnectionEstablishedActivity
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     public static final String PEER_INFO = "PEER_INFO";
+    boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private SendVideoToPeerTask sendVideoToPeerTask;
+    private HeartbeatTask heartbeatTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -94,11 +94,13 @@ public class ConnectionEstablishedActivity
     private Handler timerHandler;
     private Runnable timerRunnable;
     private RelativeLayout endSessionLayout;
+    private RelativeLayout sessionActionsLayout;
     private NetworkStreamer previewStreamer;
     private VideoRecorder recorder;
-    private BroadcastReceiver wifiBroadcastReceiver;
     private ImageButton switchCamerasButton;
     private RecordingMetadata localRecordingMetadata;
+    private PeerInfo peerInfo;
+    private volatile Long latestPeerHeartbeatMessageTimeMs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,6 +115,8 @@ public class ConnectionEstablishedActivity
         peerUserNameTextView = (TextView) findViewById(R.id.textview_peer_user_name);
 
         recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
+
+        initializeRecordingTimer();
 
         initializeRecordingTimer();
 
@@ -133,7 +137,6 @@ public class ConnectionEstablishedActivity
             }
         });
 
-
         chameleonApplication.startConnectionServerIfNotRunning();
 
         // Start listening for server events
@@ -142,11 +145,12 @@ public class ConnectionEstablishedActivity
         // Retrieve peer info to start streaming
         Intent intent = getIntent();
         log.info("Intent = {}", intent);
-        final PeerInfo peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
+        peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
         // Start streaming preview from peer
+
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
@@ -166,20 +170,20 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        final ImageButton recordSessionButton = (ImageButton) findViewById(R.id.button_record_session);
-        recordSessionButton.setOnClickListener(new View.OnClickListener() {
+        final ImageButton recordButton = (ImageButton) findViewById(R.id.button_record_session);
+        recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
                 if (isRecording) {
-                    recordSessionButton.setImageResource(R.drawable.start_recording_button_enabled);
+                    recordButton.setImageResource(R.drawable.start_recording_button_enabled);
 
                     // Director should send message to crew to stop recording
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.STOP_RECORDING)
                                 .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
+                        new SendMessageToPeerTask(peerMsg, peerInfo)
                                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                     }
 
@@ -188,18 +192,18 @@ public class ConnectionEstablishedActivity
                     isRecording = false;
 
                     // Give the user the option to retake the video or continue to merge
-                    recordSessionButton.setEnabled(false);
+                    sessionActionsLayout.setVisibility(View.INVISIBLE);
                     endSessionLayout.setVisibility(View.VISIBLE);
 
                 } else {
-                    recordSessionButton.setImageResource(R.drawable.stop_recording_button_enabled);
+                    recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Director should send message to crew to start recording
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.START_RECORDING)
                                 .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo.getIpAddress(), peerInfo.getPort())
+                        new SendMessageToPeerTask(peerMsg, peerInfo)
                                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                     }
 
@@ -212,19 +216,13 @@ public class ConnectionEstablishedActivity
 
         if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
             // I am the director. So, should be able to start/stop recording.
-            recordSessionButton.setEnabled(true);
-            recordSessionButton.setVisibility(View.VISIBLE);
+            recordButton.setEnabled(true);
+            recordButton.setVisibility(View.VISIBLE);
         } else {
             chameleonApplication.tearDownWifiHotspot();
         }
 
-        wifiBroadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                log.info("onReceive : intent = {}, current SSID = {}", intent.getAction(),
-                        WifiUtil.getCurrentSSID(context));
-            }
-        };
+        sessionActionsLayout = (RelativeLayout) findViewById(R.id.relativeLayout_session_actions);
 
         // Buttons for ending/continuing session
         endSessionLayout = (RelativeLayout) findViewById(R.id.relativeLayout_end_session);
@@ -238,7 +236,6 @@ public class ConnectionEstablishedActivity
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
-
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         });
@@ -248,9 +245,29 @@ public class ConnectionEstablishedActivity
             @Override
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
-                recordSessionButton.setEnabled(true);
+                sessionActionsLayout.setVisibility(View.VISIBLE);
             }
         });
+
+        Button disconnectButton = (Button) findViewById(R.id.button_disconnect);
+        disconnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PeerMessage msg = PeerMessage.builder().type(PeerMessage.Type.TERMINATE_SESSION).build();
+                new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                terminateSession("Terminating session..");
+            }
+        });
+
+        // Start sending heartbeat and checking for peer heartbeat (after initial delay)
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                heartbeatTask = new HeartbeatTask(peerInfo);
+                heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        }, 5000);
+
     }
 
     private void startRecording() {
@@ -338,6 +355,33 @@ public class ConnectionEstablishedActivity
     }
 
     @Override
+    public void onBackPressed() {
+        if (doubleBackToExitPressedOnce) {
+            super.onBackPressed();
+            return;
+        }
+
+        this.doubleBackToExitPressedOnce = true;
+        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
+
+        new Handler().postDelayed(new Runnable() {
+
+            @Override
+            public void run() {
+                doubleBackToExitPressedOnce=false;
+            }
+        }, 2000);
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+
+            super.onUserLeaveHint();
+            log.info("User is leaving! Finishing activity");
+            finish();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
     }
@@ -367,12 +411,15 @@ public class ConnectionEstablishedActivity
             sendVideoToPeerTask = null;
         }
 
+        if (heartbeatTask != null) {
+            heartbeatTask.cancel(true);
+            heartbeatTask = null;
+        }
+
         timerHandler.removeCallbacks(timerRunnable);
         chameleonApplication.stopPreview();
 
         chameleonApplication.stopConnectionServer();
-
-        wifiBroadcastReceiver = null;
     }
 
     @Override
@@ -385,8 +432,10 @@ public class ConnectionEstablishedActivity
                 startStreamingToPeer(clientSocket);
                 break;
             case TERMINATE_SESSION:
+                terminateSession(peerInfo.getUserName() + " terminated session.");
                 break;
             case SESSION_HEARTBEAT:
+                latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
                 break;
             case START_RECORDING:
                 processStartRecordingMessage(clientSocket);
@@ -417,6 +466,25 @@ public class ConnectionEstablishedActivity
                 log.error("Failed to start streaming", e);
             }
         }
+    }
+
+    private void terminateSession(final String toastMsg) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(),
+                        toastMsg,
+                        Toast.LENGTH_LONG).show();
+
+                // Finish activity after some delay
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        finishAndOpenMainActivity();
+                    }
+                }, 2000);
+            }
+        });
     }
 
     private void processStartRecordingMessage(final Socket clientSocket) {
@@ -455,19 +523,19 @@ public class ConnectionEstablishedActivity
     @AllArgsConstructor
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
         private PeerMessage peerMsg;
-        private InetAddress peerIp;
-        private int port;
+        @NonNull
+        private PeerInfo peerInfo;
 
         @Override
         protected Void doInBackground(Void... params) {
             try {
                 // Wait till we can reach the remote host. May take time to refresh ARP cache
-                if (!IpUtil.isIpReachable(peerIp)) {
-                    log.warn("Peer = {} not reachable. Unable to send message = {}", peerIp, peerMsg);
+                if (!IpUtil.isIpReachable(peerInfo.getIpAddress())) {
+                    log.warn("Peer = {} not reachable. Unable to send message = {}", peerInfo.getIpAddress(), peerMsg);
                     return null;
                 }
 
-                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
+                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
                 socket.setEnabledProtocols(new String[]{"TLSv1.2"});
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -646,7 +714,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
-            finish();
+            //finish();
         }
 
     }
@@ -742,12 +810,18 @@ public class ConnectionEstablishedActivity
             File videoFile = new File(recordingMetadata.getAbsoluteFilePath());
             videoFile.delete();
 
-            //Re-use MainActivity instance if already present. If not, create new instance.
-            Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
-            openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-            startActivity(openMainActivity);
-            finish();
+            finishAndOpenMainActivity();
+
         }
+    }
+
+    private void finishAndOpenMainActivity(){
+
+        //Re-use MainActivity instance if already present. If not, create new instance.
+        Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
+        openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        startActivity(openMainActivity);
+        //finish();
     }
 
     private void showProgressBar(final String progressBarText) {
@@ -775,8 +849,10 @@ public class ConnectionEstablishedActivity
         private static final int STREAM_MESSAGE_INTERVAL_MSEC = 5000;
         private static final int MAX_ATTEMPTS_TO_STREAM = 3;
 
+        @NonNull
         private InetAddress peerIp;
-        private int port;
+        @NonNull
+        private Integer port;
 
         @Override
         protected Void doInBackground(Void... params) {
@@ -854,6 +930,59 @@ public class ConnectionEstablishedActivity
             }
             log.debug("Finishing StreamFromPeerTask..");
             return null;
+        }
+    }
+
+    @AllArgsConstructor
+    class HeartbeatTask extends AsyncTask<Void, Void, Void> {
+        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 5000;
+        @NonNull
+        private PeerInfo peerInfo;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            while (!isCancelled()) {
+
+                // Check if we have received heartbeat message from peer recently.
+                if (System.currentTimeMillis() - latestPeerHeartbeatMessageTimeMs
+                        > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
+                    break;
+                }
+
+                // Send heartbeat message to peer to communicate that you are healthy
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            PeerMessage peerMessage = PeerMessage.builder()
+                                    .type(PeerMessage.Type.SESSION_HEARTBEAT)
+                                    .contents("abc").build();
+                            new SendMessageToPeerTask(peerMessage, peerInfo)
+                                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        } catch (Exception e) {
+                            log.warn("Failed to send heartbeat message", e);
+                        }
+                    }
+                });
+
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            terminateSession(peerInfo.getUserName() + " unreachable. Ending session..");
         }
     }
 

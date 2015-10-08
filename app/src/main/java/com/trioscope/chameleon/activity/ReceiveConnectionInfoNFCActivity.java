@@ -62,8 +62,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
         log.debug("ReceiveConnectionInfoNFCActivity {}", this);
 
-        ((ChameleonApplication)getApplication()).startConnectionServerIfNotRunning();
-
         connectionStatusTextView = (TextView) findViewById(R.id.textView_receiver_connection_status);
         progressBar = (ProgressBar) findViewById(R.id.receive_conn_info_prog_bar);
         chameleonApplication = (ChameleonApplication) getApplication();
@@ -117,7 +115,16 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     protected void onPause() {
         super.onPause();
         log.info("onPause invoked!");
-        cleanup();
+        if (isFinishing()) {
+            cleanup();
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        log.info("User is leaving. Finishing activity..");
+        finish();
     }
 
     @Override
@@ -331,7 +338,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
                     mGson.toJson(peerInfo));
             startActivity(connectionEstablishedIntent);
-            finish();
         } catch (UnknownHostException e) {
             log.error("Failed to resolve peer IP", e);
         }
