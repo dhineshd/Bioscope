@@ -45,7 +45,6 @@ public class DepackageUtil {
         if (outputName.endsWith(".bz2")) {
             String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
             File f = new File(unzippedFileName);
-            f.delete();
             if (f.exists()) {
                 log.info("File {} already exists, not going to download", unzippedFileName);
                 return true;
