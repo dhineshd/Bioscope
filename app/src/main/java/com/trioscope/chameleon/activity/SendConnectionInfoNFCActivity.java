@@ -224,9 +224,25 @@ public class SendConnectionInfoNFCActivity
     }
 
     @Override
-    public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
+    public void onClientRequest(final Socket clientSocket, final PeerMessage messageFromClient) {
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                log.info("thread is " + Thread.currentThread());
+                connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
+                progressBar.setVisibility(View.VISIBLE);
+            }
+        });
+
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         log.info("Starting connection establshed activity!");
-        Intent intent = new Intent(this, ConnectionEstablishedActivity.class);
+        Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
                 .ipAddress(clientSocket.getInetAddress())
                 .port(ChameleonApplication.SERVER_PORT)
@@ -237,6 +253,7 @@ public class SendConnectionInfoNFCActivity
 
         isWifiHotspotRequiredForNextStep = true;
         startActivity(intent);
+
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {
