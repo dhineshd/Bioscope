@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.PorterDuff;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
@@ -165,7 +164,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                         @Override
                         public void run() {
                             showProgressBar();
-                            connectionStatusTextView.setText("Enabling WiFi..");
+                            connectionStatusTextView.setText("Enabling\nwifi");
                         }
                     });
 
@@ -236,8 +235,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
     private void showProgressBar() {
         progressBar.setVisibility(View.VISIBLE);
-        int color = 0xffffa500;
-        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
@@ -322,7 +319,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
     private void performConnectionEstablishedActions() {
         progressBar.setVisibility(View.INVISIBLE);
-        connectionStatusTextView.setText("Connected to " + connectionInfo.getUserName());
+        connectionStatusTextView.setText("Connected\nto\n" + connectionInfo.getUserName());
 
         try {
             InetAddress remoteIp = InetAddress.getByName(connectionInfo.getServerIpAddress());

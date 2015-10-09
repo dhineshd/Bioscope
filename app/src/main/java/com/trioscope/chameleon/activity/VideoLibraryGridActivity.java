@@ -88,7 +88,6 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             public void onClick(View v) {
                 log.info("Minimizing gallery, showing MainActivity");
                 finish();
-                overridePendingTransition(R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom);
             }
         });
 

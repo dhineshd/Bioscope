@@ -134,7 +134,8 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
         if (doesDeviceSupportNFC()) {
             if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
-                DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment.newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
+                DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment
+                        .newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
                 newFragment.show(getFragmentManager(), "dialog");
             }
         }
