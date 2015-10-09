@@ -58,36 +58,6 @@ public class DepackageUtil {
         String outputFileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
         downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
 
-
-        /*if (outputName.endsWith(".bz2")) {
-            String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
-            String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
-            log.info("Unzipping bz2 file {} to {}", fileName, unzippedFileName);
-            try {
-                FileInputStream fin = new FileInputStream(fileName);
-                BufferedInputStream in = new BufferedInputStream(fin);
-                FileOutputStream out = new FileOutputStream(unzippedFileName);
-                BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(in);
-                final byte[] buffer = new byte[1024];
-                int n = 0;
-                while (-1 != (n = bzIn.read(buffer))) {
-                    out.write(buffer, 0, n);
-                }
-                log.info("Finished unzipping, closing streams");
-                out.close();
-                bzIn.close();
-            } catch (IOException e) {
-                log.error("Unable to unzip file due to error", e);
-                return false;
-            }
-        }*/
-
-        log.info("Listing depackage directory: ");
-        File dir = new File("/data/data/com.trioscope.chameleon/app_dpkg/");
-        for (File f : dir.listFiles()) {
-            log.info("File: {}", f);
-        }
-
         return true;
     }
 
