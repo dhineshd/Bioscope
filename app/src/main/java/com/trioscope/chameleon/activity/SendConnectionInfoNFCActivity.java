@@ -198,6 +198,7 @@ public class SendConnectionInfoNFCActivity
     }
 
     private void cleanup() {
+        log.info("Cleanup invoked..");
 
         chameleonApplication.getServerEventListenerManager().removeListener(this);
 
@@ -223,7 +224,7 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
-        log.info("Starting connection establshed activity!");
+        log.info("Starting connection established activity! received msg = {}", messageFromClient);
         Intent intent = new Intent(this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
                 .ipAddress(clientSocket.getInetAddress())

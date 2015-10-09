@@ -13,23 +13,18 @@ public class PeerMessage {
     public enum Type{
 
         SEND_STREAM,
-
         SESSION_HEARTBEAT, // Exchanged by devices periodically to act as connectivity health check
-
         TERMINATE_SESSION,
-
         START_RECORDING,
-
         START_RECORDING_RESPONSE,
         STOP_RECORDING,
-
         SEND_RECORDED_VIDEO,
         SEND_RECORDED_VIDEO_RESPONSE
     }
 
     @NonNull
     private Type type;
-    private String contents;
-
+    @NonNull
     private String senderUserName;
+    private String contents;
 }
