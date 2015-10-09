@@ -15,7 +15,7 @@
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#92d2c2"/>
+        android:background="@color/bioscope_teal"/>
 
         <ImageView
             android:id="@+id/direct_logo"
@@ -45,7 +45,7 @@
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
-            android:layout_marginBottom="30dp"
+            android:paddingBottom="30dp"
             />
 
 </RelativeLayout>

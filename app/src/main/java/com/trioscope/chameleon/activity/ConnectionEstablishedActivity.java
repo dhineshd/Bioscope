@@ -5,11 +5,9 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -182,6 +180,7 @@ public class ConnectionEstablishedActivity
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.STOP_RECORDING)
+                                .senderUserName(getUserName())
                                 .build();
                         new SendMessageToPeerTask(peerMsg, peerInfo)
                                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -202,6 +201,7 @@ public class ConnectionEstablishedActivity
                     if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.START_RECORDING)
+                                .senderUserName(getUserName())
                                 .build();
                         new SendMessageToPeerTask(peerMsg, peerInfo)
                                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -253,21 +253,17 @@ public class ConnectionEstablishedActivity
         disconnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PeerMessage msg = PeerMessage.builder().type(PeerMessage.Type.TERMINATE_SESSION).build();
+                PeerMessage msg = PeerMessage.builder()
+                        .type(PeerMessage.Type.TERMINATE_SESSION)
+                        .senderUserName(getUserName()).build();
                 new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                 terminateSession("Terminating session..");
             }
         });
 
-        // Start sending heartbeat and checking for peer heartbeat (after initial delay)
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                heartbeatTask = new HeartbeatTask(peerInfo);
-                heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
-        }, 5000);
-
+        // Start sending heartbeat and checking for peer heartbeat
+        heartbeatTask = new HeartbeatTask(peerInfo);
+        heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private void startRecording() {
@@ -362,7 +358,7 @@ public class ConnectionEstablishedActivity
         }
 
         this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
 
         new Handler().postDelayed(new Runnable() {
 
@@ -375,10 +371,9 @@ public class ConnectionEstablishedActivity
 
     @Override
     protected void onUserLeaveHint() {
-
-            super.onUserLeaveHint();
-            log.info("User is leaving! Finishing activity");
-            finish();
+        super.onUserLeaveHint();
+        log.info("User is leaving! Finishing activity");
+        finish();
     }
 
     @Override
@@ -480,7 +475,7 @@ public class ConnectionEstablishedActivity
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        finishAndOpenMainActivity();
+                        openMainActivity();
                     }
                 }, 2000);
             }
@@ -495,6 +490,7 @@ public class ConnectionEstablishedActivity
                     .currentTimeMillis(System.currentTimeMillis()).build();
             PeerMessage responseMsg = PeerMessage.builder()
                     .type(PeerMessage.Type.START_RECORDING_RESPONSE)
+                    .senderUserName(getUserName())
                     .contents(gson.toJson(response)).build();
             log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
             pw.println(gson.toJson(responseMsg));
@@ -522,6 +518,7 @@ public class ConnectionEstablishedActivity
 
     @AllArgsConstructor
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
+        @NonNull
         private PeerMessage peerMsg;
         @NonNull
         private PeerInfo peerInfo;
@@ -583,7 +580,7 @@ public class ConnectionEstablishedActivity
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar("Receiving video..");
+            showProgressBar("Receiving\nvideo");
         }
 
         @Override
@@ -606,6 +603,7 @@ public class ConnectionEstablishedActivity
                 // Request recorded file from peer
                 PeerMessage peerMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO)
+                        .senderUserName(getUserName())
                         .build();
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -644,7 +642,7 @@ public class ConnectionEstablishedActivity
                     }
                 }
 
-                int totalBytesReceived = 0;
+                long totalBytesReceived = 0;
 
                 remoteVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
                 if (remoteVideoFile.exists()) {
@@ -657,10 +655,13 @@ public class ConnectionEstablishedActivity
                     inputStream = new BufferedInputStream(socket.getInputStream());
                     int bytesRead = 0;
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        log.debug("Receiving recorded file from peer.. bytes = {}", bytesRead);
+                        log.info("Receiving recorded file from peer.. bytes = {}, total rcvd = {}, " +
+                                "file size = {}", bytesRead, totalBytesReceived, fileSizeBytes);
                         outputStream.write(buffer, 0, bytesRead);
                         totalBytesReceived += bytesRead;
-                        publishProgress((int) (100 * totalBytesReceived / fileSizeBytes));
+                        int fileTransferPercentage = (int) (100 * totalBytesReceived / fileSizeBytes);
+                        log.info("File transfer = {}%", fileTransferPercentage);
+                        publishProgress(fileTransferPercentage);
                     }
                     log.debug("Successfully received recorded video!");
                 }
@@ -730,7 +731,7 @@ public class ConnectionEstablishedActivity
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar("Sending video..");
+            showProgressBar("Sending\nvideo");
         }
 
         @Override
@@ -739,7 +740,7 @@ public class ConnectionEstablishedActivity
             OutputStream outputStream = null;
             InputStream inputStream = null;
             File fileToSend = new File(recordingMetadata.getAbsoluteFilePath());
-            Long fileSizeBytes = fileToSend.length();
+            long fileSizeBytes = fileToSend.length();
 
             try {
                 PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
@@ -750,6 +751,7 @@ public class ConnectionEstablishedActivity
                         .currentTimeMillis(System.currentTimeMillis()).build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
+                        .senderUserName(getUserName())
                         .contents(gson.toJson(response)).build();
                 log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
                 pw.println(gson.toJson(responseMsg));
@@ -765,7 +767,7 @@ public class ConnectionEstablishedActivity
                 inputStream = new BufferedInputStream(new FileInputStream(fileToSend));
                 byte[] buffer = new byte[ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES];
                 int bytesRead = 0;
-                int totalBytesSent = 0;
+                long totalBytesSent = 0;
                 while ((bytesRead = inputStream.read(buffer)) != -1) {
                     log.debug("Sending recorded file.. bytes = {}", bytesRead);
                     outputStream.write(buffer, 0, bytesRead);
@@ -810,27 +812,19 @@ public class ConnectionEstablishedActivity
             File videoFile = new File(recordingMetadata.getAbsoluteFilePath());
             videoFile.delete();
 
-            finishAndOpenMainActivity();
+            openMainActivity();
 
         }
     }
 
-    private void finishAndOpenMainActivity(){
-
+    private void openMainActivity(){
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
-        //finish();
     }
 
     private void showProgressBar(final String progressBarText) {
-        int color = 0xffffa500;
-        //progressBar.setProgressDrawable(getResources().getDrawable(R.drawable.circular_progress_bar));
-        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        //progressBar.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        //progressBar.setIndeterminate(false);
-        progressBar.setProgress(0);
         progressBar.setVisibility(View.VISIBLE);
         imageViewProgressBarBackground.setVisibility(View.VISIBLE);
         textViewFileTransfer.setText(progressBarText);
@@ -935,7 +929,7 @@ public class ConnectionEstablishedActivity
 
     @AllArgsConstructor
     class HeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 5000;
+        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
         @NonNull
         private PeerInfo peerInfo;
 
@@ -962,6 +956,7 @@ public class ConnectionEstablishedActivity
                         try {
                             PeerMessage peerMessage = PeerMessage.builder()
                                     .type(PeerMessage.Type.SESSION_HEARTBEAT)
+                                    .senderUserName(getUserName())
                                     .contents("abc").build();
                             new SendMessageToPeerTask(peerMessage, peerInfo)
                                     .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);

@@ -41,15 +41,6 @@
                 android:visibility="visible" />
         </FrameLayout>
 
-       <ProgressBar
-            android:id="@+id/progressBar_file_transfer"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_gravity="center"
-            android:visibility="gone"
-            android:indeterminate="true"
-            android:max="100" />
-
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -57,6 +48,18 @@
             android:layout_gravity="center"
             android:src="@drawable/progress_bar_interior"
             android:visibility="gone"/>
+
+       <ProgressBar
+            android:id="@+id/progressBar_file_transfer"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/circular_progress_bar"
+            android:rotation="270"/>
 
         <com.trioscope.chameleon.views.ProgressBarTextView
             style="@style/progressBarText"

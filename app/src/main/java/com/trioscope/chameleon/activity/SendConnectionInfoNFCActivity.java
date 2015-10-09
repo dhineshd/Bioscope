@@ -3,8 +3,6 @@ package com.trioscope.chameleon.activity;
 import android.app.DialogFragment;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
 import android.media.MediaPlayer;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pGroup;
@@ -200,6 +198,7 @@ public class SendConnectionInfoNFCActivity
     }
 
     private void cleanup() {
+        log.info("Cleanup invoked..");
 
         chameleonApplication.getServerEventListenerManager().removeListener(this);
 
@@ -253,7 +252,6 @@ public class SendConnectionInfoNFCActivity
 
         isWifiHotspotRequiredForNextStep = true;
         startActivity(intent);
-
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {
@@ -284,7 +282,7 @@ public class SendConnectionInfoNFCActivity
                 @Override
                 public void run() {
                     showProgressBar();
-                    connectionStatusTextView.setText("Preparing to connect");
+                    connectionStatusTextView.setText("Enabling\nwifi");
                 }
             });
             chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
@@ -301,7 +299,7 @@ public class SendConnectionInfoNFCActivity
             @Override
             public void run() {
                 showProgressBar();
-                connectionStatusTextView.setText("Preparing to connect");
+                connectionStatusTextView.setText("Preparing\nto\nconnect");
 
             }
         });
@@ -333,9 +331,6 @@ public class SendConnectionInfoNFCActivity
 
     private void showProgressBar() {
         progressBar.setVisibility(View.VISIBLE);
-        int color = 0xffffa500;
-        Drawable drawable = progressBar.getIndeterminateDrawable();
-        drawable.setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
 
     private void createWifiP2PGroup(
@@ -379,7 +374,7 @@ public class SendConnectionInfoNFCActivity
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    connectionStatusTextView.setText("Oops! Please try again");
+                                    connectionStatusTextView.setText("Oops!\nPlease try\nagain");
                                 }
                             });
                         }
