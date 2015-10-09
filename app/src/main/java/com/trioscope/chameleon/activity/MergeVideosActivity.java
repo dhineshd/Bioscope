@@ -151,6 +151,11 @@ public class MergeVideosActivity extends AppCompatActivity implements ProgressUp
     }
 
     @Override
+    public void onError() {
+        // TODO
+    }
+
+    @Override
     public void surfaceCreated(SurfaceHolder holder) {
 
         // TODO : Consider prepareAsync() if following code hogs UI thread

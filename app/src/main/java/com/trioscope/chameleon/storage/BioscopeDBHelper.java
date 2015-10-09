@@ -66,9 +66,11 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
     @Timed
     public boolean insertThumbnail(String videoFileName, Bitmap thumbnail) {
         int size = thumbnail.getAllocationByteCount();
+        log.info("Inserting thumbnail with {} bytes", size);
         ByteBuffer b = ByteBuffer.allocate(size);
         thumbnail.copyPixelsToBuffer(b);
         byte[] bytes = new byte[size];
+        b.position(0);
         b.get(bytes, 0, bytes.length);
 
         SQLiteDatabase db = getWritableDatabase();

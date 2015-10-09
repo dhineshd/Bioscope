@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -59,6 +60,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
+    private static final String LIBOPENH_MD5SUM = "b94a0e5d421dd4acc8200ed0c4cd521e";
 
     private Context context;
     private DepackageUtil depackageUtil;
@@ -82,6 +84,10 @@ public class FfmpegVideoMerger implements VideoMerger {
     }
 
     public void prepare() {
+        // If no progressUpdatable is provided, perform the preparation synchronously
+    }
+
+    public void prepare(ProgressUpdatable progressUpdatable) {
         if (prepared) {
             log.info("FFMPEG Video Merger already prepared - skipping preparation");
             return;
@@ -97,10 +103,11 @@ public class FfmpegVideoMerger implements VideoMerger {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
 
-        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH);
+        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH, progressUpdatable, LIBOPENH_MD5SUM);
 
         prepared = true;
     }
+
 
     @Override
     public void mergeVideos(
@@ -144,6 +151,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
     }
 
+
     @Timed
     private void addThumbnailToDb(File majorVideo, File outputFile, BioscopeDBHelper db) {
         Bitmap bm = getThumbnail(majorVideo);
@@ -158,7 +166,19 @@ public class FfmpegVideoMerger implements VideoMerger {
     @Timed
     private Bitmap getThumbnail(File videoFile) {
         try {
-            return ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+            Bitmap bm = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+
+            if (bm == null) {
+                log.info("Thumbnail utils failed, trying to use MMR for {}", videoFile);
+
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                retriever.setDataSource(videoFile.getAbsolutePath());
+                bm = retriever.getFrameAtTime(10000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            } else {
+                log.info("ThumbnailUtils succeeded in creating thumbnail for {}", videoFile);
+            }
+
+            return bm;
         } catch (Exception ex) {
             log.error("Exception getting thumbnail for file {}", videoFile, ex);
         }

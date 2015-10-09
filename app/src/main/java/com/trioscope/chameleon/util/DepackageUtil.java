@@ -6,17 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
-import android.net.Uri;
 
 import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,43 +38,28 @@ public class DepackageUtil {
     private long downloadId;
     private DownloadManager manager;
 
-    public boolean downloadAsset(String assetUrl, String outputName) {
+    public boolean downloadAsset(String assetUrl, String outputName, ProgressUpdatable progressUpdatable, String expectedMd5sum) {
         log.info("Using download manager to download {}", assetUrl);
 
 
         if (outputName.endsWith(".bz2")) {
             String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
             File f = new File(unzippedFileName);
+            f.delete();
             if (f.exists()) {
                 log.info("File {} already exists, not going to download", unzippedFileName);
                 return true;
             }
         }
 
-        registerBroadcastReceiver();
 
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(assetUrl));
-        request.setDescription("Downloading OpenH264 for H.264 encoding");
-        request.setTitle("Downloading encoding library");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationInExternalFilesDir(context, null, outputName);
+        DownloadAsyncTask downloadTask = new DownloadAsyncTask(context, progressUpdatable);
 
-        // get download service and enqueue file
-        log.info("Retrieving download manager and enqueueing request to download to {}", context.getExternalFilesDir(null));
-        manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-        downloadId = manager.enqueue(request);
+        String outputFileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+        downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
 
-        // TODO: Take this off UI thread
-        try {
-            synchronized (this) {
-                this.wait();
-            }
-        } catch (InterruptedException e) {
-            log.error("Error waiting for download");
-            return false;
-        }
 
-        if (outputName.endsWith(".bz2")) {
+        /*if (outputName.endsWith(".bz2")) {
             String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
             String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
             log.info("Unzipping bz2 file {} to {}", fileName, unzippedFileName);
@@ -98,7 +80,7 @@ public class DepackageUtil {
                 log.error("Unable to unzip file due to error", e);
                 return false;
             }
-        }
+        }*/
 
         log.info("Listing depackage directory: ");
         File dir = new File("/data/data/com.trioscope.chameleon/app_dpkg/");
@@ -131,6 +113,8 @@ public class DepackageUtil {
                     }
                 }
             }
+
+
         };
 
         context.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), null, new ThreadWithHandler().getHandler());

@@ -335,6 +335,11 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             updateVideoGridWithPercentage(100);
         }
 
+        @Override
+        public void onError() {
+            // TODO
+        }
+
         private int getPercent(double progress, double outOf) {
             return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
         }
