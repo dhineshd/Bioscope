@@ -23,7 +23,7 @@
         android:layout_marginLeft="20dp"
         android:layout_marginTop="18dp"
         android:gravity="center"
-        android:textColor="#F47B4C"
+        android:textColor="@color/bioscope_orange"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -34,7 +34,7 @@
         android:layout_below="@+id/video_grid_title"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="12dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@android:color/white"
         android:textSize="16sp" />
 
     <TextView
@@ -44,7 +44,7 @@
         android:layout_above="@+id/video_grid_buttons"
         android:layout_centerHorizontal="true"
         android:layout_marginBottom="18dp"
-        android:textColor="#FFFFFF"
+        android:textColor="@android:color/white"
         android:textSize="16sp"
         android:textStyle="bold" />
 
@@ -67,6 +67,16 @@
             />
     </RelativeLayout>
 
+    <ImageView
+        android:id="@+id/video_grid_progress_interior"
+        android:layout_width="70dp"
+        android:layout_height="70dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_gravity="center"
+        android:src="@drawable/progress_bar_interior"
+        android:visibility="invisible" />
+
     <ProgressBar
         android:id="@+id/library_progress_bar"
         style="?android:attr/progressBarStyleHorizontal"
@@ -78,29 +88,18 @@
         android:max="100"
         android:progress="0"
         android:progressDrawable="@drawable/circular_progress_bar"
-        android:visibility="invisible" />
+        android:visibility="invisible"
+        android:rotation="270"/>
 
-    <ImageView
-        android:id="@+id/video_grid_progress_interior"
-        android:layout_width="66dp"
-        android:layout_height="66dp"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
-        android:layout_gravity="center"
-        android:src="@drawable/progress_bar_interior"
-        android:visibility="invisible" />
-
-    <TextView
+    <com.trioscope.chameleon.views.ProgressBarTextView
         android:id="@+id/library_progress_text"
+        style="@style/progressBarText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerInParent="true"
         android:layout_centerVertical="true"
         android:text="0%"
-        android:textColor="#F47B4C"
-        android:textSize="18sp"
-        android:textStyle="bold"
         android:visibility="invisible" />
 
 </RelativeLayout>

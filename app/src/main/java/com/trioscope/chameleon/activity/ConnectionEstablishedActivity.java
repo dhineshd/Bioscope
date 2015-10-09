@@ -5,11 +5,9 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.graphics.PorterDuff;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -259,15 +257,9 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        // Start sending heartbeat and checking for peer heartbeat (after initial delay)
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                heartbeatTask = new HeartbeatTask(peerInfo);
-                heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
-        }, 5000);
-
+        // Start sending heartbeat and checking for peer heartbeat
+        heartbeatTask = new HeartbeatTask(peerInfo);
+        heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private void startRecording() {
@@ -362,7 +354,7 @@ public class ConnectionEstablishedActivity
         }
 
         this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
 
         new Handler().postDelayed(new Runnable() {
 
@@ -375,10 +367,9 @@ public class ConnectionEstablishedActivity
 
     @Override
     protected void onUserLeaveHint() {
-
-            super.onUserLeaveHint();
-            log.info("User is leaving! Finishing activity");
-            finish();
+        super.onUserLeaveHint();
+        log.info("User is leaving! Finishing activity");
+        finish();
     }
 
     @Override
@@ -480,7 +471,7 @@ public class ConnectionEstablishedActivity
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        finishAndOpenMainActivity();
+                        openMainActivity();
                     }
                 }, 2000);
             }
@@ -583,7 +574,7 @@ public class ConnectionEstablishedActivity
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar("Receiving video..");
+            showProgressBar("Receiving\nvideo");
         }
 
         @Override
@@ -730,7 +721,7 @@ public class ConnectionEstablishedActivity
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            showProgressBar("Sending video..");
+            showProgressBar("Sending\nvideo");
         }
 
         @Override
@@ -810,27 +801,19 @@ public class ConnectionEstablishedActivity
             File videoFile = new File(recordingMetadata.getAbsoluteFilePath());
             videoFile.delete();
 
-            finishAndOpenMainActivity();
+            openMainActivity();
 
         }
     }
 
-    private void finishAndOpenMainActivity(){
-
+    private void openMainActivity(){
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
-        //finish();
     }
 
     private void showProgressBar(final String progressBarText) {
-        int color = 0xffffa500;
-        //progressBar.setProgressDrawable(getResources().getDrawable(R.drawable.circular_progress_bar));
-        progressBar.getIndeterminateDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        //progressBar.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        //progressBar.setIndeterminate(false);
-        progressBar.setProgress(0);
         progressBar.setVisibility(View.VISIBLE);
         imageViewProgressBarBackground.setVisibility(View.VISIBLE);
         textViewFileTransfer.setText(progressBarText);
@@ -935,7 +918,7 @@ public class ConnectionEstablishedActivity
 
     @AllArgsConstructor
     class HeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 5000;
+        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
         @NonNull
         private PeerInfo peerInfo;
 

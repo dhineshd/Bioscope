@@ -10,18 +10,27 @@
     android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.activity.ReceiveConnectionInfoNFCActivity">
 
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:src="@drawable/progress_bar_interior"/>
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
         <ProgressBar
             android:id="@+id/receive_conn_info_prog_bar"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
             android:visibility="invisible"
-            android:indeterminate="true"
             android:layout_marginTop="248dp"
-            android:layout_centerInParent="true"/>
+            android:layout_centerInParent="true"
+            android:indeterminate="true"
+            android:indeterminateDrawable="@drawable/circular_progress_bar"
+            android:indeterminateDuration="1000"
+            android:rotation="270"/>
 
         <com.trioscope.chameleon.views.TextButton
             android:layout_width="wrap_content"
@@ -35,12 +44,6 @@
             android:layout_centerInParent="true"/>
 
     </RelativeLayout>
-
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:src="@drawable/progress_bar_interior"/>
 
     <com.trioscope.chameleon.views.ProgressBarTextView
         android:id="@+id/textView_receiver_connection_status"
