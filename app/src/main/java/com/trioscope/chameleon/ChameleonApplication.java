@@ -132,7 +132,7 @@ public class ChameleonApplication extends Application {
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
 
-        offThreadExecutor.execute(new DestroyPartialData());
+        offThreadExecutor.execute(new DestroyPartialData(this));
 
         startup();
     }

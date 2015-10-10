@@ -1,10 +1,12 @@
 package com.trioscope.chameleon;
 
+import android.app.NotificationManager;
 import android.content.Context;
 
 import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
+import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.FileUtil;
 
 import java.io.File;
@@ -19,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class DestroyPartialData implements Runnable {
+    private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private final Context context;
 
     @Override
@@ -29,6 +32,8 @@ public class DestroyPartialData implements Runnable {
         BioscopeDBHelper helper = new BioscopeDBHelper(context);
         List<String> videos = helper.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
 
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.cancel(MERGING_NOTIFICATION_ID);
         log.info("Found {} videos that are in merged state, going to delete them: {}", videos.size(), videos);
 
         for (String fileName : videos) {

@@ -10,6 +10,7 @@ import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.provider.MediaStore;
 
+import com.trioscope.chameleon.DestroyPartialData;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
@@ -300,11 +301,11 @@ public class FfmpegVideoMerger implements VideoMerger {
                 complete();
             } catch (Exception e) {
                 log.error("Error merging videos {} and {} to {}", majorVideoConfig, minorVideoConfig, outputFile, e);
+
+                // Clean up any partial data TODO: decide what to do with major and minor videos
+                new DestroyPartialData(context).run();
             } finally {
                 log.info("Removing {} from list of files being merged", outputFile);
-                BioscopeDBHelper db = new BioscopeDBHelper(context);
-                db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
-                db.close();
             }
         }
 
@@ -312,6 +313,8 @@ public class FfmpegVideoMerger implements VideoMerger {
             end = System.currentTimeMillis();
 
             log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(MERGING_NOTIFICATION_ID);
 
             // Delete input videos since we now have merged video
             File majorVideo = majorVideoConfig.getFile();
@@ -327,6 +330,10 @@ public class FfmpegVideoMerger implements VideoMerger {
             Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             addVideoIntent.setData(Uri.fromFile(outputFile));
             context.sendBroadcast(addVideoIntent);
+
+            BioscopeDBHelper db = new BioscopeDBHelper(context);
+            db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
+            db.close();
 
             if (progressUpdatable != null)
                 progressUpdatable.onCompleted();
