@@ -44,4 +44,10 @@ public class MetricsHelper {
                         .build()
         );
     }
+
+    public void sendMergeTimeToVideoDuration(float value) {
+        metricsTracker.send(new HitBuilders.ScreenViewBuilder()
+                .setCustomMetric(1, value)
+                .build());
+    }
 }

@@ -5,12 +5,15 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.provider.MediaStore;
 
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.aop.Timed;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.NotificationIds;
@@ -294,7 +297,36 @@ public class FfmpegVideoMerger implements VideoMerger {
         private void complete() {
             end = System.currentTimeMillis();
 
-            log.info("Finished running video merge. Took {}s", (end - start) / 1000.0);
+            long mergeTime = end - start;
+            log.info("Finished running video merge. Took {}s", mergeTime / 1000.0);
+
+            ChameleonApplication.getMetrics().sendTime(
+                    MetricNames.Category.VIDEO.getName(),
+                    MetricNames.Label.MERGE_TIME.getName(),
+                    mergeTime);
+
+            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+
+            try {
+            Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+
+                if(durationOfVideo != null) {
+                    //Publish merge time
+                    ChameleonApplication.getMetrics().sendTime(
+                            MetricNames.Category.VIDEO.getName(),
+                            MetricNames.Label.MERGE_TIME.getName(),
+                            durationOfVideo);
+
+                    //Publish merge time to video length ratio
+                    ChameleonApplication.getMetrics().sendMergeTimeToVideoDuration(mergeTime/durationOfVideo);
+
+                }
+
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+
+
 
             // Delete input videos since we now have merged video
             File majorVideo = majorVideoConfig.getFile();

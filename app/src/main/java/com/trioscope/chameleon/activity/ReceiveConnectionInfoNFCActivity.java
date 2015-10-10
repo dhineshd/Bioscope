@@ -21,6 +21,7 @@ import android.widget.TextView;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.network.WifiUtil;
@@ -48,9 +49,11 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     private Handler connectionTimerHandler;
     private Runnable connectionTimerRunnable;
     private WiFiNetworkConnectionInfo connectionInfo;
+    private long startTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        startTime = System.currentTimeMillis();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_receive_connection_info_nfc);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -335,9 +338,20 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
                     mGson.toJson(peerInfo));
             startActivity(connectionEstablishedIntent);
+
+            //publish time to establish connection from crew side
+            publishTimeMetrics();
+
             finish();
         } catch (UnknownHostException e) {
             log.error("Failed to resolve peer IP", e);
         }
+    }
+
+    private void publishTimeMetrics() {
+        ChameleonApplication.getMetrics().sendTime(
+                MetricNames.Category.WIFI.getName(),
+                MetricNames.Label.CREW_ESTABLISH_CONNECTION_TIME.getName(),
+                System.currentTimeMillis() - startTime);
     }
 }

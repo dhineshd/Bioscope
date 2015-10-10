@@ -29,7 +29,9 @@ public class MetricNames {
 
         ENABLE("ENABLE"),
         FRAME_DELAY_MILLIS("FRAME_DELAY_MILLIS"),
-        DURATION("DURATION");
+        DURATION("DURATION"),
+        MERGE_TIME("MERGE_TIME"),
+        CREW_ESTABLISH_CONNECTION_TIME("CREW_ESTABLISH_CONNECTION_TIME");
 
         private String name;
 
