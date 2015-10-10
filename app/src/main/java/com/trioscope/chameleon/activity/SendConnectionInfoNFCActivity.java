@@ -225,11 +225,6 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onClientRequest(final Socket clientSocket, final PeerMessage messageFromClient) {
-
-        if (firstClientRequestReceived) return;
-
-        firstClientRequestReceived = true;
-
         log.info("Starting connection establshed activity!");
         final Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
@@ -246,13 +241,8 @@ public class SendConnectionInfoNFCActivity
                 log.info("Thread is " + Thread.currentThread());
                 connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
                 progressBar.setVisibility(View.VISIBLE);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        isWifiHotspotRequiredForNextStep = true;
-                        startActivity(intent);
-                    }
-                }, 2000);
+                isWifiHotspotRequiredForNextStep = true;
+                startActivity(intent);
             }
         });
     }
