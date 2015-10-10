@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.provider.MediaStore;
 
 import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.DestroyPartialData;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.metrics.MetricNames;
@@ -43,6 +44,10 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+<<<<<<<HEAD
+        =======
+        >>>>>>>philipa-library
 
 /**
  * Created by phand on 7/9/15.
@@ -161,7 +166,23 @@ public class FfmpegVideoMerger implements VideoMerger {
     @Timed
     private Bitmap getThumbnail(File videoFile) {
         try {
-            return ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+            Bitmap bm = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+
+            if (bm != null) {
+                return bm;
+            } else {
+                log.warn("Failed to create thumbnail from ThumbnailUtils, using MMR instead");
+                try {
+                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                    retriever.setDataSource(videoFile.getAbsolutePath());
+                    int timeInSeconds = 30;
+                    bm = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+
+                    return bm;
+                } catch (Exception ex) {
+                    log.error("Exception getting thumbnail for file {}", videoFile, ex);
+                }
+            }
         } catch (Exception ex) {
             log.error("Exception getting thumbnail for file {}", videoFile, ex);
         }
@@ -286,11 +307,11 @@ public class FfmpegVideoMerger implements VideoMerger {
                 complete();
             } catch (Exception e) {
                 log.error("Error merging videos {} and {} to {}", majorVideoConfig, minorVideoConfig, outputFile, e);
+
+                // Clean up any partial data TODO: decide what to do with major and minor videos
+                new DestroyPartialData(context).run();
             } finally {
                 log.info("Removing {} from list of files being merged", outputFile);
-                BioscopeDBHelper db = new BioscopeDBHelper(context);
-                db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
-                db.close();
             }
         }
 
@@ -308,9 +329,9 @@ public class FfmpegVideoMerger implements VideoMerger {
             MediaMetadataRetriever mmr = new MediaMetadataRetriever();
 
             try {
-            Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
 
-                if(durationOfVideo != null) {
+                if (durationOfVideo != null) {
                     //Publish merge time
                     ChameleonApplication.getMetrics().sendTime(
                             MetricNames.Category.VIDEO.getName(),
@@ -318,15 +339,17 @@ public class FfmpegVideoMerger implements VideoMerger {
                             durationOfVideo);
 
                     //Publish merge time to video length ratio
-                    ChameleonApplication.getMetrics().sendMergeTimeToVideoDuration(mergeTime/durationOfVideo);
+                    ChameleonApplication.getMetrics().sendMergeTimeToVideoDuration(mergeTime / durationOfVideo);
 
                 }
 
-            } catch(Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
 
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(MERGING_NOTIFICATION_ID);
 
             // Delete input videos since we now have merged video
             File majorVideo = majorVideoConfig.getFile();
@@ -342,6 +365,10 @@ public class FfmpegVideoMerger implements VideoMerger {
             Intent addVideoIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             addVideoIntent.setData(Uri.fromFile(outputFile));
             context.sendBroadcast(addVideoIntent);
+
+            BioscopeDBHelper db = new BioscopeDBHelper(context);
+            db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
+            db.close();
 
             if (progressUpdatable != null)
                 progressUpdatable.onCompleted();
