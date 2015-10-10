@@ -157,6 +157,17 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         return;
     }
 
+    public void deleteAllVideoInfo(String videoFileName) {
+        SQLiteDatabase db = getWritableDatabase();
+
+        int numDeletedRows = db.delete(VIDEO_INFO_TABLE_NAME, FILE_NAME_COL + "=?", new String[]{videoFileName});
+        log.info("Deleted {} rows in the DB for file {}", numDeletedRows, videoFileName);
+
+        int numDeletedThumbs = db.delete(THUMBS_TABLE_NAME, FILE_NAME_COL + "=?", new String[]{videoFileName});
+        log.info("Deleted {} rows in the thumbs DB for file {}", numDeletedThumbs, videoFileName);
+        return;
+    }
+
     public List<String> getVideosWithType(VideoInfoType type, String value) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.query(VIDEO_INFO_TABLE_NAME, new String[]{FILE_NAME_COL}, INFO_VALUE_COL + "=? AND " + INFO_TYPE_COL + "=?", new String[]{value, String.valueOf(type.getTypeValue())}, null, null, null, null);

@@ -27,13 +27,15 @@ import com.trioscope.chameleon.stream.ServerEventListenerManager;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
-import com.trioscope.chameleon.util.security.SSLUtil;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.VideoMerger;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import javax.microedition.khronos.egl.EGLConfig;
 
@@ -108,6 +110,8 @@ public class ChameleonApplication extends Application {
 
     private Boolean isWifiEnabledInitially;
 
+    private Executor offThreadExecutor = Executors.newSingleThreadExecutor();
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -127,6 +131,8 @@ public class ChameleonApplication extends Application {
 
         // Add FPS listener to CameraBuffer
         cameraFrameBuffer.addListener(new UpdateRateListener());
+
+        offThreadExecutor.execute(new DestroyPartialData());
 
         startup();
     }
@@ -360,7 +366,7 @@ public class ChameleonApplication extends Application {
      * @return created file
      */
     public File getOutputMediaFile(final String filename) {
-        return new File(getOutputMediaDirectory()+ File.separator + filename);
+        return new File(getOutputMediaDirectory() + File.separator + filename);
     }
 
     /**
@@ -458,7 +464,7 @@ public class ChameleonApplication extends Application {
 
                     //Publish time for wifi to be enabled
                     //metrics.sendTime(MetricNames.Category.WIFI.getName(),
-                     //       MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
+                    //       MetricNames.Label.ENABLE.getName(), System.currentTimeMillis() - startTime);
 
                     // Done with checking Wifi state
                     unregisterReceiverSafely(this);
