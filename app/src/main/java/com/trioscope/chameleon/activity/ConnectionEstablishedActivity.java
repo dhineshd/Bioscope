@@ -77,7 +77,8 @@ public class ConnectionEstablishedActivity
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private SendVideoToPeerTask sendVideoToPeerTask;
-    private HeartbeatTask heartbeatTask;
+    private SendHeartbeatTask sendHeartbeatTask;
+    private CheckHeartbeatTask checkHeartbeatTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -192,7 +193,9 @@ public class ConnectionEstablishedActivity
 
                     // Give the user the option to retake the video or continue to merge
                     sessionActionsLayout.setVisibility(View.INVISIBLE);
+
                     endSessionLayout.setVisibility(View.VISIBLE);
+
 
                 } else {
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
@@ -261,9 +264,18 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        // Start sending heartbeat and checking for peer heartbeat
-        heartbeatTask = new HeartbeatTask(peerInfo);
-        heartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        // Start sending heartbeat message to peer
+        sendHeartbeatTask = new SendHeartbeatTask(peerInfo);
+        sendHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        //Start checking heartbeat messages are received from peer (after some initial delay)
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
+                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        }, 5000);
     }
 
     private void startRecording() {
@@ -358,15 +370,15 @@ public class ConnectionEstablishedActivity
         }
 
         this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Press back again to end session", Toast.LENGTH_SHORT).show();
 
         new Handler().postDelayed(new Runnable() {
 
             @Override
             public void run() {
-                doubleBackToExitPressedOnce=false;
+                doubleBackToExitPressedOnce = false;
             }
-        }, 2000);
+        }, 3000);
     }
 
     @Override
@@ -406,9 +418,14 @@ public class ConnectionEstablishedActivity
             sendVideoToPeerTask = null;
         }
 
-        if (heartbeatTask != null) {
-            heartbeatTask.cancel(true);
-            heartbeatTask = null;
+        if (sendHeartbeatTask != null) {
+            sendHeartbeatTask.cancel(true);
+            sendHeartbeatTask = null;
+        }
+
+        if (checkHeartbeatTask != null) {
+            checkHeartbeatTask.cancel(true);
+            checkHeartbeatTask = null;
         }
 
         timerHandler.removeCallbacks(timerRunnable);
@@ -822,6 +839,7 @@ public class ConnectionEstablishedActivity
         Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(openMainActivity);
+        finish();
     }
 
     private void showProgressBar(final String progressBarText) {
@@ -928,8 +946,8 @@ public class ConnectionEstablishedActivity
     }
 
     @AllArgsConstructor
-    class HeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
+    class SendHeartbeatTask extends AsyncTask<Void, Void, Void> {
+        private static final int HEARTBEAT_MESSAGE_SEND_INTERVAL_MS = 1000;
         @NonNull
         private PeerInfo peerInfo;
 
@@ -942,12 +960,6 @@ public class ConnectionEstablishedActivity
         @Override
         protected Void doInBackground(Void... params) {
             while (!isCancelled()) {
-
-                // Check if we have received heartbeat message from peer recently.
-                if (System.currentTimeMillis() - latestPeerHeartbeatMessageTimeMs
-                        > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
-                    break;
-                }
 
                 // Send heartbeat message to peer to communicate that you are healthy
                 runOnUiThread(new Runnable() {
@@ -967,7 +979,39 @@ public class ConnectionEstablishedActivity
                 });
 
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(HEARTBEAT_MESSAGE_SEND_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                }
+            }
+            return null;
+        }
+    }
+
+    @AllArgsConstructor
+    class CheckHeartbeatTask extends AsyncTask<Void, Void, Void> {
+        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
+        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 1000;
+        @NonNull
+        private PeerInfo peerInfo;
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            while (!isCancelled()) {
+
+                // Check if we have received heartbeat message from peer recently.
+                if (System.currentTimeMillis() - latestPeerHeartbeatMessageTimeMs
+                        > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
+                    break;
+                }
+
+                try {
+                    Thread.sleep(HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS);
                 } catch (InterruptedException e) {
                 }
             }

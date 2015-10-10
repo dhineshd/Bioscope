@@ -66,6 +66,7 @@ public class SendConnectionInfoNFCActivity
     private Gson gson = new Gson();
     private boolean isWifiHotspotRequiredForNextStep;
     private VideoView nfcTutVideoView;
+    private boolean firstClientRequestReceived;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -225,23 +226,12 @@ public class SendConnectionInfoNFCActivity
     @Override
     public void onClientRequest(final Socket clientSocket, final PeerMessage messageFromClient) {
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                log.info("thread is " + Thread.currentThread());
-                connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
-                progressBar.setVisibility(View.VISIBLE);
-            }
-        });
+        if (firstClientRequestReceived) return;
 
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        firstClientRequestReceived = true;
 
         log.info("Starting connection establshed activity!");
-        Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
+        final Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
         PeerInfo peerInfo = PeerInfo.builder()
                 .ipAddress(clientSocket.getInetAddress())
                 .port(ChameleonApplication.SERVER_PORT)
@@ -250,8 +240,21 @@ public class SendConnectionInfoNFCActivity
                 .build();
         intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
 
-        isWifiHotspotRequiredForNextStep = true;
-        startActivity(intent);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                log.info("Thread is " + Thread.currentThread());
+                connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
+                progressBar.setVisibility(View.VISIBLE);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        isWifiHotspotRequiredForNextStep = true;
+                        startActivity(intent);
+                    }
+                }, 2000);
+            }
+        });
     }
 
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {
