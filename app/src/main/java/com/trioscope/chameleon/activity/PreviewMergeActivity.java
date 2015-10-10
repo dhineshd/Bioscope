@@ -191,7 +191,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                         new File(outputFile.getAbsolutePath()),
                         config.build());
 
-
                 // Log aggregate metadata into local DB
                 log.info("Adding metadata (videographer) to local DB");
                 BioscopeDBHelper helper = new BioscopeDBHelper(PreviewMergeActivity.this);

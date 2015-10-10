@@ -11,7 +11,7 @@ import android.provider.BaseColumns;
 
 import com.trioscope.chameleon.aop.Timed;
 
-import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,9 +41,11 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
             "CREATE TABLE " + THUMBS_TABLE_NAME + " (" + BaseColumns._ID + " INTEGER PRIMARY KEY, " +
                     FILE_NAME_COL + " TEXT, " +
                     THUMBS_COL + " BLOB);";
+    private final Context context;
 
     public BioscopeDBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+        this.context = context;
     }
 
     @Override
@@ -65,17 +67,25 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
 
     @Timed
     public boolean insertThumbnail(String videoFileName, Bitmap thumbnail) {
-        int size = thumbnail.getAllocationByteCount();
-        ByteBuffer b = ByteBuffer.allocate(size);
-        thumbnail.copyPixelsToBuffer(b);
-        byte[] bytes = new byte[size];
-        int bytesToRead = Math.min(bytes.length, b.remaining());
-        b.get(bytes, 0, bytesToRead);
+        if (thumbnail == null) {
+            log.warn("Not inserting null thumbnail for {}", videoFileName);
+            return false;
+        }
+
+
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        thumbnail.compress(Bitmap.CompressFormat.PNG, 100, bos);
+        byte[] bArray = bos.toByteArray();
+
+        log.info("Inserting bArray of size {}, {} {} {} {}", bArray.length, bArray[0], bArray[1], bArray[2], bArray[3]);
 
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(FILE_NAME_COL, videoFileName);
-        cv.put(THUMBS_COL, bytes);
+        cv.put(THUMBS_COL, bArray);
+
+        int rowsDeleted = db.delete(THUMBS_TABLE_NAME, FILE_NAME_COL + "=?", new String[]{videoFileName});
+        log.info("Deleted {} rows before inserting thumbnail for {}", rowsDeleted, videoFileName);
 
         long rowId = db.insert(THUMBS_TABLE_NAME, null, cv);
         if (rowId != -1)
@@ -83,6 +93,9 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         else
             log.info("Failed to insert thumbnail for {}", videoFileName);
 
+        db.close();
+        thumbnail = getThumbnail(videoFileName);
+        log.info("Got thumbnail not null = {}", thumbnail != null);
         return rowId != -1;
     }
 
@@ -102,13 +115,17 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         return rowId != -1;
     }
 
+    @Timed
     public Bitmap getThumbnail(String videoFileName) {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.query(THUMBS_TABLE_NAME, new String[]{FILE_NAME_COL}, FILE_NAME_COL + "=?", new String[]{videoFileName}, null, null, null, null);
+        Cursor cursor = db.query(THUMBS_TABLE_NAME, new String[]{THUMBS_COL}, FILE_NAME_COL + "=?", new String[]{videoFileName}, null, null, null, null);
         Bitmap bitmap = null;
         if (cursor.moveToFirst()) {
             byte[] blob = cursor.getBlob(0);
             bitmap = BitmapFactory.decodeByteArray(blob, 0, blob.length);
+            if (bitmap == null) {
+                log.warn("Bitmap is in DB, but it could not be decoded for {}, blob length was {}", videoFileName, blob.length);
+            }
         } else {
             log.info("No thumbnail in DB for {}", videoFileName);
         }

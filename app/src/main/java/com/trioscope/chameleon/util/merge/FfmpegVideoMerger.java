@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -158,7 +159,23 @@ public class FfmpegVideoMerger implements VideoMerger {
     @Timed
     private Bitmap getThumbnail(File videoFile) {
         try {
-            return ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+            Bitmap bm = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
+
+            if (bm != null) {
+                return bm;
+            } else {
+                log.warn("Failed to create thumbnail from ThumbnailUtils, using MMR instead");
+                try {
+                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                    retriever.setDataSource(videoFile.getAbsolutePath());
+                    int timeInSeconds = 30;
+                    bm = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+
+                    return bm;
+                } catch (Exception ex) {
+                    log.error("Exception getting thumbnail for file {}", videoFile, ex);
+                }
+            }
         } catch (Exception ex) {
             log.error("Exception getting thumbnail for file {}", videoFile, ex);
         }
