@@ -118,8 +118,6 @@ public class ConnectionEstablishedActivity
 
         initializeRecordingTimer();
 
-        initializeRecordingTimer();
-
         chameleonApplication = (ChameleonApplication) getApplication();
 
         sslSocketFactory = SSLUtil.getInitializedSSLSocketFactory(this);
