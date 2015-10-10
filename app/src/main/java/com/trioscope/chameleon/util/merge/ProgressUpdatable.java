@@ -7,4 +7,6 @@ public interface ProgressUpdatable {
     public void onProgress(double progress, double outOf);
 
     public void onCompleted();
+
+    public void onError();
 }

@@ -11,7 +11,11 @@ import android.widget.TextView;
 
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
+import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageActivity {
 
     /**
@@ -25,24 +29,25 @@ public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageA
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash_screen);
 
-        int waitTimeMillis = SPLASH_DISPLAY_LENGTH;
         FfmpegVideoMerger merger = new FfmpegVideoMerger(this);
         if (!merger.hasRequiredComponents()) {
             // We need to do an initial download of codecs
             TextView text = (TextView) findViewById(R.id.splash_status_text);
             text.setText("Downloading additional codecs for mp4 encoding...");
-            long elapsedTime = System.currentTimeMillis();
-            merger.prepare();
-            elapsedTime = System.currentTimeMillis() - elapsedTime;
-            waitTimeMillis = (int) Math.max(SPLASH_DISPLAY_LENGTH_WITH_DOWNLOAD - elapsedTime, 0);
+            merger.prepare(new DownloadProgressUpdatable());
+        } else {
+             /* New Handler to start the Menu-Activity
+              * and close this Splash-Screen after some seconds.
+              */
+            transitionAfterDelay(SPLASH_DISPLAY_LENGTH);
         }
+    }
 
-         /* New Handler to start the Menu-Activity
-         * and close this Splash-Screen after some seconds.*/
+    private void transitionAfterDelay(int waitTimeMillis) {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                /* Create an Intent that will start the Menu-Activity. */
+            /* Create an Intent that will start the Menu-Activity. */
                 Intent mainIntent = new Intent(SplashScreenActivity.this, UserLoginActivity.class);
                 // create the transition animation - the images in the layouts
                 // of both activities are defined with android:transitionName="logo"
@@ -78,5 +83,24 @@ public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageA
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private class DownloadProgressUpdatable implements ProgressUpdatable {
+        @Override
+        public void onProgress(double progress, double outOf) {
+            //log.info("Completed {}%", progress / outOf * 100.0);
+        }
+
+        @Override
+        public void onCompleted() {
+            log.info("Download completed!");
+            transitionAfterDelay(SPLASH_DISPLAY_LENGTH);
+        }
+
+        public void onError() {
+            log.info("Thread is {}", Thread.currentThread());
+            TextView text = (TextView) findViewById(R.id.splash_status_text);
+            text.setText("Error downloading necessary video encoders.\nPlease check your internet connection and restart the app.");
+        }
     }
 }

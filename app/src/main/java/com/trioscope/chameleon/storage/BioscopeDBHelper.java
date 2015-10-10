@@ -77,8 +77,6 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         thumbnail.compress(Bitmap.CompressFormat.PNG, 100, bos);
         byte[] bArray = bos.toByteArray();
 
-        log.info("Inserting bArray of size {}, {} {} {} {}", bArray.length, bArray[0], bArray[1], bArray[2], bArray[3]);
-
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(FILE_NAME_COL, videoFileName);

@@ -45,10 +45,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-<<<<<<<HEAD
-        =======
-        >>>>>>>philipa-library
-
 /**
  * Created by phand on 7/9/15.
  */
@@ -67,6 +63,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
+    private static final String LIBOPENH_MD5SUM = "b94a0e5d421dd4acc8200ed0c4cd521e";
 
     private Context context;
     private DepackageUtil depackageUtil;
@@ -90,6 +87,10 @@ public class FfmpegVideoMerger implements VideoMerger {
     }
 
     public void prepare() {
+        // If no progressUpdatable is provided, perform the preparation synchronously
+    }
+
+    public void prepare(ProgressUpdatable progressUpdatable) {
         if (prepared) {
             log.info("FFMPEG Video Merger already prepared - skipping preparation");
             return;
@@ -105,10 +106,11 @@ public class FfmpegVideoMerger implements VideoMerger {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
 
-        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH);
+        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH, progressUpdatable, LIBOPENH_MD5SUM);
 
         prepared = true;
     }
+
 
     @Override
     public void mergeVideos(
@@ -151,6 +153,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                 .setProgress(100, 0, false);
         notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
     }
+
 
     @Timed
     private void addThumbnailToDb(File majorVideo, File outputFile, BioscopeDBHelper db) {

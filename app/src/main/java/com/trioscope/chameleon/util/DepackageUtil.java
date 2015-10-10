@@ -6,17 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
-import android.net.Uri;
 
 import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,7 +38,7 @@ public class DepackageUtil {
     private long downloadId;
     private DownloadManager manager;
 
-    public boolean downloadAsset(String assetUrl, String outputName) {
+    public boolean downloadAsset(String assetUrl, String outputName, ProgressUpdatable progressUpdatable, String expectedMd5sum) {
         log.info("Using download manager to download {}", assetUrl);
 
 
@@ -54,57 +51,11 @@ public class DepackageUtil {
             }
         }
 
-        registerBroadcastReceiver();
 
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(assetUrl));
-        request.setDescription("Downloading OpenH264 for H.264 encoding");
-        request.setTitle("Downloading encoding library");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationInExternalFilesDir(context, null, outputName);
+        DownloadAsyncTask downloadTask = new DownloadAsyncTask(context, progressUpdatable);
 
-        // get download service and enqueue file
-        log.info("Retrieving download manager and enqueueing request to download to {}", context.getExternalFilesDir(null));
-        manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-        downloadId = manager.enqueue(request);
-
-        // TODO: Take this off UI thread
-        try {
-            synchronized (this) {
-                this.wait();
-            }
-        } catch (InterruptedException e) {
-            log.error("Error waiting for download");
-            return false;
-        }
-
-        if (outputName.endsWith(".bz2")) {
-            String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
-            String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
-            log.info("Unzipping bz2 file {} to {}", fileName, unzippedFileName);
-            try {
-                FileInputStream fin = new FileInputStream(fileName);
-                BufferedInputStream in = new BufferedInputStream(fin);
-                FileOutputStream out = new FileOutputStream(unzippedFileName);
-                BZip2CompressorInputStream bzIn = new BZip2CompressorInputStream(in);
-                final byte[] buffer = new byte[1024];
-                int n = 0;
-                while (-1 != (n = bzIn.read(buffer))) {
-                    out.write(buffer, 0, n);
-                }
-                log.info("Finished unzipping, closing streams");
-                out.close();
-                bzIn.close();
-            } catch (IOException e) {
-                log.error("Unable to unzip file due to error", e);
-                return false;
-            }
-        }
-
-        log.info("Listing depackage directory: ");
-        File dir = new File("/data/data/com.trioscope.chameleon/app_dpkg/");
-        for (File f : dir.listFiles()) {
-            log.info("File: {}", f);
-        }
+        String outputFileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+        downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
 
         return true;
     }
@@ -131,6 +82,8 @@ public class DepackageUtil {
                     }
                 }
             }
+
+
         };
 
         context.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), null, new ThreadWithHandler().getHandler());
