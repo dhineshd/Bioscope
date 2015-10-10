@@ -69,7 +69,8 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         ByteBuffer b = ByteBuffer.allocate(size);
         thumbnail.copyPixelsToBuffer(b);
         byte[] bytes = new byte[size];
-        b.get(bytes, 0, bytes.length);
+        int bytesToRead = Math.min(bytes.length, b.remaining());
+        b.get(bytes, 0, bytesToRead);
 
         SQLiteDatabase db = getWritableDatabase();
         ContentValues cv = new ContentValues();
