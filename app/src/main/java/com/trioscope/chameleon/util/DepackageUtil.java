@@ -1,13 +1,7 @@
 package com.trioscope.chameleon.util;
 
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.database.Cursor;
 
-import com.trioscope.chameleon.types.ThreadWithHandler;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import org.slf4j.Logger;
@@ -36,11 +30,9 @@ public class DepackageUtil {
 
     // TODO: Make this threadsafe so we can download multiple assets at once
     private long downloadId;
-    private DownloadManager manager;
 
     public boolean downloadAsset(String assetUrl, String outputName, ProgressUpdatable progressUpdatable, String expectedMd5sum) {
         log.info("Using download manager to download {}", assetUrl);
-
 
         if (outputName.endsWith(".bz2")) {
             String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
@@ -58,35 +50,6 @@ public class DepackageUtil {
         downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
 
         return true;
-    }
-
-    private void registerBroadcastReceiver() {
-        BroadcastReceiver receiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                log.info("Received ACTION_DOWNLOAD_COMPLETE intent: {}", intent);
-                String action = intent.getAction();
-                if (DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals(action)) {
-                    log.info("Intent was a completed download");
-                    DownloadManager.Query query = new DownloadManager.Query();
-                    query.setFilterById(downloadId);
-                    Cursor c = manager.query(query);
-                    if (c.moveToFirst()) {
-                        int columnIndex = c.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                        if (DownloadManager.STATUS_SUCCESSFUL == c.getInt(columnIndex)) {
-                            log.info("Download completed successfully");
-                            synchronized (DepackageUtil.this) {
-                                DepackageUtil.this.notifyAll();
-                            }
-                        }
-                    }
-                }
-            }
-
-
-        };
-
-        context.registerReceiver(receiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), null, new ThreadWithHandler().getHandler());
     }
 
     public boolean depackageAsset(String assetName, String outputName) {

@@ -72,7 +72,6 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
             return false;
         }
 
-
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         thumbnail.compress(Bitmap.CompressFormat.PNG, 100, bos);
         byte[] bArray = bos.toByteArray();
