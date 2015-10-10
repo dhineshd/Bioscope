@@ -305,12 +305,15 @@ public class FfmpegVideoMerger implements VideoMerger {
                     MetricNames.Label.MERGE_TIME.getName(),
                     mergeTime);
 
-            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+
 
             try {
-            Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                mmr.setDataSource(outputFile.getAbsolutePath());
+                Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
 
                 if(durationOfVideo != null) {
+                    log.info("Duration of merged video is {}ms", durationOfVideo);
                     //Publish merge time
                     ChameleonApplication.getMetrics().sendTime(
                             MetricNames.Category.VIDEO.getName(),
