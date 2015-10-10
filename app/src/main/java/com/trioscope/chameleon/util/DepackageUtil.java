@@ -41,9 +41,9 @@ public class DepackageUtil {
     public boolean downloadAsset(String assetUrl, String outputName, ProgressUpdatable progressUpdatable, String expectedMd5sum) {
         log.info("Using download manager to download {}", assetUrl);
 
-
+        String directoryPath = getOutputDirectory().getPath();
         if (outputName.endsWith(".bz2")) {
-            String unzippedFileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
+            String unzippedFileName = directoryPath + File.separator + outputName.substring(0, outputName.length() - 4);
             File f = new File(unzippedFileName);
             if (f.exists()) {
                 log.info("File {} already exists, not going to download", unzippedFileName);
@@ -54,7 +54,7 @@ public class DepackageUtil {
 
         DownloadAsyncTask downloadTask = new DownloadAsyncTask(context, progressUpdatable);
 
-        String outputFileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+        String outputFileName = directoryPath + File.separator + outputName;
         downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
 
         return true;
