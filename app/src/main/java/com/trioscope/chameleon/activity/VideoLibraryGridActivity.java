@@ -43,7 +43,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,8 +56,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    private GestureDetectorCompat gestureDetector;
-
     // Newest files first comparator
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
         @Override
@@ -62,6 +63,9 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             return new Long(rhs.lastModified()).compareTo(lhs.lastModified());
         }
     };
+
+    private GestureDetectorCompat gestureDetector;
+    private Executor backgroundThumbnailExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +114,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         }
         db.close();
 
-        log.info("Showing {} library files, including {} currently being merged ({})", libraryFiles.size(), mergingFileNames.size(), mergingFileNames);
+        log.info("Showing {} library files, including {} currently being merged ({}). Files are {}", libraryFiles.size(), mergingFileNames.size(), mergingFileNames, libraryFiles);
 
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);
         GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
@@ -147,7 +151,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             try {
                 // Get the data item for this position
                 final File videoFile = getItem(position);
-                log.info("Getting view for videoFile {}", videoFile);
+                log.info("Getting view for videoFile {} (position {})", videoFile, position);
 
                 // Check if an existing view is being reused, otherwise inflate the view
                 if (convertView == null) {
@@ -156,17 +160,21 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
 
-                //TODO: we might want to do this only for files that exist and use some other method for currently merging videos.
-                Bitmap bitmap = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Video.Thumbnails.MINI_KIND);
-                if (bitmap != null) {
-                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
-                    backgroundImage.setImageBitmap(bitmap);
-                } else {
-                    log.warn("Unable to create thumbnail from video file {}", videoFile);
-                }
-
                 BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
                 List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
+                Bitmap thumbnail = helper.getThumbnail(videoFile.getName());
+
+                if (thumbnail == null) {
+                    log.info("No thumbnail found in the DB, creating one in a background thread");
+                    // We need to generate the thumbnail, but to make scrolling smooth we do so on a separate thread
+                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
+                    backgroundImage.setImageResource(R.drawable.direct_logo);
+                    backgroundThumbnailExecutor.execute(new RetrieveThumbnailRunnable(videoFile, new Handler(Looper.getMainLooper())));
+                } else {
+                    log.info("Successfully retrieved thumbnail from DB for {}", videoFile);
+                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
+                    backgroundImage.setImageBitmap(thumbnail);
+                }
 
                 // Check if this video is being merged
                 VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
@@ -252,18 +260,15 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     }
 
     @Timed
-    private Bitmap getThumbnail(File videoFile) {
-        log.info("Getting thumbnail for videoFile {}", videoFile);
-        BioscopeDBHelper helper = new BioscopeDBHelper(this);
-        Bitmap bm = helper.getThumbnail(videoFile.getName());
-        helper.close();
-        if (bm != null) {
-            log.info("Found thumbnail in DB, using that");
+    private Bitmap createThumbnail(File videoFile) {
+        log.info("Creating thumbnail for videoFile {}", videoFile);
 
-            return bm;
+        Bitmap thumb = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
+
+        if (thumb != null) {
+            return thumb;
         } else {
-            log.info("Creating bitmap on the fly");
-
+            log.warn("Failed to create thumbnail from ThumbnailUtils, using MMR instead");
             try {
                 MediaMetadataRetriever retriever = new MediaMetadataRetriever();
                 retriever.setDataSource(videoFile.getAbsolutePath());
@@ -274,8 +279,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             } catch (Exception ex) {
                 log.error("Exception getting thumbnail for file {}", videoFile, ex);
             }
-            return null;
         }
+        return null;
     }
 
     private String milliToMinutes(Double aDouble) {
@@ -335,8 +340,58 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             updateVideoGridWithPercentage(100);
         }
 
+        @Override
+        public void onError() {
+            // TODO
+        }
+
         private int getPercent(double progress, double outOf) {
             return (int) Math.min(100, Math.ceil(100.0 * progress / outOf));
+        }
+    }
+
+    @RequiredArgsConstructor
+    private class RetrieveThumbnailRunnable implements Runnable {
+        private final File videoFile;
+        private final Handler handler;
+
+        @Override
+        public void run() {
+            log.info("Retrieving thumbnail for {}", videoFile);
+
+            final Bitmap thumbnail = createThumbnail(videoFile);
+            if (thumbnail != null) {
+                BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+                helper.insertThumbnail(videoFile.getName(), thumbnail);
+
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
+                        int start = videoGrid.getFirstVisiblePosition();
+                        boolean found = false;
+                        for (int i = start, j = videoGrid.getLastVisiblePosition(); i <= j; i++) {
+                            if (videoFile.equals(videoGrid.getItemAtPosition(i))) {
+                                // The file in question is on the screen as position i
+                                View view = videoGrid.getChildAt(i - start);
+
+                                ImageView backgroundImage = (ImageView) view.findViewById(R.id.video_grid_background_image);
+                                backgroundImage.setImageBitmap(thumbnail);
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (!found) {
+                            log.info("Created thumbnail for {}, but image is no longer on the screen, so not setting it at the moment", videoFile);
+                        }
+                    }
+                });
+
+                helper.close();
+            } else {
+                log.info("Failed to create thumbnail for video {}", videoFile);
+            }
         }
     }
 }

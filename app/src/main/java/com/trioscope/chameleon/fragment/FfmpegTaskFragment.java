@@ -199,4 +199,9 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
                 .build();
         notificationManager.notify(COMPLETED_NOTIFICATION_ID, n);
     }
+
+    @Override
+    public void onError() {
+        // TODO
+    }
 }
