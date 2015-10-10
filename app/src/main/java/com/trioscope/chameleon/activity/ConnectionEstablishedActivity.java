@@ -26,6 +26,7 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.record.MediaCodecRecorder;
 import com.trioscope.chameleon.record.VideoRecorder;
 import com.trioscope.chameleon.stream.NetworkStreamer;
@@ -745,8 +746,11 @@ public class ConnectionEstablishedActivity
         @NonNull
         private final RecordingMetadata recordingMetadata;
 
+        private long startTime;
+
         @Override
         protected void onPreExecute() {
+            startTime = System.currentTimeMillis();
             super.onPreExecute();
             showProgressBar("Sending\nvideo");
         }
@@ -830,6 +834,15 @@ public class ConnectionEstablishedActivity
             videoFile.delete();
 
             openMainActivity();
+
+            long endTime = System.currentTimeMillis();
+
+            ChameleonApplication.getMetrics().sendTime(
+                    MetricNames.Category.VIDEO.getName(),
+                    MetricNames.Label.TIME_TO_TRANSFER_FILE.getName(),
+                    (endTime - startTime));
+
+            log.info("Time to trasfer file is {}ms", (endTime-startTime));
 
         }
     }
