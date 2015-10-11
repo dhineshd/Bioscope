@@ -101,6 +101,7 @@ public class ConnectionEstablishedActivity
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
     private volatile Long latestPeerHeartbeatMessageTimeMs;
+    private boolean isDirector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -145,6 +146,8 @@ public class ConnectionEstablishedActivity
         log.info("Intent = {}", intent);
         peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
+        setRole();
+
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
         // Start streaming preview from peer
@@ -157,7 +160,13 @@ public class ConnectionEstablishedActivity
 
         log.info("PeerInfo = {}", peerInfo);
 
-        peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
+        if(isDirector) {
+            peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
+        } else {
+            peerUserNameTextView.setText("Directed by " + peerInfo.getUserName());
+        }
+
+
 
         switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
@@ -177,7 +186,7 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.start_recording_button_enabled);
 
                     // Director should send message to crew to stop recording
-                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                    if (isDirector) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.STOP_RECORDING)
                                 .senderUserName(getUserName())
@@ -200,7 +209,7 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Director should send message to crew to start recording
-                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                    if (isDirector) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.START_RECORDING)
                                 .senderUserName(getUserName())
@@ -216,7 +225,7 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+        if (isDirector) {
             // I am the director. So, should be able to start/stop recording.
             recordButton.setEnabled(true);
             recordButton.setVisibility(View.VISIBLE);
@@ -275,6 +284,12 @@ public class ConnectionEstablishedActivity
                 checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }, 5000);
+    }
+
+    private void setRole() {
+        if(PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+            isDirector = true;
+        }
     }
 
     private void startRecording() {
@@ -369,7 +384,7 @@ public class ConnectionEstablishedActivity
         }
 
         this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Press back again to end session", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
 
         new Handler().postDelayed(new Runnable() {
 
