@@ -78,7 +78,6 @@ public class ConnectionEstablishedActivity
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private SendVideoToPeerTask sendVideoToPeerTask;
-    private SendHeartbeatTask sendHeartbeatTask;
     private CheckHeartbeatTask checkHeartbeatTask;
     private Gson gson = new Gson();
     private boolean isRecording;
@@ -263,10 +262,6 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        // Start sending heartbeat message to peer
-        sendHeartbeatTask = new SendHeartbeatTask(peerInfo);
-        sendHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
         //Start checking heartbeat messages are received from peer (after some initial delay)
         new Handler().postDelayed(new Runnable() {
             @Override
@@ -415,11 +410,6 @@ public class ConnectionEstablishedActivity
         if (sendVideoToPeerTask != null) {
             sendVideoToPeerTask.cancel(true);
             sendVideoToPeerTask = null;
-        }
-
-        if (sendHeartbeatTask != null) {
-            sendHeartbeatTask.cancel(true);
-            sendHeartbeatTask = null;
         }
 
         if (checkHeartbeatTask != null) {
@@ -925,6 +915,7 @@ public class ConnectionEstablishedActivity
                             final int bytesRead = inputStream.read(buffer);
                             if (bytesRead != -1) {
                                 streamImageReceived = true;
+                                latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
                                 log.debug("Received preview image from remote server bytes = " + bytesRead);
                                 final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
                                         BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
@@ -1001,7 +992,7 @@ public class ConnectionEstablishedActivity
     @AllArgsConstructor
     class CheckHeartbeatTask extends AsyncTask<Void, Void, Void> {
         private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
-        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 1000;
+        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
         @NonNull
         private PeerInfo peerInfo;
 
