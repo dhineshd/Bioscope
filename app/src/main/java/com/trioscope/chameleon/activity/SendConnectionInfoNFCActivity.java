@@ -21,6 +21,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.VideoView;
@@ -51,7 +52,7 @@ import static android.nfc.NdefRecord.createMime;
 @Slf4j
 public class SendConnectionInfoNFCActivity
         extends EnableForegroundDispatchForNFCMessageActivity
-        implements NfcAdapter.CreateNdefMessageCallback, ServerEventListener {
+        implements NfcAdapter.CreateNdefMessageCallback, NfcAdapter.OnNdefPushCompleteCallback, ServerEventListener {
     private static final int MAX_ATTEMPTS_TO_CREATE_WIFI_HOTSPOT = 3;
     private TextView connectionStatusTextView;
     private ProgressBar progressBar;
@@ -66,6 +67,7 @@ public class SendConnectionInfoNFCActivity
     private Gson gson = new Gson();
     private boolean isWifiHotspotRequiredForNextStep;
     private VideoView nfcTutVideoView;
+    private ImageView progressBarInteriorImageView;
     private boolean firstClientRequestReceived;
 
     @Override
@@ -80,6 +82,8 @@ public class SendConnectionInfoNFCActivity
 
         connectionStatusTextView = (TextView) findViewById(R.id.textView_sender_connection_status);
         progressBar = (ProgressBar) findViewById(R.id.send_conn_info_prog_bar);
+        progressBarInteriorImageView = (ImageView) findViewById(R.id.send_conn_info_prog_bar_interior);
+
         cancelButton = (Button) findViewById(R.id.button_cancel_send_connection_info);
         cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -95,6 +99,7 @@ public class SendConnectionInfoNFCActivity
 
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
+        mNfcAdapter.setOnNdefPushCompleteCallback(this, this);
 
         chameleonApplication.getServerEventListenerManager().addListener(this);
 
@@ -158,6 +163,22 @@ public class SendConnectionInfoNFCActivity
         // TODO: User friendly message?
         log.warn("Wifi connection info not available to send via NFC");
         return null;
+    }
+
+
+    @Override
+    public void onNdefPushComplete(NfcEvent event) {
+
+        runOnUiThread(new Runnable() {
+
+                          @Override
+                          public void run() {
+                              showProgressBar();
+                              connectionStatusTextView.setText("Connecting...");
+
+                          }
+                      }
+        );
     }
 
     @Override
@@ -247,6 +268,7 @@ public class SendConnectionInfoNFCActivity
         });
     }
 
+
     class SetupWifiHotspotTask extends AsyncTask<Void, Void, Void> {
 
         @Override
@@ -288,14 +310,7 @@ public class SendConnectionInfoNFCActivity
     }
 
     private void createWifiHotspot() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                showProgressBar();
-                connectionStatusTextView.setText("Preparing\nto\nconnect");
 
-            }
-        });
 
         log.info("Creating Wifi hotspot. Thread = {}", Thread.currentThread());
 
@@ -423,7 +438,9 @@ public class SendConnectionInfoNFCActivity
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        progressBar.setVisibility(View.INVISIBLE);
+
+                                        progressBarInteriorImageView.setVisibility(View.VISIBLE);
+                                        connectionStatusTextView.setVisibility(View.VISIBLE);
                                         connectionStatusTextView.setText("Beam\nto\nconnect");
                                     }
                                 });
