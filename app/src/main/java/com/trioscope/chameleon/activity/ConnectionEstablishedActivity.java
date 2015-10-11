@@ -379,7 +379,7 @@ public class ConnectionEstablishedActivity
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
         log.info("User is leaving! Finishing activity");
-        finish();
+        //finish();
     }
 
     @Override
@@ -721,7 +721,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
-            //finish();
+            finish();
         }
 
     }
