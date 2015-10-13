@@ -963,48 +963,6 @@ public class ConnectionEstablishedActivity
     }
 
     @AllArgsConstructor
-    class SendHeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int HEARTBEAT_MESSAGE_SEND_INTERVAL_MS = 1000;
-        @NonNull
-        private PeerInfo peerInfo;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            while (!isCancelled()) {
-
-                // Send heartbeat message to peer to communicate that you are healthy
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            PeerMessage peerMessage = PeerMessage.builder()
-                                    .type(PeerMessage.Type.SESSION_HEARTBEAT)
-                                    .senderUserName(getUserName())
-                                    .contents("abc").build();
-                            new SendMessageToPeerTask(peerMessage, peerInfo)
-                                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                        } catch (Exception e) {
-                            log.warn("Failed to send heartbeat message", e);
-                        }
-                    }
-                });
-
-                try {
-                    Thread.sleep(HEARTBEAT_MESSAGE_SEND_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                }
-            }
-            return null;
-        }
-    }
-
-    @AllArgsConstructor
     class CheckHeartbeatTask extends AsyncTask<Void, Void, Void> {
         private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
         private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
