@@ -78,7 +78,6 @@ public class ConnectionEstablishedActivity
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private SendVideoToPeerTask sendVideoToPeerTask;
-    private SendHeartbeatTask sendHeartbeatTask;
     private CheckHeartbeatTask checkHeartbeatTask;
     private Gson gson = new Gson();
     private boolean isRecording;
@@ -101,6 +100,7 @@ public class ConnectionEstablishedActivity
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
     private volatile Long latestPeerHeartbeatMessageTimeMs;
+    private boolean isDirector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,8 +115,6 @@ public class ConnectionEstablishedActivity
         peerUserNameTextView = (TextView) findViewById(R.id.textview_peer_user_name);
 
         recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
-
-        initializeRecordingTimer();
 
         initializeRecordingTimer();
 
@@ -147,6 +145,8 @@ public class ConnectionEstablishedActivity
         log.info("Intent = {}", intent);
         peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
+        setRole();
+
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
         // Start streaming preview from peer
@@ -159,7 +159,13 @@ public class ConnectionEstablishedActivity
 
         log.info("PeerInfo = {}", peerInfo);
 
-        peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
+        if(isDirector) {
+            peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
+        } else {
+            peerUserNameTextView.setText("Directed by " + peerInfo.getUserName());
+        }
+
+
 
         switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
@@ -179,7 +185,7 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.start_recording_button_enabled);
 
                     // Director should send message to crew to stop recording
-                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                    if (isDirector) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.STOP_RECORDING)
                                 .senderUserName(getUserName())
@@ -202,7 +208,7 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Director should send message to crew to start recording
-                    if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+                    if (isDirector) {
                         PeerMessage peerMsg = PeerMessage.builder()
                                 .type(PeerMessage.Type.START_RECORDING)
                                 .senderUserName(getUserName())
@@ -218,7 +224,7 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        if (PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+        if (isDirector) {
             // I am the director. So, should be able to start/stop recording.
             recordButton.setEnabled(true);
             recordButton.setVisibility(View.VISIBLE);
@@ -265,10 +271,6 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        // Start sending heartbeat message to peer
-        sendHeartbeatTask = new SendHeartbeatTask(peerInfo);
-        sendHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
         //Start checking heartbeat messages are received from peer (after some initial delay)
         new Handler().postDelayed(new Runnable() {
             @Override
@@ -277,6 +279,12 @@ public class ConnectionEstablishedActivity
                 checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }, 5000);
+    }
+
+    private void setRole() {
+        if(PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
+            isDirector = true;
+        }
     }
 
     private void startRecording() {
@@ -371,7 +379,7 @@ public class ConnectionEstablishedActivity
         }
 
         this.doubleBackToExitPressedOnce = true;
-        Toast.makeText(this, "Press back again to end session", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
 
         new Handler().postDelayed(new Runnable() {
 
@@ -386,7 +394,7 @@ public class ConnectionEstablishedActivity
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
         log.info("User is leaving! Finishing activity");
-        finish();
+        //finish();
     }
 
     @Override
@@ -417,11 +425,6 @@ public class ConnectionEstablishedActivity
         if (sendVideoToPeerTask != null) {
             sendVideoToPeerTask.cancel(true);
             sendVideoToPeerTask = null;
-        }
-
-        if (sendHeartbeatTask != null) {
-            sendHeartbeatTask.cancel(true);
-            sendHeartbeatTask = null;
         }
 
         if (checkHeartbeatTask != null) {
@@ -733,7 +736,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY, gson.toJson(localRecordingMetadata));
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
-            //finish();
+            finish();
         }
 
     }
@@ -927,6 +930,7 @@ public class ConnectionEstablishedActivity
                             final int bytesRead = inputStream.read(buffer);
                             if (bytesRead != -1) {
                                 streamImageReceived = true;
+                                latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
                                 log.debug("Received preview image from remote server bytes = " + bytesRead);
                                 final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
                                         BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
@@ -959,51 +963,9 @@ public class ConnectionEstablishedActivity
     }
 
     @AllArgsConstructor
-    class SendHeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int HEARTBEAT_MESSAGE_SEND_INTERVAL_MS = 1000;
-        @NonNull
-        private PeerInfo peerInfo;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            while (!isCancelled()) {
-
-                // Send heartbeat message to peer to communicate that you are healthy
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            PeerMessage peerMessage = PeerMessage.builder()
-                                    .type(PeerMessage.Type.SESSION_HEARTBEAT)
-                                    .senderUserName(getUserName())
-                                    .contents("abc").build();
-                            new SendMessageToPeerTask(peerMessage, peerInfo)
-                                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                        } catch (Exception e) {
-                            log.warn("Failed to send heartbeat message", e);
-                        }
-                    }
-                });
-
-                try {
-                    Thread.sleep(HEARTBEAT_MESSAGE_SEND_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                }
-            }
-            return null;
-        }
-    }
-
-    @AllArgsConstructor
     class CheckHeartbeatTask extends AsyncTask<Void, Void, Void> {
         private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
-        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 1000;
+        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
         @NonNull
         private PeerInfo peerInfo;
 

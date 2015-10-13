@@ -2,4 +2,6 @@
 <resources>
     <color name="bioscope_teal">#92D2C2</color>
     <color name="bioscope_orange">#F47B4C</color>
+    <color name="bioscope_purple">#9B296E</color>
+    <color name="bioscope_light_purple">#AF2C7E</color>
 </resources>

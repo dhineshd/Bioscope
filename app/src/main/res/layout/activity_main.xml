@@ -35,7 +35,7 @@
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="248dp"
-            android:text="Direct\nVideo" />
+            android:text="Direct" />
 
         <ImageButton
             android:id="@+id/button_main_library"
