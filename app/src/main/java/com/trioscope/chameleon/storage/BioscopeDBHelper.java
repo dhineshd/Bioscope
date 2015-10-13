@@ -109,6 +109,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         else
             log.info("Failed to insert {}={} for {}", type, value, videoFileName);
 
+        db.close();
         return rowId != -1;
     }
 
@@ -127,6 +128,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
             log.info("No thumbnail in DB for {}", videoFileName);
         }
 
+        db.close();
         return bitmap;
     }
 
@@ -142,6 +144,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         }
 
         cursor.close();
+        db.close();
         return result;
     }
 
@@ -151,6 +154,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         int numDeletedRows = db.delete(VIDEO_INFO_TABLE_NAME, FILE_NAME_COL + "=? AND " + INFO_TYPE_COL + "=?", new String[]{videoFileName, String.valueOf(type.getTypeValue())});
 
         log.info("Deleted {} rows in the DB with type {} for file {}", numDeletedRows, type, videoFileName);
+        db.close();
         return;
     }
 
@@ -162,6 +166,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
 
         int numDeletedThumbs = db.delete(THUMBS_TABLE_NAME, FILE_NAME_COL + "=?", new String[]{videoFileName});
         log.info("Deleted {} rows in the thumbs DB for file {}", numDeletedThumbs, videoFileName);
+        db.close();
         return;
     }
 
@@ -177,6 +182,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         }
 
         cursor.close();
+        db.close();
         return result;
     }
 }
