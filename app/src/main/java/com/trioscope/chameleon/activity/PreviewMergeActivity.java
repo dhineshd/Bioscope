@@ -6,6 +6,7 @@ import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -136,7 +137,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     startVideos(
                             localRecordingMetadata.getAbsoluteFilePath(),
                             remoteRecordingMetadata.getAbsoluteFilePath(),
-                            majorVideoAheadOfMinorVideoByMillis);                }
+                            majorVideoAheadOfMinorVideoByMillis);
+                }
             }
 
             @Override
@@ -168,12 +170,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
                     majorMetadata = localRecordingMetadata;
                     minorMetadata = remoteRecordingMetadata;
-                    offsetMillis =  remoteRecordingMetadata.getStartTimeMillis() -
+                    offsetMillis = remoteRecordingMetadata.getStartTimeMillis() -
                             localRecordingMetadata.getStartTimeMillis();
                 } else {
                     majorMetadata = remoteRecordingMetadata;
                     minorMetadata = localRecordingMetadata;
-                    offsetMillis =  localRecordingMetadata.getStartTimeMillis() -
+                    offsetMillis = localRecordingMetadata.getStartTimeMillis() -
                             remoteRecordingMetadata.getStartTimeMillis();
                 }
 
@@ -237,9 +239,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             final String majorVideoPath,
             final String minorVideoPath,
             final int majorVideoAheadOfMinorVideoByMillis) {
-
-        // TODO : Use majorVideoAheadOfMinorVideoByMillis to ensure playback of both videos is in sync
-
         majorVideoMediaPlayer.reset();
         minorVideoMediaPlayer.reset();
 
@@ -278,8 +277,15 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         touchReplayTextView.setVisibility(View.INVISIBLE);
 
-        majorVideoMediaPlayer.start();
-        minorVideoMediaPlayer.start();
+        log.info("Video Media Players are starting {}", majorVideoAheadOfMinorVideoByMillis);
+
+        if (majorVideoAheadOfMinorVideoByMillis < 0) {
+            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(majorVideoMediaPlayer), -majorVideoAheadOfMinorVideoByMillis);
+            minorVideoMediaPlayer.start();
+        } else {
+            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(minorVideoMediaPlayer), majorVideoAheadOfMinorVideoByMillis);
+            majorVideoMediaPlayer.start();
+        }
 
         if (!publishedDurationMetrics) {
             //publish time metrics
@@ -289,8 +295,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
-
-
     }
 
     private void updateDisplayOrientation(
@@ -409,5 +413,22 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 doubleBackToExitPressedOnce = false;
             }
         }, 3000);
+    }
+
+    private class MediaPlayerStartRunnable implements Runnable {
+        private final MediaPlayer mediaPlayer;
+        private final long startTime;
+
+        public MediaPlayerStartRunnable(MediaPlayer majorVideoMediaPlayer) {
+            mediaPlayer = majorVideoMediaPlayer;
+            startTime = System.currentTimeMillis();
+        }
+
+        @Override
+        public void run() {
+            long elapsed = System.currentTimeMillis() - startTime;
+            log.info("Actual elapsed time between Runnable creation and run() method = {}ms", elapsed);
+            majorVideoMediaPlayer.start();
+        }
     }
 }
