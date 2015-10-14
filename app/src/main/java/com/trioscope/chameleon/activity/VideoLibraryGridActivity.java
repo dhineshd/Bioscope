@@ -3,6 +3,7 @@ package com.trioscope.chameleon.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
@@ -116,6 +117,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         libraryFiles.removeAll(videoMerger.getTemporaryFiles());
         Collections.sort(libraryFiles, LAST_MODIFIED_COMPARATOR);
 
+        log.info("Num files in library = {}", libraryFiles.size());
+
         BioscopeDBHelper db = new BioscopeDBHelper(this);
         mergingFilenames = new HashSet<>(db.getVideosWithType(VideoInfoType.BEING_MERGED, "true"));
         for (String fileName : mergingFilenames) {
@@ -173,6 +176,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private class LibraryGridAdapter extends ArrayAdapter<File> {
         @Setter
         private volatile int percentageMerged = 0;
+        private Drawable itemDefaultBackground = getResources().getDrawable(R.drawable.direct_logo);
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
@@ -209,7 +213,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 if (thumbnail == null) {
                     // We need to generate the thumbnail, but to make scrolling smooth we do so on a separate thread
-                    viewHolder.thumbnail.setImageResource(R.drawable.direct_logo);
+                    viewHolder.thumbnail.setImageDrawable(null);
                     backgroundThumbnailExecutor.execute(new RetrieveThumbnailRunnable(videoFile,
                             new Handler(Looper.getMainLooper())));
                 } else {
@@ -394,12 +398,15 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
         @Override
         public void run() {
-            log.info("Retrieving thumbnail for {}", videoFile);
+            log.debug("Retrieving thumbnail for {}", videoFile);
 
             final Bitmap thumbnail = createThumbnail(videoFile);
             if (thumbnail != null) {
+
+                // Store thumbnail in DB
                 BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
                 helper.insertThumbnail(videoFile.getName(), thumbnail);
+                helper.close();
 
                 handler.post(new Runnable() {
                     @Override
@@ -420,14 +427,13 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                         }
 
                         if (!found) {
-                            log.info("Created thumbnail for {}, but image is no longer on the screen, so not setting it at the moment", videoFile);
+                            log.debug("Created thumbnail for {}, but image is no longer on the screen, so not setting it at the moment", videoFile);
                         }
                     }
                 });
 
-                helper.close();
             } else {
-                log.info("Failed to create thumbnail for video {}", videoFile);
+                log.debug("Failed to create thumbnail for video = {}" + videoFile);
             }
         }
     }

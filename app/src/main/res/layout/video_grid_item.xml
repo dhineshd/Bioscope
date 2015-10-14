@@ -12,8 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_centerInParent="true"
-        android:scaleType="centerCrop"
-        android:src="@drawable/direct_logo" />
+        android:scaleType="centerCrop" />
 
     <com.trioscope.chameleon.views.BioscopeLargeTextView
         android:id="@+id/video_grid_title"
