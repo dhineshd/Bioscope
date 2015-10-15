@@ -41,7 +41,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
-    private int majorVideoAheadOfMinorVideoByMillis;
     private TextureView majorVideoTextureView;
     private TextureView minorVideoTextureView;
     private MediaPlayer majorVideoMediaPlayer;
@@ -50,7 +49,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private boolean minorVideoSurfaceReady;
     private File outputFile;
     private TextView touchReplayTextView;
-    private Button buttonMerge;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
     private boolean isMergeRequested;
@@ -62,8 +60,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         setContentView(R.layout.activity_preview_merge);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        buttonMerge = (Button) findViewById(R.id.button_merge);
-
         Intent intent = getIntent();
         localRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(ConnectionEstablishedActivity.LOCAL_RECORDING_METADATA_KEY),
@@ -71,9 +67,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         remoteRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY),
                 RecordingMetadata.class);
-
-        majorVideoAheadOfMinorVideoByMillis = (int) (remoteRecordingMetadata.getStartTimeMillis() -
-                localRecordingMetadata.getStartTimeMillis());
 
         majorVideoMediaPlayer = new MediaPlayer();
         minorVideoMediaPlayer = new MediaPlayer();
@@ -104,7 +97,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     startVideos(
                             localRecordingMetadata.getAbsoluteFilePath(),
                             remoteRecordingMetadata.getAbsoluteFilePath(),
-                            majorVideoAheadOfMinorVideoByMillis);
+                            getMajorVideoAheadOfMinorVideoByMillis(
+                                    localRecordingMetadata.getAbsoluteFilePath()));
                 }
             }
 
@@ -137,7 +131,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     startVideos(
                             localRecordingMetadata.getAbsoluteFilePath(),
                             remoteRecordingMetadata.getAbsoluteFilePath(),
-                            majorVideoAheadOfMinorVideoByMillis);
+                            getMajorVideoAheadOfMinorVideoByMillis(
+                                    localRecordingMetadata.getAbsoluteFilePath()));
                 }
             }
 
@@ -221,24 +216,36 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onClick(View view) {
                 // swapping the video paths
-                majorVideoAheadOfMinorVideoByMillis = -majorVideoAheadOfMinorVideoByMillis;
-                startVideos(minorVideoPath, majorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                startVideos(minorVideoPath, majorVideoPath,
+                        getMajorVideoAheadOfMinorVideoByMillis(minorVideoPath));
             }
         });
 
         touchReplayTextView = (TextView) findViewById(R.id.textView_touch_replay);
     }
 
+    private long getMajorVideoAheadOfMinorVideoByMillis(final String majorVideoPath) {
+        long majorVideoAheadOfMinorVideoByMillis = 0;
+        if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
+            majorVideoAheadOfMinorVideoByMillis = remoteRecordingMetadata.getStartTimeMillis() -
+                    localRecordingMetadata.getStartTimeMillis();
+        } else {
+            majorVideoAheadOfMinorVideoByMillis = localRecordingMetadata.getStartTimeMillis() -
+                    remoteRecordingMetadata.getStartTimeMillis();
+        }
+        return majorVideoAheadOfMinorVideoByMillis;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        startVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+        startVideos(majorVideoPath, minorVideoPath, getMajorVideoAheadOfMinorVideoByMillis(majorVideoPath));
         return true;
     }
 
     private void startVideos(
             final String majorVideoPath,
             final String minorVideoPath,
-            final int majorVideoAheadOfMinorVideoByMillis) {
+            final long majorVideoAheadOfMinorVideoByMillis) {
         majorVideoMediaPlayer.reset();
         minorVideoMediaPlayer.reset();
 
@@ -278,6 +285,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         touchReplayTextView.setVisibility(View.INVISIBLE);
 
         log.info("Video Media Players are starting {}", majorVideoAheadOfMinorVideoByMillis);
+
+        // Skip initial part of video
+        log.info("majorVideoAheadOfMinorVideoByMillis = {}", majorVideoAheadOfMinorVideoByMillis);
 
         if (majorVideoAheadOfMinorVideoByMillis < 0) {
             new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(majorVideoMediaPlayer), -majorVideoAheadOfMinorVideoByMillis);
@@ -419,8 +429,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         private final MediaPlayer mediaPlayer;
         private final long startTime;
 
-        public MediaPlayerStartRunnable(MediaPlayer majorVideoMediaPlayer) {
-            mediaPlayer = majorVideoMediaPlayer;
+        public MediaPlayerStartRunnable(MediaPlayer mp) {
+            mediaPlayer = mp;
             startTime = System.currentTimeMillis();
         }
 
@@ -428,7 +438,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         public void run() {
             long elapsed = System.currentTimeMillis() - startTime;
             log.info("Actual elapsed time between Runnable creation and run() method = {}ms", elapsed);
-            majorVideoMediaPlayer.start();
+            mediaPlayer.start();
         }
     }
 }
