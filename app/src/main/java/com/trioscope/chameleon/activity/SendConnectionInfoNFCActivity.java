@@ -297,7 +297,6 @@ public class SendConnectionInfoNFCActivity
                 @Override
                 public void run() {
                     showProgressBar();
-                    connectionStatusTextView.setText("Enabling\nwifi");
                 }
             });
             chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {

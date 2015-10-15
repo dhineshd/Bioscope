@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.support.v4.view.GestureDetectorCompat;
 import android.text.format.DateUtils;
+import android.util.LruCache;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -39,13 +40,20 @@ import com.trioscope.chameleon.util.ui.GestureUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import lombok.Builder;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +74,11 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
     private GestureDetectorCompat gestureDetector;
     private Executor backgroundThumbnailExecutor = Executors.newSingleThreadExecutor();
+    private Set<String> mergingFilenames = new HashSet<>();
+    private LruCache<String, VideoInfo> videoInfoCache;
+    private LruCache<String, Bitmap> thumbnailCache;
+    private Typeface appFontTypefaceRegular;
+    private Typeface appFontTypefaceBold;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,23 +111,33 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
         File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
         final List<File> libraryFiles = new ArrayList<File>();
-        Collections.addAll(libraryFiles, folder.listFiles());
+        Collections.addAll(libraryFiles, folder.listFiles(new FileFilter() {
+            @Override
+            public boolean accept(File pathname) {
+                // Show only mp4 files
+                return pathname.getName().endsWith(".mp4");
+            }
+        }));
         libraryFiles.removeAll(videoMerger.getTemporaryFiles());
         Collections.sort(libraryFiles, LAST_MODIFIED_COMPARATOR);
 
+        log.info("Num files in library = {}", libraryFiles.size());
 
         BioscopeDBHelper db = new BioscopeDBHelper(this);
-        List<String> mergingFileNames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
-        for (String fileName : mergingFileNames) {
+        mergingFilenames = new HashSet<>(db.getVideosWithType(VideoInfoType.BEING_MERGED, "true"));
+        for (String fileName : mergingFilenames) {
             File file = FileUtil.getMergedOutputFile(fileName);
             if (!libraryFiles.contains(file)) {
-                log.info("File {} is being merged, but the output file hasnt yet been created. We want to include it anyways", file);
+                log.info("File {} is being merged, but the output file hasnt yet been created. " +
+                        "We want to include it anyways", file);
                 libraryFiles.add(0, file);
             }
         }
+
         db.close();
 
-        log.info("Showing {} library files, including {} currently being merged ({}). Files are {}", libraryFiles.size(), mergingFileNames.size(), mergingFileNames, libraryFiles);
+        log.info("Showing {} library files, including {} currently being merged ({}). Files are {}",
+                libraryFiles.size(), mergingFilenames.size(), mergingFilenames, libraryFiles);
 
         LibraryGridAdapter adapter = new LibraryGridAdapter(this, libraryFiles);
         GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
@@ -124,12 +147,64 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 File item = (File) libraryFiles.get(position);
-
                 Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
                 intentToPlayVideo.setDataAndType(Uri.parse(item.getAbsolutePath()), "video/*");
                 startActivityForResult(intentToPlayVideo, 1);
             }
         });
+
+        appFontTypefaceRegular = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_REGULAR_FONT_LOCATION);
+        appFontTypefaceBold = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_BOLD_FONT_LOCATION);
+
+        // Get max available VM memory, exceeding this amount will throw an
+        // OutOfMemory exception. Stored in kilobytes as LruCache takes an
+        // int in its constructor.
+        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+
+        // Use 1/8th of the available memory for this memory cache.
+        final int cacheSize = maxMemory / 8;
+
+        thumbnailCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+            protected int sizeOf(String key, Bitmap bitmap) {
+                // The cache size will be measured in kilobytes rather than
+                // number of items.
+                return bitmap.getByteCount() / 1024;
+            }
+        };
+
+        videoInfoCache = new LruCache<>(1000);
+
+    }
+
+    private static <K,V> Map<K,V> createFixedSizeLRUCache(final int maxSize) {
+        return new LinkedHashMap<K,V>(maxSize * 4/3, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+                return size() > maxSize;
+            }
+        };
+    }
+
+    @Builder
+    @Getter
+    private static class VideoInfo {
+        private String title;
+        private String duration;
+        private long lastModified;
+    }
+
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        log.info("onPause invoked!");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        log.info("onResume invoked!");
     }
 
     @Override
@@ -140,6 +215,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private class LibraryGridAdapter extends ArrayAdapter<File> {
         @Setter
         private volatile int percentageMerged = 0;
+        private VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
@@ -151,89 +227,51 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             try {
                 // Get the data item for this position
                 final File videoFile = getItem(position);
-                log.info("Getting view for videoFile {} (position {})", videoFile, position);
 
+                ViewHolder viewHolder;
                 // Check if an existing view is being reused, otherwise inflate the view
                 if (convertView == null) {
-                    convertView = LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
+                    convertView = inflateView(parent);
+                    viewHolder = createViewHolder(convertView);
+                    convertView.setTag(viewHolder);
+                } else {
+                    viewHolder = (ViewHolder) convertView.getTag();
                 }
 
-                Typeface appFontTypeface = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
-
                 BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
-                List<String> isBeingMergedValues = helper.getVideoInfo(videoFile.getName(), VideoInfoType.BEING_MERGED);
-                Bitmap thumbnail = helper.getThumbnail(videoFile.getName());
+
+                Bitmap thumbnail = thumbnailCache.get(videoFile.getName());
 
                 if (thumbnail == null) {
-                    log.info("No thumbnail found in the DB, creating one in a background thread");
                     // We need to generate the thumbnail, but to make scrolling smooth we do so on a separate thread
-                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
-                    backgroundImage.setImageResource(R.drawable.direct_logo);
-                    backgroundThumbnailExecutor.execute(new RetrieveThumbnailRunnable(videoFile, new Handler(Looper.getMainLooper())));
+                    viewHolder.thumbnail.setImageDrawable(null);
+                    backgroundThumbnailExecutor.execute(new RetrieveThumbnailRunnable(videoFile,
+                            new Handler(Looper.getMainLooper())));
                 } else {
-                    log.info("Successfully retrieved thumbnail from DB for {}", videoFile);
-                    ImageView backgroundImage = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
-                    backgroundImage.setImageBitmap(thumbnail);
+                    viewHolder.thumbnail.setImageBitmap(thumbnail);
                 }
 
                 // Check if this video is being merged
-                VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
-                if (isBeingMergedValues.size() > 0) {
-                    log.info("{} is currently being merged, we'll show progress", videoFile);
+                if (mergingFilenames.contains(videoFile.getName())) {
+                    setProgressVisible(viewHolder, true);
                     videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
-
-                    setProgressVisible(convertView, true);
-                    ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
-                    TextView progressText = (TextView) convertView.findViewById(R.id.library_progress_text);
-                    progressBar.setProgress(percentageMerged);
-                    progressText.setText(percentageMerged + "%");
+                    viewHolder.progressBar.setProgress(percentageMerged);
+                    viewHolder.progressBarText.setText(percentageMerged + "%");
+                    viewHolder.progressBarText.setTypeface(appFontTypefaceBold);
 
                 } else {
-                    setProgressVisible(convertView, false);
-
-                    String videoDuration, creationDate;
-
-                    MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-                    log.info("Video file path = {}", videoFile.getAbsolutePath());
-                    mmr.setDataSource(videoFile.getAbsolutePath());
-                    videoDuration = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-                    creationDate = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
-                    log.info("Extracted meta data videoDuration={}, creationDate={}", videoDuration, creationDate);
-
-                    String timeAgo = DateUtils.getRelativeTimeSpanString(videoFile.lastModified(), System.currentTimeMillis(), 10).toString();
-                    TextView videoAgoTextView = (TextView) convertView.findViewById(R.id.video_grid_age);
-                    videoAgoTextView.setText(timeAgo);
-                    videoAgoTextView.setTypeface(appFontTypeface);
-
-
-                    //Load the other videographers from db
-                    List<String> videographers = helper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
-                    String videoWith = "Unknown";
-                    if (!videographers.isEmpty()) {
-                        videoWith = StringUtils.join(videographers, ", ");
-                    } else {
-                        log.warn("Unable to retrieve any videographers for {}", videoFile.getName());
+                    setProgressVisible(viewHolder, false);
+                    VideoInfo videoInfo = videoInfoCache.get(videoFile.getName());
+                    if (videoInfo == null) {
+                        // Loading video in gallery for first time, retrieve and cache info.
+                        videoInfo = VideoInfo.builder()
+                                .title("with " + getVideographer(videoFile, helper))
+                                .duration(milliToMinutes(Double.valueOf(getVideoDuration(videoFile))))
+                                .lastModified(videoFile.lastModified())
+                                .build();
+                        videoInfoCache.put(videoFile.getName(), videoInfo);
                     }
-                    TextView videoWithTextView = (TextView) convertView.findViewById(R.id.video_grid_title);
-                    videoWithTextView.setText("with " + videoWith);
-                    videoWithTextView.setTypeface(appFontTypeface);
-
-                    TextView videoDurationTextView = (TextView) convertView.findViewById(R.id.video_grid_duration);
-                    videoDurationTextView.setText(milliToMinutes(Double.valueOf(videoDuration)));
-                    videoDurationTextView.setTypeface(appFontTypeface);
-
-                    ImageView shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
-                    shareButton.setFocusable(false);
-                    shareButton.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            Intent shareIntent = new Intent();
-                            shareIntent.setAction(Intent.ACTION_SEND);
-                            shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
-                            shareIntent.setType("video/mpeg");
-                            startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
-                        }
-                    });
+                    updateUIElements(videoFile, videoInfo, viewHolder);
                 }
                 helper.close();
 
@@ -244,43 +282,102 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             return convertView;
         }
 
-        private void setProgressVisible(View convertView, boolean isVisible) {
+        @Timed
+        private View inflateView(ViewGroup parent) {
+            return LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
+        }
+
+        @Timed
+        private ViewHolder createViewHolder(final View view) {
+            ViewHolder viewHolder = new ViewHolder();
+            viewHolder.thumbnail = (ImageView) view.findViewById(R.id.video_grid_background_image);
+            viewHolder.title = (TextView) view.findViewById(R.id.video_grid_title);
+            viewHolder.duration = (TextView) view.findViewById(R.id.video_grid_duration);
+            viewHolder.age = (TextView) view.findViewById(R.id.video_grid_age);
+            viewHolder.shareButton = (ImageButton) view.findViewById(R.id.video_grid_share);
+            viewHolder.progressBar = (ProgressBar) view.findViewById(R.id.library_progress_bar);
+            viewHolder.progressBarText = (TextView) view.findViewById(R.id.library_progress_text);
+            return viewHolder;
+        }
+
+        @Timed
+        private void updateUIElements(
+                final File videoFile,
+                final VideoInfo videoInfo,
+                final ViewHolder viewHolder) {
+            viewHolder.title.setText(videoInfo.getTitle());
+            viewHolder.title.setTypeface(appFontTypefaceBold);
+
+            viewHolder.age.setText(DateUtils.getRelativeTimeSpanString
+                    (videoInfo.getLastModified(), System.currentTimeMillis(), 10).toString());
+            viewHolder.age.setTypeface(appFontTypefaceRegular);
+
+            viewHolder.duration.setText(videoInfo.duration);
+            viewHolder.duration.setTypeface(appFontTypefaceRegular);
+
+            viewHolder.shareButton.setFocusable(false);
+            viewHolder.shareButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent shareIntent = new Intent();
+                    shareIntent.setAction(Intent.ACTION_SEND);
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
+                    shareIntent.setType("video/mpeg");
+                    startActivity(Intent.createChooser(shareIntent,
+                            getResources().getText(R.string.share_via)));
+                }
+            });
+        }
+
+        @Timed
+        private String getVideoDuration(final File videoFile) {
+            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+            log.info("Video file path = {}", videoFile.getAbsolutePath());
+            mmr.setDataSource(videoFile.getAbsolutePath());
+            return mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        }
+
+        @Timed
+        private String getVideographer(final File videoFile, final BioscopeDBHelper dbHelper) {
+            String videoWith = "Unknown";
+            //Load the other videographers from db
+            List<String> videographers = dbHelper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
+            if (!videographers.isEmpty()) {
+                videoWith = StringUtils.join(videographers, ", ");
+            }
+            return videoWith;
+        }
+
+        private void setProgressVisible(ViewHolder viewHolder, boolean isVisible) {
             int statusA = isVisible ? View.INVISIBLE : View.VISIBLE;
             int statusB = isVisible ? View.VISIBLE : View.INVISIBLE;
 
-            convertView.findViewById(R.id.video_grid_title).setVisibility(statusA);
-            convertView.findViewById(R.id.video_grid_duration).setVisibility(statusA);
-            convertView.findViewById(R.id.video_grid_age).setVisibility(statusA);
-            convertView.findViewById(R.id.video_grid_buttons).setVisibility(statusA);
+            viewHolder.title.setVisibility(statusA);
+            viewHolder.duration.setVisibility(statusA);
+            viewHolder.age.setVisibility(statusA);
+            viewHolder.shareButton.setVisibility(statusA);
 
-            convertView.findViewById(R.id.library_progress_bar).setVisibility(statusB);
-            convertView.findViewById(R.id.library_progress_text).setVisibility(statusB);
-            convertView.findViewById(R.id.video_grid_progress_interior).setVisibility(statusB);
+            viewHolder.progressBar.setVisibility(statusB);
+            viewHolder.progressBarText.setVisibility(statusB);
         }
+    }
+
+    // Not using getter/setter or Lombok for optimization
+    private static class ViewHolder {
+        ImageView thumbnail;
+        TextView title;
+        TextView duration;
+        TextView age;
+        ImageButton shareButton;
+        ProgressBar progressBar;
+        TextView progressBarText;
     }
 
     @Timed
     private Bitmap createThumbnail(File videoFile) {
         log.info("Creating thumbnail for videoFile {}", videoFile);
-
-        Bitmap thumb = ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
-
-        if (thumb != null) {
-            return thumb;
-        } else {
-            log.warn("Failed to create thumbnail from ThumbnailUtils, using MMR instead");
-            try {
-                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-                retriever.setDataSource(videoFile.getAbsolutePath());
-                int timeInSeconds = 30;
-                Bitmap bitmap = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-
-                return bitmap;
-            } catch (Exception ex) {
-                log.error("Exception getting thumbnail for file {}", videoFile, ex);
-            }
-        }
-        return null;
+        return ThumbnailUtils.createVideoThumbnail(videoFile.getAbsolutePath(),
+                MediaStore.Images.Thumbnails.MINI_KIND);
     }
 
     private String milliToMinutes(Double aDouble) {
@@ -288,7 +385,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         int minutes = seconds / 60;
         seconds %= 60;
 
-        return String.format("%d:%02d", minutes, seconds);
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     private class UpdateVideoMerge implements ProgressUpdatable {
@@ -338,6 +435,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         public void onCompleted() {
             log.info("Video is complete!");
             updateVideoGridWithPercentage(100);
+            mergingFilenames.remove(file.getName());
         }
 
         @Override
@@ -357,13 +455,19 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
         @Override
         public void run() {
-            log.info("Retrieving thumbnail for {}", videoFile);
+            log.debug("Retrieving thumbnail for {}", videoFile);
 
-            final Bitmap thumbnail = createThumbnail(videoFile);
+            BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+            Bitmap dbThumbnail = helper.getThumbnail(videoFile.getName());
+            Bitmap createdThumbnail = null;
+            if (dbThumbnail == null) {
+                createdThumbnail = createThumbnail(videoFile);
+                helper.insertThumbnail(videoFile.getName(), createdThumbnail);
+            }
+            helper.close();
+            final Bitmap thumbnail = (dbThumbnail != null) ? dbThumbnail : createdThumbnail;
             if (thumbnail != null) {
-                BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
-                helper.insertThumbnail(videoFile.getName(), thumbnail);
-
+                thumbnailCache.put(videoFile.getName(), thumbnail);
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -383,14 +487,13 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                         }
 
                         if (!found) {
-                            log.info("Created thumbnail for {}, but image is no longer on the screen, so not setting it at the moment", videoFile);
+                            log.debug("Created thumbnail for {}, but image is no longer on the screen, so not setting it at the moment", videoFile);
                         }
                     }
                 });
 
-                helper.close();
             } else {
-                log.info("Failed to create thumbnail for video {}", videoFile);
+                log.debug("Failed to create thumbnail for video = {}" + videoFile);
             }
         }
     }

@@ -62,7 +62,9 @@ public class ChameleonApplication extends Application {
     public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
 
-    public static final String APP_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
+    public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
+    public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";
+
     public static final int SERVER_PORT = 7080;
 
     @Getter

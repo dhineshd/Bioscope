@@ -167,7 +167,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                         @Override
                         public void run() {
                             showProgressBar();
-                            connectionStatusTextView.setText("Enabling\nwifi");
+                            connectionStatusTextView.setText(
+                                    "Connecting\nto\n" + connectionInfo.getUserName());
                         }
                     });
 

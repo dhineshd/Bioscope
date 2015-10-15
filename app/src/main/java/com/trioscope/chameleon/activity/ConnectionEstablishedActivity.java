@@ -272,13 +272,13 @@ public class ConnectionEstablishedActivity
         });
 
         //Start checking heartbeat messages are received from peer (after some initial delay)
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
-                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
-        }, 5000);
+//        new Handler().postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
+//                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+//            }
+//        }, 5000);
     }
 
     private void setRole() {
@@ -958,48 +958,6 @@ public class ConnectionEstablishedActivity
                 }
             }
             log.debug("Finishing StreamFromPeerTask..");
-            return null;
-        }
-    }
-
-    @AllArgsConstructor
-    class SendHeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int HEARTBEAT_MESSAGE_SEND_INTERVAL_MS = 1000;
-        @NonNull
-        private PeerInfo peerInfo;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            while (!isCancelled()) {
-
-                // Send heartbeat message to peer to communicate that you are healthy
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            PeerMessage peerMessage = PeerMessage.builder()
-                                    .type(PeerMessage.Type.SESSION_HEARTBEAT)
-                                    .senderUserName(getUserName())
-                                    .contents("abc").build();
-                            new SendMessageToPeerTask(peerMessage, peerInfo)
-                                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-                        } catch (Exception e) {
-                            log.warn("Failed to send heartbeat message", e);
-                        }
-                    }
-                });
-
-                try {
-                    Thread.sleep(HEARTBEAT_MESSAGE_SEND_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                }
-            }
             return null;
         }
     }

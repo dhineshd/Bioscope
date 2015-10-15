@@ -70,12 +70,4 @@
 
     </FrameLayout>
 
-    <ProgressBar
-        android:id="@+id/ffmpeg_progress_bar"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="20dp"
-        android:layout_margin="10dp"
-        android:visibility="gone"/>
-
 </RelativeLayout>

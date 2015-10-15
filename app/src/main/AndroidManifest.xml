@@ -74,13 +74,6 @@
             android:noHistory="true"
             android:screenOrientation="portrait" />
         <activity
-            android:name=".activity.MergeVideosActivity"
-            android:label="MergeVideosActivity"
-            android:noHistory="true"
-            android:screenOrientation="portrait" />
-
-
-        <activity
             android:name=".activity.UserLoginActivity"
             android:windowSoftInputMode="stateAlwaysVisible"
             android:label="@string/app_name"
