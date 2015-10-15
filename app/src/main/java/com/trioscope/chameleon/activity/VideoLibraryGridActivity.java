@@ -77,7 +77,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private Set<String> mergingFilenames = new HashSet<>();
     private LruCache<String, VideoInfo> videoInfoCache;
     private LruCache<String, Bitmap> thumbnailCache;
-    private Typeface appFontTypeFace;
+    private Typeface appFontTypefaceRegular;
+    private Typeface appFontTypefaceBold;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,7 +153,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
         });
 
-        appFontTypeFace = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
+        appFontTypefaceRegular = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_REGULAR_FONT_LOCATION);
+        appFontTypefaceBold = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_BOLD_FONT_LOCATION);
 
         // Get max available VM memory, exceeding this amount will throw an
         // OutOfMemory exception. Stored in kilobytes as LruCache takes an
@@ -255,6 +257,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                     videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
                     viewHolder.progressBar.setProgress(percentageMerged);
                     viewHolder.progressBarText.setText(percentageMerged + "%");
+                    viewHolder.progressBarText.setTypeface(appFontTypefaceBold);
 
                 } else {
                     setProgressVisible(viewHolder, false);
@@ -303,14 +306,14 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 final VideoInfo videoInfo,
                 final ViewHolder viewHolder) {
             viewHolder.title.setText(videoInfo.getTitle());
-            viewHolder.title.setTypeface(appFontTypeFace);
+            viewHolder.title.setTypeface(appFontTypefaceBold);
 
             viewHolder.age.setText(DateUtils.getRelativeTimeSpanString
                     (videoInfo.getLastModified(), System.currentTimeMillis(), 10).toString());
-            viewHolder.age.setTypeface(appFontTypeFace);
+            viewHolder.age.setTypeface(appFontTypefaceRegular);
 
             viewHolder.duration.setText(videoInfo.duration);
-            viewHolder.duration.setTypeface(appFontTypeFace);
+            viewHolder.duration.setTypeface(appFontTypefaceRegular);
 
             viewHolder.shareButton.setFocusable(false);
             viewHolder.shareButton.setOnClickListener(new View.OnClickListener() {
