@@ -3,7 +3,7 @@ package com.trioscope.chameleon.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
+import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
@@ -13,6 +13,7 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.support.v4.view.GestureDetectorCompat;
 import android.text.format.DateUtils;
+import android.util.LruCache;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -74,7 +75,9 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private GestureDetectorCompat gestureDetector;
     private Executor backgroundThumbnailExecutor = Executors.newSingleThreadExecutor();
     private Set<String> mergingFilenames = new HashSet<>();
-    private Map<String, VideoInfo> videoInfos = createFixedSizeLRUCache(1000);
+    private LruCache<String, VideoInfo> videoInfoCache;
+    private LruCache<String, Bitmap> thumbnailCache;
+    private Typeface appFontTypeFace;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -149,6 +152,27 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
         });
 
+        appFontTypeFace = Typeface.createFromAsset(getAssets(), ChameleonApplication.APP_FONT_LOCATION);
+
+        // Get max available VM memory, exceeding this amount will throw an
+        // OutOfMemory exception. Stored in kilobytes as LruCache takes an
+        // int in its constructor.
+        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+
+        // Use 1/8th of the available memory for this memory cache.
+        final int cacheSize = maxMemory / 8;
+
+        thumbnailCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+            protected int sizeOf(String key, Bitmap bitmap) {
+                // The cache size will be measured in kilobytes rather than
+                // number of items.
+                return bitmap.getByteCount() / 1024;
+            }
+        };
+
+        videoInfoCache = new LruCache<>(1000);
+
     }
 
     private static <K,V> Map<K,V> createFixedSizeLRUCache(final int maxSize) {
@@ -162,10 +186,23 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
     @Builder
     @Getter
-    private static class VideoInfo{
+    private static class VideoInfo {
         private String title;
         private String duration;
         private long lastModified;
+    }
+
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        log.info("onPause invoked!");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        log.info("onResume invoked!");
     }
 
     @Override
@@ -176,7 +213,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private class LibraryGridAdapter extends ArrayAdapter<File> {
         @Setter
         private volatile int percentageMerged = 0;
-        private Drawable itemDefaultBackground = getResources().getDrawable(R.drawable.direct_logo);
+        private VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
@@ -192,16 +229,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 ViewHolder viewHolder;
                 // Check if an existing view is being reused, otherwise inflate the view
                 if (convertView == null) {
-                    convertView = LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
-                    viewHolder = new ViewHolder();
-                    viewHolder.thumbnail = (ImageView) convertView.findViewById(R.id.video_grid_background_image);
-                    viewHolder.title = (TextView) convertView.findViewById(R.id.video_grid_title);
-                    viewHolder.duration = (TextView) convertView.findViewById(R.id.video_grid_duration);
-                    viewHolder.age = (TextView) convertView.findViewById(R.id.video_grid_age);
-                    viewHolder.shareButton = (ImageView) convertView.findViewById(R.id.video_grid_share);
-                    viewHolder.progressBar = (ProgressBar) convertView.findViewById(R.id.library_progress_bar);
-                    viewHolder.progressBarText = (TextView) convertView.findViewById(R.id.library_progress_text);
-                    viewHolder.progresBarBackground = (ImageView) convertView.findViewById(R.id.video_grid_progress_interior);
+                    convertView = inflateView(parent);
+                    viewHolder = createViewHolder(convertView);
                     convertView.setTag(viewHolder);
                 } else {
                     viewHolder = (ViewHolder) convertView.getTag();
@@ -209,7 +238,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
 
-                Bitmap thumbnail = helper.getThumbnail(videoFile.getName());
+                Bitmap thumbnail = thumbnailCache.get(videoFile.getName());
 
                 if (thumbnail == null) {
                     // We need to generate the thumbnail, but to make scrolling smooth we do so on a separate thread
@@ -221,19 +250,15 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                 }
 
                 // Check if this video is being merged
-                VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
                 if (mergingFilenames.contains(videoFile.getName())) {
-                    videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
-
                     setProgressVisible(viewHolder, true);
+                    videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
                     viewHolder.progressBar.setProgress(percentageMerged);
                     viewHolder.progressBarText.setText(percentageMerged + "%");
 
                 } else {
                     setProgressVisible(viewHolder, false);
-
-                    VideoInfo videoInfo = videoInfos.get(videoFile.getName());
-
+                    VideoInfo videoInfo = videoInfoCache.get(videoFile.getName());
                     if (videoInfo == null) {
                         // Loading video in gallery for first time, retrieve and cache info.
                         videoInfo = VideoInfo.builder()
@@ -241,26 +266,9 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
                                 .duration(milliToMinutes(Double.valueOf(getVideoDuration(videoFile))))
                                 .lastModified(videoFile.lastModified())
                                 .build();
-                        videoInfos.put(videoFile.getName(), videoInfo);
+                        videoInfoCache.put(videoFile.getName(), videoInfo);
                     }
-
-                    viewHolder.title.setText(videoInfo.getTitle());
-                    viewHolder.age.setText(DateUtils.getRelativeTimeSpanString
-                            (videoInfo.getLastModified(), System.currentTimeMillis(), 10).toString());
-                    viewHolder.duration.setText(videoInfo.duration);
-
-                    ImageView shareButton = viewHolder.shareButton;
-                    shareButton.setFocusable(false);
-                    shareButton.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            Intent shareIntent = new Intent();
-                            shareIntent.setAction(Intent.ACTION_SEND);
-                            shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
-                            shareIntent.setType("video/mpeg");
-                            startActivity(Intent.createChooser(shareIntent, getResources().getText(R.string.share_via)));
-                        }
-                    });
+                    updateUIElements(videoFile, videoInfo, viewHolder);
                 }
                 helper.close();
 
@@ -269,6 +277,53 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
 
             return convertView;
+        }
+
+        @Timed
+        private View inflateView(ViewGroup parent) {
+            return LayoutInflater.from(getContext()).inflate(R.layout.video_grid_item, parent, false);
+        }
+
+        @Timed
+        private ViewHolder createViewHolder(final View view) {
+            ViewHolder viewHolder = new ViewHolder();
+            viewHolder.thumbnail = (ImageView) view.findViewById(R.id.video_grid_background_image);
+            viewHolder.title = (TextView) view.findViewById(R.id.video_grid_title);
+            viewHolder.duration = (TextView) view.findViewById(R.id.video_grid_duration);
+            viewHolder.age = (TextView) view.findViewById(R.id.video_grid_age);
+            viewHolder.shareButton = (ImageButton) view.findViewById(R.id.video_grid_share);
+            viewHolder.progressBar = (ProgressBar) view.findViewById(R.id.library_progress_bar);
+            viewHolder.progressBarText = (TextView) view.findViewById(R.id.library_progress_text);
+            return viewHolder;
+        }
+
+        @Timed
+        private void updateUIElements(
+                final File videoFile,
+                final VideoInfo videoInfo,
+                final ViewHolder viewHolder) {
+            viewHolder.title.setText(videoInfo.getTitle());
+            viewHolder.title.setTypeface(appFontTypeFace);
+
+            viewHolder.age.setText(DateUtils.getRelativeTimeSpanString
+                    (videoInfo.getLastModified(), System.currentTimeMillis(), 10).toString());
+            viewHolder.age.setTypeface(appFontTypeFace);
+
+            viewHolder.duration.setText(videoInfo.duration);
+            viewHolder.duration.setTypeface(appFontTypeFace);
+
+            viewHolder.shareButton.setFocusable(false);
+            viewHolder.shareButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent shareIntent = new Intent();
+                    shareIntent.setAction(Intent.ACTION_SEND);
+                    shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(videoFile));
+                    shareIntent.setType("video/mpeg");
+                    startActivity(Intent.createChooser(shareIntent,
+                            getResources().getText(R.string.share_via)));
+                }
+            });
         }
 
         @Timed
@@ -301,19 +356,18 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
             viewHolder.progressBar.setVisibility(statusB);
             viewHolder.progressBarText.setVisibility(statusB);
-            viewHolder.progresBarBackground.setVisibility(statusB);
         }
     }
 
+    // Not using getter/setter or Lombok for optimization
     private static class ViewHolder {
         ImageView thumbnail;
         TextView title;
         TextView duration;
         TextView age;
-        ImageView shareButton;
+        ImageButton shareButton;
         ProgressBar progressBar;
         TextView progressBarText;
-        ImageView progresBarBackground;
     }
 
     @Timed
@@ -328,7 +382,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         int minutes = seconds / 60;
         seconds %= 60;
 
-        return String.format("%d:%02d", minutes, seconds);
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     private class UpdateVideoMerge implements ProgressUpdatable {
@@ -400,14 +454,17 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         public void run() {
             log.debug("Retrieving thumbnail for {}", videoFile);
 
-            final Bitmap thumbnail = createThumbnail(videoFile);
+            BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+            Bitmap dbThumbnail = helper.getThumbnail(videoFile.getName());
+            Bitmap createdThumbnail = null;
+            if (dbThumbnail == null) {
+                createdThumbnail = createThumbnail(videoFile);
+                helper.insertThumbnail(videoFile.getName(), createdThumbnail);
+            }
+            helper.close();
+            final Bitmap thumbnail = (dbThumbnail != null) ? dbThumbnail : createdThumbnail;
             if (thumbnail != null) {
-
-                // Store thumbnail in DB
-                BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
-                helper.insertThumbnail(videoFile.getName(), thumbnail);
-                helper.close();
-
+                thumbnailCache.put(videoFile.getName(), thumbnail);
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
