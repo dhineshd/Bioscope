@@ -272,13 +272,13 @@ public class ConnectionEstablishedActivity
         });
 
         //Start checking heartbeat messages are received from peer (after some initial delay)
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
-                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
-        }, 5000);
+//        new Handler().postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
+//                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+//            }
+//        }, 5000);
     }
 
     private void setRole() {
