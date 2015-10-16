@@ -14,9 +14,8 @@
 
     <VideoView
         android:id="@+id/nfc_tut_video_view"
-        android:layout_width="480dp"
-        android:layout_height="270dp"
-        android:layout_gravity="center" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <ImageView
         android:id="@+id/send_conn_info_prog_bar_interior"

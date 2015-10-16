@@ -289,6 +289,11 @@ public class SendConnectionInfoNFCActivity
         // Turn on Wifi device (if not already on)
         final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
+        progressBar.setVisibility(View.VISIBLE);
+        progressBarInteriorImageView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setText("Preparing\nto\nconnect");
+
         if (wifiManager.isWifiEnabled()) {
             log.info("Wifi already enabled..");
             createWifiHotspot();
@@ -381,6 +386,7 @@ public class SendConnectionInfoNFCActivity
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
+                                    progressBar.setVisibility(View.INVISIBLE);
                                     connectionStatusTextView.setText("Oops!\nPlease try\nagain");
                                 }
                             });
@@ -438,6 +444,7 @@ public class SendConnectionInfoNFCActivity
                                     @Override
                                     public void run() {
 
+                                        progressBar.setVisibility(View.INVISIBLE);
                                         progressBarInteriorImageView.setVisibility(View.VISIBLE);
                                         connectionStatusTextView.setVisibility(View.VISIBLE);
                                         connectionStatusTextView.setText("Beam\nto\nconnect");
