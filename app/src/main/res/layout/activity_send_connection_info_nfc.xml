@@ -9,13 +9,25 @@
     android:paddingRight="0px"
     android:paddingTop="0px"
     android:paddingBottom="0px"
-    android:background="#92d2c2"
     tools:context="com.trioscope.chameleon.activity.SendConnectionInfoNFCActivity">
 
-    <VideoView
-        android:id="@+id/nfc_tut_video_view"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <!-- Wrapping VideoView in RelativeLayout to stretch full-screen
+        on displays whose aspect ratio is different from that of video -->
+        <VideoView
+            android:id="@+id/nfc_tut_video_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentRight="true" />
+
+    </RelativeLayout>
+
 
     <ImageView
         android:id="@+id/send_conn_info_prog_bar_interior"
