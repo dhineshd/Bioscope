@@ -73,12 +73,15 @@ public class ConnectionEstablishedActivity
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     public static final String PEER_INFO = "PEER_INFO";
+    private static final long MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
+    private static final long HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
+    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 5000;
+
     boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
     private StreamFromPeerTask streamFromPeerTask;
     private ReceiveVideoFromPeerTask receiveVideoFromPeerTask;
     private SendVideoToPeerTask sendVideoToPeerTask;
-    private CheckHeartbeatTask checkHeartbeatTask;
     private Gson gson = new Gson();
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
@@ -99,8 +102,10 @@ public class ConnectionEstablishedActivity
     private ImageButton switchCamerasButton;
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
-    private volatile Long latestPeerHeartbeatMessageTimeMs;
+    private volatile long latestPeerHeartbeatMessageTimeMs;
     private boolean isDirector;
+    private Handler heartbeatCheckHandler;
+    private Runnable heartbeatCheckRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +122,8 @@ public class ConnectionEstablishedActivity
         recordingTimerTextView = (TextView) findViewById(R.id.textview_recording_timer);
 
         initializeRecordingTimer();
+
+        initializeHeartbeatCheckTimer();
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
@@ -271,14 +278,6 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        //Start checking heartbeat messages are received from peer (after some initial delay)
-//        new Handler().postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                checkHeartbeatTask = new CheckHeartbeatTask(peerInfo);
-//                checkHeartbeatTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-//            }
-//        }, 5000);
     }
 
     private void setRole() {
@@ -342,9 +341,36 @@ public class ConnectionEstablishedActivity
                 recordingTimerTextView.setVisibility(View.VISIBLE);
                 recordingTimerTextView.setText(String.format("%02d:%02d", minutes, seconds));
 
+                // delay needs to be less than a second to ensure timer has second-precision.
                 timerHandler.postDelayed(this, 500);
             }
         };
+    }
+
+    private void initializeHeartbeatCheckTimer() {
+        //runs without a timer by reposting this handler at the end of the runnable
+        heartbeatCheckHandler = new Handler();
+
+        heartbeatCheckRunnable = new Runnable() {
+
+            @Override
+            public void run() {
+                // Check if we have received heartbeat message from peer recently.
+                if (System.currentTimeMillis() - latestPeerHeartbeatMessageTimeMs
+                        > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
+                    terminateSession(peerInfo.getUserName() + " unreachable. Ending session..");
+                    heartbeatCheckHandler.removeCallbacks(this);
+                } else {
+                    heartbeatCheckHandler.postDelayed(this, HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS);
+                }
+            }
+        };
+
+        latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
+
+        // Start check after some initial delay to give peer time to begin session
+        heartbeatCheckHandler.postDelayed(heartbeatCheckRunnable,
+                HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS);
     }
 
     private void addCameraPreviewSurface() {
@@ -427,12 +453,16 @@ public class ConnectionEstablishedActivity
             sendVideoToPeerTask = null;
         }
 
-        if (checkHeartbeatTask != null) {
-            checkHeartbeatTask.cancel(true);
-            checkHeartbeatTask = null;
+        if (heartbeatCheckHandler != null) {
+            heartbeatCheckHandler.removeCallbacks(heartbeatCheckRunnable);
+            heartbeatCheckHandler = null;
         }
 
-        timerHandler.removeCallbacks(timerRunnable);
+        if (timerHandler != null) {
+            timerHandler.removeCallbacks(timerRunnable);
+            timerHandler = null;
+        }
+
         chameleonApplication.stopPreview();
 
         chameleonApplication.stopConnectionServer();
@@ -905,7 +935,7 @@ public class ConnectionEstablishedActivity
 
                     PrintWriter pw = new PrintWriter(socket.getOutputStream(), true);
 
-                    // Send SEND_STREAM message periodically
+                    // Send SEND_STREAM message
                     PeerMessage peerMsg = PeerMessage.builder()
                             .type(PeerMessage.Type.SEND_STREAM)
                             .contents("abc")
@@ -959,44 +989,6 @@ public class ConnectionEstablishedActivity
             }
             log.debug("Finishing StreamFromPeerTask..");
             return null;
-        }
-    }
-
-    @AllArgsConstructor
-    class CheckHeartbeatTask extends AsyncTask<Void, Void, Void> {
-        private static final int MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
-        private static final int HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
-        @NonNull
-        private PeerInfo peerInfo;
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-        }
-
-        @Override
-        protected Void doInBackground(Void... params) {
-            while (!isCancelled()) {
-
-                // Check if we have received heartbeat message from peer recently.
-                if (System.currentTimeMillis() - latestPeerHeartbeatMessageTimeMs
-                        > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
-                    break;
-                }
-
-                try {
-                    Thread.sleep(HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                }
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
-            terminateSession(peerInfo.getUserName() + " unreachable. Ending session..");
         }
     }
 

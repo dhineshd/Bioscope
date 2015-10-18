@@ -146,10 +146,10 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         videoGrid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                File item = (File) libraryFiles.get(position);
+                File item = libraryFiles.get(position);
                 Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
-                intentToPlayVideo.setDataAndType(Uri.parse(item.getAbsolutePath()), "video/*");
-                startActivityForResult(intentToPlayVideo, 1);
+                intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
+                startActivity(intentToPlayVideo);
             }
         });
 
