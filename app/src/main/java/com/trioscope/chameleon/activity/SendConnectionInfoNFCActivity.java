@@ -34,6 +34,7 @@ import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import org.apache.http.conn.util.InetAddressUtils;
 
@@ -246,26 +247,33 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onClientRequest(final Socket clientSocket, final PeerMessage messageFromClient) {
-        log.info("Starting connection establshed activity!");
-        final Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
-        PeerInfo peerInfo = PeerInfo.builder()
-                .ipAddress(clientSocket.getInetAddress())
-                .port(ChameleonApplication.SERVER_PORT)
-                .role(PeerInfo.Role.CREW_MEMBER)
-                .userName(messageFromClient.getSenderUserName())
-                .build();
-        intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                log.info("Thread is " + Thread.currentThread());
-                connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
-                progressBar.setVisibility(View.VISIBLE);
-                isWifiHotspotRequiredForNextStep = true;
-                startActivity(intent);
-            }
-        });
+        if (PeerMessage.Type.START_SESSION.equals(messageFromClient.getType())) {
+            log.info("Starting connection established activity!");
+            final Intent intent = new Intent(SendConnectionInfoNFCActivity.this,
+                    ConnectionEstablishedActivity.class);
+            PeerInfo peerInfo = PeerInfo.builder()
+                    .ipAddress(clientSocket.getInetAddress())
+                    .port(ChameleonApplication.SERVER_PORT)
+                    .role(PeerInfo.Role.CREW_MEMBER)
+                    .userName(messageFromClient.getSenderUserName())
+                    .build();
+            intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
+            String contents = messageFromClient.getContents();
+            byte[] bytes = gson.fromJson(contents, byte[].class);
+            intent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY, bytes);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    log.info("Thread is " + Thread.currentThread());
+                    connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
+                    progressBar.setVisibility(View.VISIBLE);
+                    isWifiHotspotRequiredForNextStep = true;
+                    startActivity(intent);
+                }
+            });
+        }
     }
 
 
@@ -435,9 +443,12 @@ public class SendConnectionInfoNFCActivity
                                         WiFiNetworkConnectionInfo.builder()
                                                 .SSID(group.getNetworkName())
                                                 .passPhrase(group.getPassphrase())
-                                                .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
+                                                .serverIpAddress(getIpAddressForInterface(
+                                                        group.getInterface()).getHostAddress())
                                                 .serverPort(ChameleonApplication.SERVER_PORT)
                                                 .userName(getUserName())
+                                                .certificate(SSLUtil.serializeCertificateToByteArray(
+                                                        SSLUtil.getServerCertificate()))
                                                 .build();
 
                                 runOnUiThread(new Runnable() {

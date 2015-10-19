@@ -145,7 +145,7 @@ public class ChameleonApplication extends Application {
             connectionServer = new ConnectionServer(
                     ChameleonApplication.SERVER_PORT,
                     serverEventListenerManager,
-                    SSLUtil.getInitializedSSLServerSocketFactory(getApplicationContext()));
+                    SSLUtil.createSSLServerSocketFactory());
             connectionServer.start();
         }
     }

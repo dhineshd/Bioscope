@@ -1,6 +1,7 @@
 package com.trioscope.chameleon.types;
 
 import java.net.InetAddress;
+import java.security.cert.X509Certificate;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -25,5 +26,5 @@ public class PeerInfo {
     private Role role;
     @NonNull
     private String userName;
-
+    private X509Certificate certificate;
 }

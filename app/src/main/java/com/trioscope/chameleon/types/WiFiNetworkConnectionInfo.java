@@ -2,14 +2,13 @@ package com.trioscope.chameleon.types;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
 
 /**
  * Created by rohitraghunathan on 6/28/15.
  */
-
-import lombok.NonNull;
 
 @ToString
 @Getter
@@ -26,4 +25,5 @@ public class WiFiNetworkConnectionInfo {
     private Integer serverPort;
     @NonNull
     private String userName;
+    private byte[] certificate;
 }
