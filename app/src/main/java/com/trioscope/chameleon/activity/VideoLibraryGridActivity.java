@@ -147,9 +147,12 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 File item = libraryFiles.get(position);
-                Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
-                intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
-                startActivity(intentToPlayVideo);
+                // Don't allow user to click videos being merged
+                if (!mergingFilenames.contains(item.getName())) {
+                    Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
+                    intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
+                    startActivity(intentToPlayVideo);
+                }
             }
         });
 
