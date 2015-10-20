@@ -430,40 +430,41 @@ public class SendConnectionInfoNFCActivity
 
                 wifiP2pGroupInfoListener = new WifiP2pManager.GroupInfoListener() {
                     @Override
-                    public void onGroupInfoAvailable(WifiP2pGroup group) {
+                    public void onGroupInfoAvailable(final WifiP2pGroup group) {
 
                         if (group != null && wiFiNetworkConnectionInfo == null) {
 
-                            try {
+                            log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
+                                    group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
 
-                                log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
-                                        group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
+                            // Retrieve connection info in background
+                            new AsyncTask<Void, Void, Void>() {
 
-                                wiFiNetworkConnectionInfo =
-                                        WiFiNetworkConnectionInfo.builder()
-                                                .SSID(group.getNetworkName())
-                                                .passPhrase(group.getPassphrase())
-                                                .serverIpAddress(getIpAddressForInterface(
-                                                        group.getInterface()).getHostAddress())
-                                                .serverPort(ChameleonApplication.SERVER_PORT)
-                                                .userName(getUserName())
-                                                .certificate(SSLUtil.serializeCertificateToByteArray(
-                                                        SSLUtil.getServerCertificate()))
-                                                .build();
+                                @Override
+                                protected Void doInBackground(Void... params) {
+                                    wiFiNetworkConnectionInfo =
+                                            WiFiNetworkConnectionInfo.builder()
+                                                    .SSID(group.getNetworkName())
+                                                    .passPhrase(group.getPassphrase())
+                                                    .serverIpAddress(getIpAddressForInterface(
+                                                            group.getInterface()).getHostAddress())
+                                                    .serverPort(ChameleonApplication.SERVER_PORT)
+                                                    .userName(getUserName())
+                                                    .certificate(SSLUtil.serializeCertificateToByteArray(
+                                                            SSLUtil.getServerCertificate()))
+                                                    .build();
+                                    return null;
+                                }
 
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-
-                                        progressBar.setVisibility(View.INVISIBLE);
-                                        progressBarInteriorImageView.setVisibility(View.VISIBLE);
-                                        connectionStatusTextView.setVisibility(View.VISIBLE);
-                                        connectionStatusTextView.setText("Beam\nto\nconnect");
-                                    }
-                                });
-                            } catch (Exception e) {
-                                log.error("Failed to set connection info", e);
-                            }
+                                @Override
+                                protected void onPostExecute(Void aVoid) {
+                                    super.onPostExecute(aVoid);
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                    progressBarInteriorImageView.setVisibility(View.VISIBLE);
+                                    connectionStatusTextView.setVisibility(View.VISIBLE);
+                                    connectionStatusTextView.setText("Beam\nto\nconnect");
+                                }
+                            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                         }
                     }
                 };
