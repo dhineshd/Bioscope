@@ -77,7 +77,7 @@ public class ConnectionEstablishedActivity
     public static final String PEER_CERTIFICATE_KEY = "PEER_CERTIFICATE";
     private static final long MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
     private static final long HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
-    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 5000;
+    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 10000;
 
     boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
@@ -280,6 +280,13 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
                 sessionActionsLayout.setVisibility(View.VISIBLE);
+
+                // Delete recorded video
+                File recordedFile = new File(localRecordingMetadata.getAbsoluteFilePath());
+                if (recordedFile.exists()) {
+                    recordedFile.delete();
+                }
+                localRecordingMetadata = null;
             }
         });
 

@@ -1,5 +1,7 @@
 package com.trioscope.chameleon.util.security;
 
+import com.trioscope.chameleon.aop.Timed;
+
 import org.apache.commons.lang3.time.DateUtils;
 import org.spongycastle.jce.X509Principal;
 import org.spongycastle.x509.X509V3CertificateGenerator;
@@ -44,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class SSLUtil {
+    private static final String CERT_ALIAS = "server cert";
 
     static {
         Security.insertProviderAt(new org.spongycastle.jce.provider.BouncyCastleProvider(), 1);
@@ -59,15 +62,12 @@ public class SSLUtil {
     public static SSLServerSocketFactory createSSLServerSocketFactory() {
         SSLServerSocketFactory sslServerSocketFactory = null;
         try {
-            // Load the keyStore that includes self-signed cert as a "trusted" entry.
             KeyStore keyStore = KeyStore.getInstance("BKS");
             keyStore.load(null, null); // create empty keystore
 
-            // Load key for new self-signed cert
             KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
             serverCertificate = generateCertificate(keyPair);
-            // TODO : Change alias
-            keyStore.setKeyEntry("new key", keyPair.getPrivate(), null, new Certificate[]{serverCertificate});
+            keyStore.setKeyEntry(CERT_ALIAS, keyPair.getPrivate(), null, new Certificate[]{serverCertificate});
 
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(keyStore, null);
@@ -96,8 +96,8 @@ public class SSLUtil {
             // Load the keyStore that includes self-signed cert as a "trusted" entry.
             KeyStore trustStore = KeyStore.getInstance("BKS");
             trustStore.load(null, null); // create empty truststore
-            // TODO : Change alias
-            trustStore.setCertificateEntry("new key", certificate);
+
+            trustStore.setCertificateEntry(CERT_ALIAS, certificate);
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
@@ -114,7 +114,7 @@ public class SSLUtil {
         return sslSocketFactory;
     }
 
-
+    @Timed
     public static byte[] serializeCertificateToByteArray(final X509Certificate certificate) {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -129,6 +129,7 @@ public class SSLUtil {
         return null;
     }
 
+    @Timed
     public static X509Certificate deserializeByteArrayToCertificate(final byte[] bytes) {
         try {
             ByteArrayInputStream bis = new ByteArrayInputStream(bytes);

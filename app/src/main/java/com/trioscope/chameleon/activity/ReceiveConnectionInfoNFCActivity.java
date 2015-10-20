@@ -60,6 +60,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         // Tear down Wifi hotspot since we are going to join
         // the peer's hotspot.
         ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
+        // Stop server since we will start that after connecting with director
+        ((ChameleonApplication)getApplication()).stopConnectionServer();
 
         log.debug("ReceiveConnectionInfoNFCActivity {}", this);
 
