@@ -30,7 +30,10 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -38,7 +41,6 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -46,32 +48,33 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class SSLUtil {
-    private static final String CERT_ALIAS = "server cert";
+    private static final String CERT_ALIAS = "bioscope_server_cert";
+    private static final String SSL_PROTOCOL = "TLSv1.2";
 
     static {
         Security.insertProviderAt(new org.spongycastle.jce.provider.BouncyCastleProvider(), 1);
     }
 
-    @Getter
-    public static X509Certificate serverCertificate;
-
     /**
      * Create SSLServerSocket factory that can be used to create SSLServerSockets.
+     *
+     * @param privateKey
+     * @param certificate
      * @return SSLServerSocketFactory
      */
-    public static SSLServerSocketFactory createSSLServerSocketFactory() {
+    @Timed
+    public static SSLServerSocketFactory createSSLServerSocketFactory(
+            final PrivateKey privateKey,
+            final X509Certificate certificate) {
         SSLServerSocketFactory sslServerSocketFactory = null;
         try {
             KeyStore keyStore = KeyStore.getInstance("BKS");
             keyStore.load(null, null); // create empty keystore
-
-            KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-            serverCertificate = generateCertificate(keyPair);
-            keyStore.setKeyEntry(CERT_ALIAS, keyPair.getPrivate(), null, new Certificate[]{serverCertificate});
+            keyStore.setKeyEntry(CERT_ALIAS, privateKey, null, new Certificate[]{certificate});
 
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(keyStore, null);
-            SSLContext sslContext = SSLContext.getInstance("TLS");
+            SSLContext sslContext = SSLContext.getInstance(SSL_PROTOCOL);
             sslContext.init(kmf.getKeyManagers(), null, new SecureRandom());
             sslServerSocketFactory = sslContext.getServerSocketFactory();
         } catch (IOException |
@@ -90,6 +93,7 @@ public class SSLUtil {
      * @param certificate
      * @return SSLSocketFactory
      */
+    @Timed
     public static SSLSocketFactory createSSLSocketFactory(final X509Certificate certificate) {
         SSLSocketFactory sslSocketFactory = null;
         try {
@@ -101,7 +105,7 @@ public class SSLUtil {
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
-            SSLContext ctx = SSLContext.getInstance("TLS");
+            SSLContext ctx = SSLContext.getInstance(SSL_PROTOCOL);
             ctx.init(null, tmf.getTrustManagers(), null);
             sslSocketFactory = ctx.getSocketFactory();
         } catch (IOException |
@@ -117,12 +121,23 @@ public class SSLUtil {
     @Timed
     public static byte[] serializeCertificateToByteArray(final X509Certificate certificate) {
         try {
+            // Convert to byte array
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutput out = new ObjectOutputStream(bos);
             out.writeObject(certificate);
             byte[] data = bos.toByteArray();
             bos.close();
-            return data;
+
+            // Compress byte array
+            byte[] output = new byte[3500];
+            Deflater compresser = new Deflater();
+            compresser.setLevel(Deflater.BEST_COMPRESSION);
+            compresser.setInput(data);
+            compresser.finish();
+            int compressedDataLength = compresser.deflate(output);
+            log.info("Compressed data length = {}", compressedDataLength);
+            compresser.end();
+            return Arrays.copyOfRange(output, 0, compressedDataLength);
         } catch (IOException e) {
             log.error("Failed to serialize certificate", e);
         }
@@ -132,18 +147,27 @@ public class SSLUtil {
     @Timed
     public static X509Certificate deserializeByteArrayToCertificate(final byte[] bytes) {
         try {
-            ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+            // Decompress the bytes
+            Inflater decompresser = new Inflater();
+            decompresser.setInput(bytes);
+            byte[] result = new byte[3500];
+            int resultLength = decompresser.inflate(result);
+            decompresser.end();
+
+            // Convert to certificate
+            ByteArrayInputStream bis = new ByteArrayInputStream(result, 0, resultLength);
             ObjectInput in = new ObjectInputStream(bis);
             X509Certificate cert = (X509Certificate) in.readObject();
             bis.close();
             return cert;
-        } catch (IOException  | ClassNotFoundException e) {
+        } catch (Exception e) {
             log.error("Failed to deserialize blob to get certificate", e);
         }
         return null;
     }
 
-    private static X509Certificate generateCertificate(KeyPair keyPair) {
+    @Timed
+    public static X509Certificate generateCertificate(final KeyPair keyPair) {
         X509V3CertificateGenerator cert = new X509V3CertificateGenerator();
         cert.setSerialNumber(BigInteger.valueOf(1));   //or generate a random number
         cert.setSubjectDN(new X509Principal("CN=localhost"));  //see examples to add O,OU etc
@@ -162,6 +186,16 @@ public class SSLUtil {
                 SignatureException |
                 InvalidKeyException |
                 CertificateException e) {
+            log.error("Failed to generate certificate for given keypair", e);
+        }
+        return null;
+    }
+
+    @Timed
+    public static KeyPair createKeypair() {
+        try {
+            return KeyPairGenerator.getInstance("RSA").generateKeyPair();
+        } catch (NoSuchAlgorithmException e) {
             log.error("Failed to generate certificate for given keypair", e);
         }
         return null;

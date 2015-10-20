@@ -77,7 +77,7 @@ public class ConnectionEstablishedActivity
     public static final String PEER_CERTIFICATE_KEY = "PEER_CERTIFICATE";
     private static final long MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
     private static final long HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
-    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 10000;
+    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 15000;
 
     boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
@@ -138,22 +138,32 @@ public class ConnectionEstablishedActivity
 
         sslSocketFactory = SSLUtil.createSSLSocketFactory(trustedCertificate);
 
-        // Start the server (will generate new certificate)
-        chameleonApplication.startConnectionServerIfNotRunning();
-
-        // Crew member needs to send its certificate to peer so it can be used
-        // as trusted certificate to enable director to connect to crew
+        // Crew should restart server so that new certificate can be generated
         if (!isDirector(peerInfo)) {
-            PeerMessage peerMsg = PeerMessage.builder()
-                    .type(PeerMessage.Type.START_SESSION)
-                    .senderUserName(getUserName())
-                    .contents(gson.toJson(SSLUtil.serializeCertificateToByteArray(
-                            SSLUtil.getServerCertificate())))
-                    .build();
-            new SendMessageToPeerTask(peerMsg, peerInfo)
-                    .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            new AsyncTask<Void, Void, X509Certificate>() {
 
+                @Override
+                protected X509Certificate doInBackground(Void... params) {
+                    return chameleonApplication.stopAndStartConnectionServer();
+                }
+
+                @Override
+                protected void onPostExecute(X509Certificate certificate) {
+                    super.onPostExecute(certificate);
+
+                    // Crew member needs to send its certificate to peer so it can be used
+                    // as trusted certificate to enable director to connect to crew
+                    PeerMessage peerMsg = PeerMessage.builder()
+                            .type(PeerMessage.Type.START_SESSION)
+                            .senderUserName(getUserName())
+                            .contents(gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)))
+                            .build();
+                    new SendMessageToPeerTask(peerMsg, peerInfo)
+                            .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                }
+            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
+
 
         // Prepare camera preview
         chameleonApplication.preparePreview();

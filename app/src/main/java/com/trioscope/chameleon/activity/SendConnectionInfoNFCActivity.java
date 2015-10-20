@@ -42,9 +42,12 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.zip.Deflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,15 +65,13 @@ public class SendConnectionInfoNFCActivity
     private WifiP2pManager.GroupInfoListener wifiP2pGroupInfoListener;
     private Button cancelButton;
     private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
-    private Gson mGson = new Gson();
     private ChameleonApplication chameleonApplication;
     private Set<Intent> processedIntents = new HashSet<Intent>();
     private Gson gson = new Gson();
     private boolean isWifiHotspotRequiredForNextStep;
     private VideoView nfcTutVideoView;
     private ImageView progressBarInteriorImageView;
-    private boolean firstClientRequestReceived;
-
+    private X509Certificate serverCertificate;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,7 +80,24 @@ public class SendConnectionInfoNFCActivity
 
         log.info("Created");
         chameleonApplication = (ChameleonApplication) getApplication();
-        chameleonApplication.startConnectionServerIfNotRunning();
+
+        // Start server in background
+        new AsyncTask<Void, Void, X509Certificate>() {
+
+            @Override
+            protected X509Certificate doInBackground(Void... params) {
+                // Start the server (will generate new certificate)
+                return chameleonApplication.stopAndStartConnectionServer();
+            }
+
+            @Override
+            protected void onPostExecute(X509Certificate certificate) {
+                super.onPostExecute(certificate);
+                serverCertificate = certificate;
+                chameleonApplication.getServerEventListenerManager().addListener(
+                        SendConnectionInfoNFCActivity.this);
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         connectionStatusTextView = (TextView) findViewById(R.id.textView_sender_connection_status);
         progressBar = (ProgressBar) findViewById(R.id.send_conn_info_prog_bar);
@@ -95,14 +113,9 @@ public class SendConnectionInfoNFCActivity
             }
         });
 
-        setupWifiHotspotTask = new SetupWifiHotspotTask();
-        setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
         mNfcAdapter.setOnNdefPushCompleteCallback(this, this);
-
-        chameleonApplication.getServerEventListenerManager().addListener(this);
 
         nfcTutVideoView = (VideoView) findViewById(R.id.nfc_tut_video_view);
         nfcTutVideoView.setVideoPath("android.resource://" + getPackageName() + "/" + R.raw.nfc_tutorial);
@@ -118,6 +131,8 @@ public class SendConnectionInfoNFCActivity
 
         nfcTutVideoView.start();
 
+        setupWifiHotspotTask = new SetupWifiHotspotTask();
+        setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     @Override
@@ -145,7 +160,9 @@ public class SendConnectionInfoNFCActivity
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         if (wiFiNetworkConnectionInfo != null) {
-            String text = mGson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
+            String text = gson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
+            //byte[] serializedConnectionInfo = serializeConnectionInfo(wiFiNetworkConnectionInfo);
+            log.info("connectionInfo = {}", text.length());
             NdefMessage msg = new NdefMessage(
                     new NdefRecord[]{createMime(
                             getString(R.string.mime_type_nfc_connect_wifi), text.getBytes())
@@ -166,6 +183,18 @@ public class SendConnectionInfoNFCActivity
         return null;
     }
 
+    private byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
+        String str = gson.toJson(connectionInfo);
+        byte[] output = new byte[1500];
+        Deflater compresser = new Deflater();
+        compresser.setLevel(Deflater.BEST_COMPRESSION);
+        compresser.setInput(str.getBytes());
+        compresser.finish();
+        int compressedDataLength = compresser.deflate(output);
+        log.info("Compressed data length = {}", compressedDataLength);
+        compresser.end();
+        return Arrays.copyOfRange(output, 0, compressedDataLength);
+    }
 
     @Override
     public void onNdefPushComplete(NfcEvent event) {
@@ -197,7 +226,7 @@ public class SendConnectionInfoNFCActivity
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
         final WiFiNetworkConnectionInfo connectionInfo =
-                mGson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
+                gson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
         processedIntents.add(intent);
 
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
@@ -450,9 +479,9 @@ public class SendConnectionInfoNFCActivity
                                                             group.getInterface()).getHostAddress())
                                                     .serverPort(ChameleonApplication.SERVER_PORT)
                                                     .userName(getUserName())
-                                                    .certificate(SSLUtil.serializeCertificateToByteArray(
-                                                            SSLUtil.getServerCertificate()))
+                                                    .certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
                                                     .build();
+                                    //serializedConnectionInfo = getSerializedConnectionInfo(wiFiNetworkConnectionInfo);
                                     return null;
                                 }
 
