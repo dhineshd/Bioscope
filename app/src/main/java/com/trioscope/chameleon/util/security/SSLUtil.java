@@ -30,10 +30,7 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -127,17 +124,7 @@ public class SSLUtil {
             out.writeObject(certificate);
             byte[] data = bos.toByteArray();
             bos.close();
-
-            // Compress byte array
-            byte[] output = new byte[3500];
-            Deflater compresser = new Deflater();
-            compresser.setLevel(Deflater.BEST_COMPRESSION);
-            compresser.setInput(data);
-            compresser.finish();
-            int compressedDataLength = compresser.deflate(output);
-            log.info("Compressed data length = {}", compressedDataLength);
-            compresser.end();
-            return Arrays.copyOfRange(output, 0, compressedDataLength);
+            return data;
         } catch (IOException e) {
             log.error("Failed to serialize certificate", e);
         }
@@ -147,15 +134,8 @@ public class SSLUtil {
     @Timed
     public static X509Certificate deserializeByteArrayToCertificate(final byte[] bytes) {
         try {
-            // Decompress the bytes
-            Inflater decompresser = new Inflater();
-            decompresser.setInput(bytes);
-            byte[] result = new byte[3500];
-            int resultLength = decompresser.inflate(result);
-            decompresser.end();
-
             // Convert to certificate
-            ByteArrayInputStream bis = new ByteArrayInputStream(result, 0, resultLength);
+            ByteArrayInputStream bis = new ByteArrayInputStream(bytes, 0, bytes.length);
             ObjectInput in = new ObjectInputStream(bis);
             X509Certificate cert = (X509Certificate) in.readObject();
             bis.close();

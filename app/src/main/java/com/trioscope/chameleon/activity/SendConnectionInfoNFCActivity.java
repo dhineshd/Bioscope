@@ -165,12 +165,13 @@ public class SendConnectionInfoNFCActivity
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         if (wiFiNetworkConnectionInfo != null) {
-            String text = gson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
-            //byte[] serializedConnectionInfo = serializeConnectionInfo(wiFiNetworkConnectionInfo);
-            log.info("connectionInfo = {}", text.length());
+            //String text = gson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
+            byte[] serializedConnectionInfo = serializeConnectionInfo(wiFiNetworkConnectionInfo);
+
+            log.info("connectionInfo = {}", serializedConnectionInfo.length);
             NdefMessage msg = new NdefMessage(
                     new NdefRecord[]{createMime(
-                            getString(R.string.mime_type_nfc_connect_wifi), text.getBytes())
+                            getString(R.string.mime_type_nfc_connect_wifi), serializedConnectionInfo)
                             /**
                              * The Android Application Record (AAR) is commented out. When a device
                              * receives a push with an AAR in it, the application specified in the AAR
@@ -190,7 +191,7 @@ public class SendConnectionInfoNFCActivity
 
     private byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
         String str = gson.toJson(connectionInfo);
-        byte[] output = new byte[1500];
+        byte[] output = new byte[2000];
         Deflater compresser = new Deflater();
         compresser.setLevel(Deflater.BEST_COMPRESSION);
         compresser.setInput(str.getBytes());

@@ -169,12 +169,11 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         NdefMessage msg = (NdefMessage) rawMsgs[0];
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
-        String msgAsJson = new String(msg.getRecords()[0].getPayload());
-
         //call ReceiveConnectionInfoActivity
 
         Intent i = new Intent(this, ReceiveConnectionInfoNFCActivity.class);
-        i.putExtra(ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA, msgAsJson);
+        i.putExtra(ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA,
+                msg.getRecords()[0].getPayload());
         startActivity(i);
         processedIntents.add(intent);
     }

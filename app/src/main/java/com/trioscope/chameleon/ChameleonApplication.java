@@ -151,6 +151,8 @@ public class ChameleonApplication extends Application {
         KeyPair keyPair = SSLUtil.createKeypair();
         X509Certificate certificate = SSLUtil.generateCertificate(keyPair);
 
+        log.info("public key = {}", keyPair.getPublic());
+
         connectionServer = new ConnectionServer(
                 ChameleonApplication.SERVER_PORT,
                 serverEventListenerManager,
