@@ -300,10 +300,6 @@ public class ChameleonApplication extends Application {
 //        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
 //        log.info("Registered IncomingPhoneCallBroadcastReceiver");
 
-        // Reset session flags
-        //sessionStatus = SessionStatus.DISCONNECTED;
-        //streamListener.setStreamingStarted(false);
-
     }
 
     public void cleanupAndExit() {

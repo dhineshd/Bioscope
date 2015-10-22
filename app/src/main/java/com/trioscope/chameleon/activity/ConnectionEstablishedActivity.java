@@ -153,13 +153,8 @@ public class ConnectionEstablishedActivity
 
                     // Crew member needs to send its certificate to peer so it can be used
                     // as trusted certificate to enable director to connect to crew
-                    PeerMessage peerMsg = PeerMessage.builder()
-                            .type(PeerMessage.Type.START_SESSION)
-                            .senderUserName(getUserName())
-                            .contents(gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)))
-                            .build();
-                    new SendMessageToPeerTask(peerMsg, peerInfo)
-                            .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    sendPeerMessage(PeerMessage.Type.START_SESSION,
+                            gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)));
                 }
             }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
@@ -220,12 +215,7 @@ public class ConnectionEstablishedActivity
 
                     // Director should send message to crew to stop recording
                     if (isDirector(peerInfo)) {
-                        PeerMessage peerMsg = PeerMessage.builder()
-                                .type(PeerMessage.Type.STOP_RECORDING)
-                                .senderUserName(getUserName())
-                                .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo)
-                        .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        sendPeerMessage(PeerMessage.Type.STOP_RECORDING);
                     }
 
                     stopRecording();
@@ -243,12 +233,7 @@ public class ConnectionEstablishedActivity
 
                     // Director should send message to crew to start recording
                     if (isDirector(peerInfo)) {
-                        PeerMessage peerMsg = PeerMessage.builder()
-                                .type(PeerMessage.Type.START_RECORDING)
-                                .senderUserName(getUserName())
-                                .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo)
-                                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                        sendPeerMessage(PeerMessage.Type.START_RECORDING);
                     }
 
                     startRecording();
@@ -304,14 +289,30 @@ public class ConnectionEstablishedActivity
         disconnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PeerMessage msg = PeerMessage.builder()
-                        .type(PeerMessage.Type.TERMINATE_SESSION)
-                        .senderUserName(getUserName()).build();
-                new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                sendPeerMessage(PeerMessage.Type.TERMINATE_SESSION);
                 terminateSession("Terminating session..");
             }
         });
 
+    }
+
+    private void sendPeerMessage(final PeerMessage.Type msgType) {
+        PeerMessage msg = PeerMessage.builder()
+                .type(msgType).senderUserName(getUserName()).build();
+        sendPeerMessage(msg);
+    }
+
+    private void sendPeerMessage(final PeerMessage.Type msgType, final String msgContents) {
+        PeerMessage msg = PeerMessage.builder()
+                .type(msgType)
+                .contents(msgContents)
+                .senderUserName(getUserName()).build();
+        sendPeerMessage(msg);
+    }
+
+    private void sendPeerMessage(final PeerMessage msg) {
+        new SendMessageToPeerTask(msg, peerInfo)
+                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     private boolean isDirector(final PeerInfo peerInfo) {
@@ -613,7 +614,7 @@ public class ConnectionEstablishedActivity
                 }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter pw = new PrintWriter(socket.getOutputStream());
@@ -676,7 +677,7 @@ public class ConnectionEstablishedActivity
                 }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
                 log.debug("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
                 log.debug("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
 
@@ -954,7 +955,7 @@ public class ConnectionEstablishedActivity
                     }
 
                     SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                    socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                    socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
 
                     final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 

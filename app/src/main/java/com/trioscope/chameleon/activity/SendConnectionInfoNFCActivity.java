@@ -96,6 +96,8 @@ public class SendConnectionInfoNFCActivity
                 serverCertificate = certificate;
                 chameleonApplication.getServerEventListenerManager().addListener(
                         SendConnectionInfoNFCActivity.this);
+                setupWifiHotspotTask = new SetupWifiHotspotTask();
+                setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
@@ -131,8 +133,11 @@ public class SendConnectionInfoNFCActivity
 
         nfcTutVideoView.start();
 
-        setupWifiHotspotTask = new SetupWifiHotspotTask();
-        setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        // Make UI elements visible
+        progressBar.setVisibility(View.VISIBLE);
+        progressBarInteriorImageView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setText("Preparing\nto\nconnect");
     }
 
     @Override
@@ -326,11 +331,6 @@ public class SendConnectionInfoNFCActivity
         // Turn on Wifi device (if not already on)
         final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
-        progressBar.setVisibility(View.VISIBLE);
-        progressBarInteriorImageView.setVisibility(View.VISIBLE);
-        connectionStatusTextView.setVisibility(View.VISIBLE);
-        connectionStatusTextView.setText("Preparing\nto\nconnect");
-
         if (wifiManager.isWifiEnabled()) {
             log.info("Wifi already enabled..");
             createWifiHotspot();
@@ -471,6 +471,7 @@ public class SendConnectionInfoNFCActivity
 
                                 @Override
                                 protected Void doInBackground(Void... params) {
+
                                     wiFiNetworkConnectionInfo =
                                             WiFiNetworkConnectionInfo.builder()
                                                     .SSID(group.getNetworkName())

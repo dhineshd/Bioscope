@@ -49,7 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SSLUtil {
     private static final String CERT_ALIAS = "bioscope_server_cert";
-    private static final String SSL_PROTOCOL = "TLSv1.2";
+    public static final String SSL_PROTOCOL = "TLSv1.2";
 
     static {
         Security.insertProviderAt(new org.spongycastle.jce.provider.BouncyCastleProvider(), 1);
