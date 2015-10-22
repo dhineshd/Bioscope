@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceGroup;
 import android.preference.PreferenceManager;
 
 import com.trioscope.chameleon.R;

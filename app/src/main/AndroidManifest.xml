@@ -67,7 +67,9 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".activity.PreferencesActivity"
-            android:label="PreferencesActivity" />
+            android:label="PreferencesActivity"
+            android:theme="@style/PreferencesTheme"
+            />
         <activity
             android:name=".activity.PreviewMergeActivity"
             android:label="PreviewMergeActivity"

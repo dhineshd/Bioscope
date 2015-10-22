@@ -24,4 +24,8 @@
         <item name="android:windowSharedElementExitTransition">
             @transition/change_image_transform</item>
     </style>
+
+    <style name="PreferencesTheme">
+        <item name="android:background">#FFEAEAEA</item>
+    </style>
 </resources>
