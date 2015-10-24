@@ -16,6 +16,9 @@
     <string name="mime_type_nfc_connect_wifi">application/com.trioscope.chameleon.connect.wifi</string>
     <string name="title_activity_preview_merge">PreviewMergeActivity</string>
     <string name="share_via">Share via</string>
+    <string name="ok">OK</string>
+    <string name="openh_disabled_warn_title">OpenH264 Disabled</string>
+    <string name="openh_disabled_warn">OpenH264 is disabled, so you can not merge videos. Directing is disabled, but you can still collaborate with someone who can! </string>
 
     <string name="menu_settings">Settings</string>
 

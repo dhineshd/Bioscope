@@ -2,12 +2,14 @@ package com.trioscope.chameleon.activity;
 
 import android.app.DialogFragment;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.support.v4.view.GestureDetectorCompat;
+import android.support.v7.app.AlertDialog;
 import android.view.GestureDetector;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -65,11 +67,23 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-
-                
                 log.info("Start session button pressed");
-                Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
-                startActivity(i);
+                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                boolean isOpenHEnabled = preferences.getBoolean(getString(R.string.pref_codec_key), true);
+
+                if (isOpenHEnabled) {
+                    Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
+                    startActivity(i);
+                } else {
+                    log.info("OpenH264 is disabled, not going to move to SendConnectionInfoNFCActivity");
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setTitle(R.string.openh_disabled_warn_title)
+                            .setMessage(R.string.openh_disabled_warn)
+                            .setPositiveButton(R.string.ok, null)
+                            .setCancelable(false)
+                            .show();
+                }
             }
         });
 
