@@ -4,4 +4,6 @@
     <color name="bioscope_orange">#F47B4C</color>
     <color name="bioscope_purple">#9B296E</color>
     <color name="bioscope_light_purple">#AF2C7E</color>
+    <color name="primary_text">#000</color>
+    <color name="secondary_text">#888</color>
 </resources>

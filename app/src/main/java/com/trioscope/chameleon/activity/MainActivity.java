@@ -65,7 +65,9 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                log.info("Start sesion button pressed");
+
+                
+                log.info("Start session button pressed");
                 Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
                 startActivity(i);
             }

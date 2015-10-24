@@ -1,23 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:summary="Preferences for the Bioscope App"
+    android:title="Preferences">
 
-    <PreferenceCategory android:title="@string/user_preferences">
-    <EditTextPreference
-        android:key="@string/pref_user_name_key"
-        android:title="@string/pref_user_name_title"
-        android:persistent="true"
-        android:dialogTitle="@string/pref_user_name_title"
-        android:dialogMessage="@string/pref_user_name_summary"
-        android:defaultValue="" />
+    <PreferenceCategory
+        android:layout="@layout/preference_category"
+        android:title="@string/pref_user_name_title">
+        <EditTextPreference
+            android:defaultValue=""
+            android:dialogMessage="@string/pref_user_name_summary"
+            android:dialogTitle="@string/pref_user_name_title"
+            android:key="@string/pref_user_name_key"
+            android:layout="@layout/edit_text_preference_with_icon"
+            android:persistent="true" />
     </PreferenceCategory>
-    <PreferenceCategory android:title="@string/stream_preferences">
-        <ListPreference
-            android:defaultValue="720p"
-            android:entries="@array/stream_resolution_values"
-            android:entryValues="@array/stream_resolution_names"
-            android:key="@string/pref_stream_resolution"
-            android:summary="@string/pref_stream_resolution_summary"
-            android:title="@string/pref_stream_resolution_title" />
+
+    <PreferenceCategory
+        android:layout="@layout/preference_category"
+        android:title="@string/pref_codec_title">
+        <SwitchPreference
+            android:key="@string/pref_codec_key"
+            android:title="OpenH264 Codec" />
     </PreferenceCategory>
 
 </PreferenceScreen>

@@ -31,7 +31,9 @@
 
     <string name="pref_user_name_key">UserName</string>
     <string name="pref_user_name_summary">Enter Name</string>
-    <string name="pref_user_name_title">Name</string>
+    <string name="pref_user_name_title">Username</string>
+    <string name="pref_codec_key">UseOpenH</string>
+    <string name="pref_codec_title">More Information</string>
     <string name="title_activity_user_login">UserLoginActivity</string>
     <string name="title_activity_video_library">VideoLibraryActivity</string>
     <string name="title_activity_splash_screen">SplashScreen</string>
