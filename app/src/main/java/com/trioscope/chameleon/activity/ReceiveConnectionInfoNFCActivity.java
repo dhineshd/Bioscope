@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.zip.Inflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,7 +49,6 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
     private Set<AsyncTask<Void, Void, Void>> asyncTasks = new HashSet<>();
     private Handler connectionTimerHandler;
     private Runnable connectionTimerRunnable;
-    private WiFiNetworkConnectionInfo connectionInfo;
     private long startTime;
 
     @Override
@@ -61,6 +61,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         // Tear down Wifi hotspot since we are going to join
         // the peer's hotspot.
         ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
+        // Stop server since we will start that after connecting with director
+        ((ChameleonApplication)getApplication()).stopConnectionServer();
 
         log.debug("ReceiveConnectionInfoNFCActivity {}", this);
 
@@ -78,18 +80,33 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         });
         connectionTimerHandler = new Handler();
 
-        String connectionInfoAsJson = getIntent().getStringExtra(
+        byte[] connectionInfoAsJson = getIntent().getByteArrayExtra(
                 ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA);
 
         if (connectionInfoAsJson != null) {
             connectionStatusTextView.setVisibility(TextView.VISIBLE);
-            connectionInfo = gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
-            enableWifiAndEstablishConnection();
+//            WiFiNetworkConnectionInfo connectionInfo =
+//                    gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
+            WiFiNetworkConnectionInfo connectionInfo = deserializeConnectionInfo(connectionInfoAsJson);
+            enableWifiAndEstablishConnection(connectionInfo);
         } else {
             log.warn("connectionInfoAsJson is null");
         }
     }
 
+    private WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
+        try {
+            Inflater decompresser = new Inflater();
+            decompresser.setInput(bytes);
+            byte[] result = new byte[3500];
+            int resultLength = decompresser.inflate(result);
+            decompresser.end();
+            return gson.fromJson(new String(result, 0, resultLength), WiFiNetworkConnectionInfo.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize connection info", e);
+        }
+        return null;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -149,7 +166,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
     }
 
-    public void enableWifiAndEstablishConnection() {
+    public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
 
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
@@ -213,7 +230,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
                 if(currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
                     unregisterReceiver(this);
-                    retrieveIpAddressAndEstablishConnection();
+                    retrieveIpAddressAndEstablishConnection(connectionInfo);
                 }
             }
         };
@@ -229,7 +246,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
             @Override
             public void run() {
                 log.info("Current thread = {}", Thread.currentThread());
-                connectToWifiNetwork(connectionInfo.getSSID(), connectionInfo.getPassPhrase());
+                connectToWifiNetwork(connectionInfo);
                 connectionTimerHandler.postDelayed(this, MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS);
             }
         };
@@ -241,17 +258,17 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         progressBar.setVisibility(View.VISIBLE);
     }
 
-    private void connectToWifiNetwork(final String networkSSID, final String networkPassword) {
+    private void connectToWifiNetwork(final WiFiNetworkConnectionInfo connectionInfo) {
 
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
 
             @Override
             protected Void doInBackground(Void... params) {
                 // Connect only if not already connected
-                if (!networkSSID.equalsIgnoreCase(WifiUtil.getCurrentSSID(getApplicationContext()))) {
+                if (!connectionInfo.getSSID().equalsIgnoreCase(WifiUtil.getCurrentSSID(getApplicationContext()))) {
                     WifiConfiguration conf = new WifiConfiguration();
-                    conf.SSID = "\"" + networkSSID + "\"";
-                    conf.preSharedKey = "\"" + networkPassword + "\"";
+                    conf.SSID = "\"" + connectionInfo.getSSID() + "\"";
+                    conf.preSharedKey = "\"" + connectionInfo.getPassPhrase() + "\"";
 
                     final WifiManager wifiManager =
                             (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -259,7 +276,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                     while (remainingAttemptsToAddNetwork-- > 0) {
                         int netId = wifiManager.addNetwork(conf);
                         if (netId != -1) {
-                            log.info("Connecting to SSID = {}, netId = {}", networkSSID, netId);
+                            log.info("Connecting to SSID = {}, netId = {}", connectionInfo.getSSID(), netId);
                             // Enable only our network and disable others
                             wifiManager.disconnect();
                             wifiManager.enableNetwork(netId, true);
@@ -267,10 +284,10 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                         }
                     }
                 } else {
-                    log.info("Already connected to SSID = {}", networkSSID);
+                    log.info("Already connected to SSID = {}", connectionInfo.getSSID());
                     // No need to create another connection task
                     connectionTimerHandler.removeCallbacks(connectionTimerRunnable);
-                    retrieveIpAddressAndEstablishConnection();
+                    retrieveIpAddressAndEstablishConnection(connectionInfo);
                 }
                 return null;
             }
@@ -291,7 +308,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         });
     }
 
-    private void retrieveIpAddressAndEstablishConnection() {
+    private void retrieveIpAddressAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
             String ipAddress = null;
             @Override
@@ -307,7 +324,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                 super.onPostExecute(aVoid);
                 if (ipAddress != null) {
                     log.info("Successfully retrieved local IP = {}", ipAddress);
-                    performConnectionEstablishedActions();
+                    performConnectionEstablishedActions(connectionInfo);
                 }
             }
         };
@@ -321,7 +338,7 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         });
     }
 
-    private void performConnectionEstablishedActions() {
+    private void performConnectionEstablishedActions(final WiFiNetworkConnectionInfo connectionInfo) {
         progressBar.setVisibility(View.INVISIBLE);
         connectionStatusTextView.setText("Connected\nto\n" + connectionInfo.getUserName());
 
@@ -338,6 +355,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
                     new Intent(this, ConnectionEstablishedActivity.class);
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INFO,
                     mGson.toJson(peerInfo));
+            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY,
+                    connectionInfo.getCertificate());
             startActivity(connectionEstablishedIntent);
 
             //publish time to establish connection from crew side

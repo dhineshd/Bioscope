@@ -1,11 +1,14 @@
 package com.trioscope.chameleon.activity;
 
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.preference.SwitchPreference;
+import android.support.v7.app.AlertDialog;
 
 import com.trioscope.chameleon.R;
 
@@ -42,8 +45,7 @@ public class PreferencesActivity extends Activity {
             // Make sure default values are applied.  In a real app, you would
             // want this in a shared function that is used to retrieve the
             // SharedPreferences wherever they are needed.
-            PreferenceManager.setDefaultValues(getActivity(),
-                    R.xml.preferences, false);
+            PreferenceManager.setDefaultValues(getActivity(), R.xml.preferences, false);
 
             // Load the preferences from an XML resource
             addPreferencesFromResource(R.xml.preferences);
@@ -56,24 +58,42 @@ public class PreferencesActivity extends Activity {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-            if (getString(R.string.pref_stream_resolution).equals(key)) {
+            if (getString(R.string.pref_user_name_key).equals(key)) {
                 Preference connectionPref = findPreference(key);
-                // Set summary to be the user-description for the selected value
-                if (connectionPref != null){
-                    connectionPref.setSummary(sharedPreferences.getString(key, ""));
-                }
-            } else if (getString(R.string.pref_user_name_key).equals(key)) {
 
-                Preference connectionPref = findPreference(key);
                 // Set summary to be the user-description for the selected value
                 if (connectionPref != null) {
                     connectionPref.setSummary(sharedPreferences.getString(key, ""));
                 }
+            } else if (getString(R.string.pref_codec_key).equals(key)) {
+                final SwitchPreference connectionPref = (SwitchPreference) findPreference(key);
+                boolean isOn = connectionPref.isChecked();
+                log.info("User changed the OpenH Setting, current value is {}", isOn);
+
+                if (isOn) {
+                    log.info("Turning on OpenH264 without question");
+                } else {
+                    log.info("Asking user for confirmation when disabling OpenH264");
+                    new AlertDialog.Builder(getActivity())
+                            .setTitle("Disable OpenH264")
+                            .setMessage("Do you really want to disable OpenH264? OpenH264 codec is required for merging videos.")
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setPositiveButton(android.R.string.yes, null)
+                            .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    if (connectionPref != null) {
+                                        connectionPref.setChecked(true);
+                                    }
+                                }
+                            }).show();
+                }
             } else {
-                log.info("Preferences changed from {} not {}", key, getString(R.string.pref_stream_resolution));
+                log.info("Unknown preference change for key '{}'", key);
             }
+
             log.info("Preferences changed for {}", key);
         }
+
 
         @Override
         public void onResume() {

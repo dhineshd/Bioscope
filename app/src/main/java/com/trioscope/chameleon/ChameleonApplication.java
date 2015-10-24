@@ -32,6 +32,8 @@ import com.trioscope.chameleon.util.merge.VideoMerger;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
+import java.security.KeyPair;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.Executor;
@@ -98,7 +100,7 @@ public class ChameleonApplication extends Application {
             new ServerEventListenerManager();
 
     @Setter
-    private ConnectionServer connectionServer;
+    private volatile ConnectionServer connectionServer;
 
     @Getter
     private static MetricsHelper metrics;
@@ -139,15 +141,24 @@ public class ChameleonApplication extends Application {
         startup();
     }
 
-    public void startConnectionServerIfNotRunning() {
+    public X509Certificate stopAndStartConnectionServer() {
         // Setup connection server to receive connections from client
-        if (connectionServer == null) {
-            connectionServer = new ConnectionServer(
-                    ChameleonApplication.SERVER_PORT,
-                    serverEventListenerManager,
-                    SSLUtil.getInitializedSSLServerSocketFactory(getApplicationContext()));
-            connectionServer.start();
+        if (connectionServer != null) {
+            connectionServer.stop();
+            connectionServer = null;
         }
+        // Generate new keypair and certificate
+        KeyPair keyPair = SSLUtil.createKeypair();
+        X509Certificate certificate = SSLUtil.generateCertificate(keyPair);
+
+        log.info("public key = {}", keyPair.getPublic());
+
+        connectionServer = new ConnectionServer(
+                ChameleonApplication.SERVER_PORT,
+                serverEventListenerManager,
+                SSLUtil.createSSLServerSocketFactory(keyPair.getPrivate(), certificate));
+        connectionServer.start();
+        return certificate;
     }
 
     public void stopConnectionServer() {
@@ -281,8 +292,6 @@ public class ChameleonApplication extends Application {
     public void startup() {
         log.info("Starting up application resources..");
 
-        startConnectionServerIfNotRunning();
-
         //Code for phone
         // Commenting this out until we implement call handling logic. Need to register
         // in every onResume() and unregister in every onPause()
@@ -292,10 +301,6 @@ public class ChameleonApplication extends Application {
 //        incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
 //        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
 //        log.info("Registered IncomingPhoneCallBroadcastReceiver");
-
-        // Reset session flags
-        //sessionStatus = SessionStatus.DISCONNECTED;
-        //streamListener.setStreamingStarted(false);
 
     }
 
