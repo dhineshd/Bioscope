@@ -359,6 +359,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                log.info("Video has completed");
                 if (updateSeekBarRunnable != null)
                     updateSeekBarRunnable.setCancelled(true);
                 minorVideoMediaPlayer.stop();
@@ -562,7 +563,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 log.info("Setting progress to {}/100", progress);
                 seekBar.setProgress(progress);
 
-                seekBarHandler.postDelayed(this, UPDATE_SEEK_TIME_DELAY);
+                if (progress < 100)
+                    seekBarHandler.postDelayed(this, UPDATE_SEEK_TIME_DELAY);
             }
         }
     }
