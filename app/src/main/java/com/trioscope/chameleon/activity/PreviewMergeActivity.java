@@ -18,6 +18,7 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,10 +36,13 @@ import com.trioscope.chameleon.util.merge.VideoMerger;
 import java.io.File;
 import java.io.IOException;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
+    public static final long UPDATE_SEEK_TIME_DELAY = 500;
+
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
     private TextureView majorVideoTextureView;
@@ -53,6 +57,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private boolean publishedDurationMetrics = false;
     private boolean isMergeRequested;
     boolean doubleBackToExitPressedOnce = false;
+    private Handler seekBarHandler;
+    private UpdateSeekBarRunnable updateSeekBarRunnable;
+    private long majorVideoAheadOfMinorByMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +74,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         remoteRecordingMetadata = gson.fromJson(
                 intent.getStringExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY),
                 RecordingMetadata.class);
+
+        majorVideoAheadOfMinorByMillis = getMajorVideoAheadOfMinorVideoByMillis(localRecordingMetadata.getAbsoluteFilePath());
 
         majorVideoMediaPlayer = new MediaPlayer();
         minorVideoMediaPlayer = new MediaPlayer();
@@ -97,8 +106,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     startVideos(
                             localRecordingMetadata.getAbsoluteFilePath(),
                             remoteRecordingMetadata.getAbsoluteFilePath(),
-                            getMajorVideoAheadOfMinorVideoByMillis(
-                                    localRecordingMetadata.getAbsoluteFilePath()));
+                            majorVideoAheadOfMinorByMillis);
                 }
             }
 
@@ -131,8 +139,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     startVideos(
                             localRecordingMetadata.getAbsoluteFilePath(),
                             remoteRecordingMetadata.getAbsoluteFilePath(),
-                            getMajorVideoAheadOfMinorVideoByMillis(
-                                    localRecordingMetadata.getAbsoluteFilePath()));
+                            majorVideoAheadOfMinorByMillis
+                    );
                 }
             }
 
@@ -149,6 +157,30 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onSurfaceTextureUpdated(SurfaceTexture surface) {
 
+            }
+        });
+
+        seekBarHandler = new Handler();
+        final SeekBar seekBar = (SeekBar) findViewById(R.id.merge_preview_seekbar);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    log.info("Seekbar dropped at {}", seekBar.getProgress());
+                    int seekPoint = (int) Math.round(majorVideoMediaPlayer.getDuration() * (double) progress / 100.0);
+                    seekVideosTo(seekPoint);
+                } else {
+                    log.info("Seekbar not changed from user");
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
             }
         });
 
@@ -215,6 +247,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         swapMergePreviewButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                majorVideoAheadOfMinorByMillis *= -1;
                 // swapping the video paths
                 startVideos(minorVideoPath, majorVideoPath,
                         getMajorVideoAheadOfMinorVideoByMillis(minorVideoPath));
@@ -222,6 +255,55 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         });
 
         touchReplayTextView = (TextView) findViewById(R.id.textView_touch_replay);
+    }
+
+    Object seekLock = new Object();
+    Integer majorVideoSeekedTo, minorVideoSeekedTo;
+
+    private void seekVideosTo(int seekPoint) {
+        log.info("Seeking videos to seekPoint {}", seekPoint);
+
+        majorVideoMediaPlayer.pause();
+        minorVideoMediaPlayer.pause();
+
+        majorVideoSeekedTo = null;
+        minorVideoSeekedTo = null;
+        majorVideoMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+            @Override
+            public void onSeekComplete(MediaPlayer mp) {
+                synchronized (seekLock) {
+                    majorVideoSeekedTo = mp.getCurrentPosition();
+                    log.info("Major video seek completed, current position is {}", majorVideoSeekedTo);
+
+                    if (minorVideoSeekedTo != null) {
+                        log.info("Minor video already seeked, going to start the videos");
+                        long diff = majorVideoAheadOfMinorByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
+
+                        startWithDelay(diff);
+                    }
+                }
+            }
+        });
+
+        minorVideoMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+            @Override
+            public void onSeekComplete(MediaPlayer mp) {
+                synchronized (seekLock) {
+                    minorVideoSeekedTo = mp.getCurrentPosition();
+                    log.info("Minor video seek completed, current position is {}", minorVideoSeekedTo);
+
+                    if (majorVideoSeekedTo != null) {
+                        log.info("Major video already seeked, going to start the videos");
+                        long diff = majorVideoAheadOfMinorByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
+
+                        startWithDelay(diff);
+                    }
+                }
+            }
+        });
+
+        majorVideoMediaPlayer.seekTo(seekPoint);
+        minorVideoMediaPlayer.seekTo(seekPoint);
     }
 
     private long getMajorVideoAheadOfMinorVideoByMillis(final String majorVideoPath) {
@@ -277,6 +359,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
+                if (updateSeekBarRunnable != null)
+                    updateSeekBarRunnable.setCancelled(true);
                 minorVideoMediaPlayer.stop();
                 touchReplayTextView.setVisibility(View.VISIBLE);
             }
@@ -286,16 +370,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         log.info("Video Media Players are starting {}", majorVideoAheadOfMinorVideoByMillis);
 
-        // Skip initial part of video
-        log.info("majorVideoAheadOfMinorVideoByMillis = {}", majorVideoAheadOfMinorVideoByMillis);
+        startWithDelay(majorVideoAheadOfMinorVideoByMillis);
 
-        if (majorVideoAheadOfMinorVideoByMillis < 0) {
-            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(majorVideoMediaPlayer), -majorVideoAheadOfMinorVideoByMillis);
-            minorVideoMediaPlayer.start();
-        } else {
-            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(minorVideoMediaPlayer), majorVideoAheadOfMinorVideoByMillis);
-            majorVideoMediaPlayer.start();
-        }
+        // Record progress with the seekbar
+        SeekBar seekBar = (SeekBar) findViewById(R.id.merge_preview_seekbar);
+        updateSeekBarRunnable = new UpdateSeekBarRunnable(seekBar, majorVideoMediaPlayer);
+        seekBarHandler.postDelayed(updateSeekBarRunnable, UPDATE_SEEK_TIME_DELAY);
 
         if (!publishedDurationMetrics) {
             //publish time metrics
@@ -304,6 +384,17 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     MetricNames.Label.DURATION.getName(),
                     majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
+        }
+    }
+
+    private void startWithDelay(long majorVideoAheadOfMinorVideoByMillis) {
+        log.info("Putting videos into start state with delay {}", majorVideoAheadOfMinorVideoByMillis);
+        if (majorVideoAheadOfMinorVideoByMillis < 0) {
+            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(majorVideoMediaPlayer), -majorVideoAheadOfMinorVideoByMillis);
+            minorVideoMediaPlayer.start();
+        } else {
+            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(minorVideoMediaPlayer), majorVideoAheadOfMinorVideoByMillis);
+            majorVideoMediaPlayer.start();
         }
     }
 
@@ -342,6 +433,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     private void cleanup() {
         log.info("Performing cleanup");
+
+        // Stop runnable
+        if (updateSeekBarRunnable != null)
+            updateSeekBarRunnable.setCancelled(true);
 
         // Release mediaplayers
         if (majorVideoMediaPlayer != null) {
@@ -439,6 +534,36 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             long elapsed = System.currentTimeMillis() - startTime;
             log.info("Actual elapsed time between Runnable creation and run() method = {}ms", elapsed);
             mediaPlayer.start();
+        }
+    }
+
+    private class UpdateSeekBarRunnable implements Runnable {
+        private final SeekBar seekBar;
+        private final MediaPlayer mediaPlayer;
+        private int duration;
+
+        @Setter
+        private boolean cancelled;
+
+        public UpdateSeekBarRunnable(SeekBar seekBar, MediaPlayer mediaPlayer) {
+            this.duration = mediaPlayer.getDuration();
+            this.seekBar = seekBar;
+            this.mediaPlayer = mediaPlayer;
+            this.cancelled = false;
+        }
+
+        @Override
+        public void run() {
+            if (!cancelled) {
+                int curPosition = mediaPlayer.getCurrentPosition();
+
+                int progress = (int) Math.min(Math.round(100.0 * (double) curPosition / duration), 100);
+
+                log.info("Setting progress to {}/100", progress);
+                seekBar.setProgress(progress);
+
+                seekBarHandler.postDelayed(this, UPDATE_SEEK_TIME_DELAY);
+            }
         }
     }
 }
