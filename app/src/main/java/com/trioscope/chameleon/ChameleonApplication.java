@@ -383,9 +383,11 @@ public class ChameleonApplication extends Application {
         File mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                 "BIOSCOPE_" + timeStamp + ".mp4");
 
-        if (mediaFile != null) {
-            log.info("File name is {}", mediaFile.getAbsolutePath());
+        // Remove existing file with same name (if any)
+        if (mediaFile.exists()) {
+            mediaFile.delete();
         }
+        log.info("File name is {}", mediaFile.getAbsolutePath());
         return mediaFile;
     }
 

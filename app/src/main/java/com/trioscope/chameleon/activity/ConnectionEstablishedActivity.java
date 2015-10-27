@@ -276,11 +276,7 @@ public class ConnectionEstablishedActivity
                 endSessionLayout.setVisibility(View.INVISIBLE);
                 sessionActionsLayout.setVisibility(View.VISIBLE);
 
-                // Delete recorded video
-                File recordedFile = new File(localRecordingMetadata.getAbsoluteFilePath());
-                if (recordedFile.exists()) {
-                    recordedFile.delete();
-                }
+                // File will be deleted during temp directory cleanup
                 localRecordingMetadata = null;
             }
         });
@@ -752,9 +748,6 @@ public class ConnectionEstablishedActivity
                 long totalBytesReceived = 0;
 
                 remoteVideoFile = chameleonApplication.createVideoFile(true);
-                if (remoteVideoFile.exists()) {
-                    remoteVideoFile.delete();
-                }
                 if (remoteVideoFile.createNewFile()) {
                     outputStream = new BufferedOutputStream(new FileOutputStream(remoteVideoFile));
 
@@ -1034,7 +1027,6 @@ public class ConnectionEstablishedActivity
                                                     bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
                                                     bmpRef.get().getHeight(), matrix, true);
                                             imageView.setImageBitmap(rotatedBitmap);
-                                            //imageView.setVisibility(View.VISIBLE);
                                         }
                                     }
                                 });

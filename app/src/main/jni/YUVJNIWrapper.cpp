@@ -66,8 +66,8 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_conve
 
 	libyuv::I420ToNV12(
 			(uint8*) src_y, w,
-			(uint8*) src_u, w/2,
-			(uint8*) src_v, w/2,
+			(uint8*) src_u, w / 2,
+			(uint8*) src_v, w / 2,
 			(uint8*) dst_y, w,
 			(uint8*) dst_uv, w,
 			w, h);
@@ -225,8 +225,8 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
             (uint8*) dst_uv, newW,
             newW, newH);
 
-    jbyteArray nv12 = env->NewByteArray(newLen);
-    env->SetByteArrayRegion(nv12, 0, newLen, reinterpret_cast<jbyte*>(outputBuf));
+    jbyteArray nv21 = env->NewByteArray(newLen);
+    env->SetByteArrayRegion(nv21, 0, newLen, reinterpret_cast<jbyte*>(outputBuf));
 
     if (tempBuf) {
         delete[] tempBuf;
@@ -235,7 +235,7 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
     if (outputBuf) {
         delete[] outputBuf;
     }
-    return nv12;
+    return nv21;
 }
 
 JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndConvertI420ToNV21Method2(
