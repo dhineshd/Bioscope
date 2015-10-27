@@ -48,6 +48,12 @@ public class DestroyPartialData implements Runnable {
 
         helper.close();
 
+        // Delete all files in tmp directory
+        for(File file: FileUtil.getTempDirectory().listFiles()) {
+            log.info("Deleting {} from tmp dir", file);
+            file.delete();
+        }
+
         log.info("Done cleaning up previous data");
     }
 }

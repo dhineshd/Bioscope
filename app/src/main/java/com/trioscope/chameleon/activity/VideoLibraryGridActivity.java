@@ -119,7 +119,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         });
 
         VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
-        File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
+        File folder = FileUtil.getOutputMediaDirectory();
         final List<File> libraryFiles = new ArrayList<File>();
         Collections.addAll(libraryFiles, folder.listFiles(new FileFilter() {
             @Override

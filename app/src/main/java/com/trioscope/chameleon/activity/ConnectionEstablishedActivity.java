@@ -725,7 +725,7 @@ public class ConnectionEstablishedActivity
 
                 long totalBytesReceived = 0;
 
-                remoteVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
+                remoteVideoFile = chameleonApplication.createVideoFile(true);
                 if (remoteVideoFile.exists()) {
                     remoteVideoFile.delete();
                 }

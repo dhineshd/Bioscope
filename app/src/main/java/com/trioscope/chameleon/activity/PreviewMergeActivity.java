@@ -174,8 +174,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                             remoteRecordingMetadata.getStartTimeMillis();
                 }
 
-                outputFile = ((ChameleonApplication) getApplication()).getOutputMediaFile(
-                        ChameleonApplication.MEDIA_TYPE_VIDEO);
+                outputFile = ((ChameleonApplication) getApplication()).createVideoFile(false);
 
                 VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
