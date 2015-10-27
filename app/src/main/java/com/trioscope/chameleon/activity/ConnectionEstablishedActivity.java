@@ -285,7 +285,7 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        Button disconnectButton = (Button) findViewById(R.id.button_disconnect);
+        ImageButton disconnectButton = (ImageButton) findViewById(R.id.button_disconnect);
         disconnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

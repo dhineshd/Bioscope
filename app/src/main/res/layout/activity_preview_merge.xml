@@ -49,9 +49,9 @@
 
         <ImageButton
             android:id="@+id/button_swap_merge_preview"
-            android:src="@drawable/swap_videos"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:src="@drawable/reverse_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_margin="36dp"
             android:scaleType="fitCenter"
             android:layout_gravity="bottom|right"

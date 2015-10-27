@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
@@ -21,8 +22,11 @@ import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.DepackageUtil;
 import com.trioscope.chameleon.util.FileUtil;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -213,6 +217,13 @@ public class FfmpegVideoMerger implements VideoMerger {
         }
         params.add("-i");
         params.add(minorVidPath);
+
+        String watermarkImagePath = getWatermarkLogoAbsolutePath();
+        if (StringUtils.isNotBlank(watermarkImagePath)) {
+            params.add("-i");
+            params.add(watermarkImagePath);
+        }
+
         params.add("-c:v");
         params.add("libopenh264");
         params.add("-b:a");
@@ -221,8 +232,11 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("5000k");
         params.add("-filter_complex");
         params.add("[0] " + (shouldHorizontallyFlipMajorVideo ? "hflip," : "") + "scale=1080:1920 [major]; " +
-                "[1] " + (shouldHorizontallyFlipMinorVideo ? "hflip," : "") + "scale=412:732, drawbox=c=white:t=8, trim=start_frame=2[minor]; " +
-                "[major][minor] overlay=54:1134:eval=init");
+                "[1] " + (shouldHorizontallyFlipMinorVideo ? "hflip," : "") + "scale=412:732, " +
+                "drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
+                "[major][minor] overlay=54:main_h-overlay_h-54:eval=init [merged];" +
+                "[merged][2] overlay=main_w-overlay_w-54:main_h-overlay_h-54");
+
         //OpenH264 doesnt support preset
         //params.add("-preset");
         //params.add("ultrafast");
@@ -233,6 +247,22 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add(outputPath);
 
         return params;
+    }
+
+    private String getWatermarkLogoAbsolutePath() {
+        // Copy watermark logo to temp directory and then refer to it
+        try {
+            Bitmap bm = BitmapFactory.decodeResource(context.getResources(), R.drawable.watermark_logo);
+            File file = new File(FileUtil.getTempDirectory(), "watermark_logo.png");
+            FileOutputStream outStream = new FileOutputStream(file);
+            bm.compress(Bitmap.CompressFormat.PNG, 100, outStream);
+            outStream.flush();
+            outStream.close();
+            return file.getAbsolutePath();
+        } catch (Exception e) {
+            log.error("Failed to copy watermark logo to temp directory", e);
+        }
+        return "";
     }
 
     public void printAvailableCodecs() {
@@ -464,10 +494,12 @@ public class FfmpegVideoMerger implements VideoMerger {
             else
                 timeRemainingMilli = (100 * elapsed) / (100.0 - remaining);
 
-            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationManager notificationManager = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationBuilder.setProgress(100, progressPerc, false);
             String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
-            notificationBuilder.setContentText("Chameleon video merge is in progress (" + String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
+            notificationBuilder.setContentText("Chameleon video merge is in progress (" +
+                    String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 
             if (progressUpdatable != null)
