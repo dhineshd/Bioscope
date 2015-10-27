@@ -22,8 +22,6 @@ import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.DepackageUtil;
 import com.trioscope.chameleon.util.FileUtil;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -218,11 +216,8 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-i");
         params.add(minorVidPath);
 
-        String watermarkImagePath = getWatermarkLogoAbsolutePath();
-        if (StringUtils.isNotBlank(watermarkImagePath)) {
-            params.add("-i");
-            params.add(watermarkImagePath);
-        }
+        params.add("-i");
+        params.add(getWatermarkLogoAbsolutePath());
 
         params.add("-c:v");
         params.add("libopenh264");
