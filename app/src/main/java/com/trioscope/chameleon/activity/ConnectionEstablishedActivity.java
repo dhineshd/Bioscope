@@ -55,6 +55,7 @@ import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
 import javax.net.ssl.SSLSocket;
@@ -73,9 +74,10 @@ public class ConnectionEstablishedActivity
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
     public static final String CONNECTION_INFO_AS_JSON_EXTRA = "CONNECTION_INFO_AS_JSON_EXTRA";
     public static final String PEER_INFO = "PEER_INFO";
+    public static final String PEER_CERTIFICATE_KEY = "PEER_CERTIFICATE";
     private static final long MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
     private static final long HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
-    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 5000;
+    private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 15000;
 
     boolean doubleBackToExitPressedOnce = false;
     private ChameleonApplication chameleonApplication;
@@ -103,7 +105,6 @@ public class ConnectionEstablishedActivity
     private RecordingMetadata localRecordingMetadata;
     private PeerInfo peerInfo;
     private volatile long latestPeerHeartbeatMessageTimeMs;
-    private boolean isDirector;
     private Handler heartbeatCheckHandler;
     private Runnable heartbeatCheckRunnable;
 
@@ -112,6 +113,11 @@ public class ConnectionEstablishedActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_connection_established);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Retrieve peer info to start streaming
+        Intent intent = getIntent();
+        log.info("Intent = {}", intent);
+        peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
 
         progressBar = (ProgressBar) findViewById(R.id.progressBar_file_transfer);
         imageViewProgressBarBackground = (ImageView) findViewById(R.id.imageview_progressbar_background);
@@ -127,7 +133,32 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        sslSocketFactory = SSLUtil.getInitializedSSLSocketFactory(this);
+        X509Certificate trustedCertificate = SSLUtil.deserializeByteArrayToCertificate(
+                intent.getByteArrayExtra(PEER_CERTIFICATE_KEY));
+
+        sslSocketFactory = SSLUtil.createSSLSocketFactory(trustedCertificate);
+
+        // Crew should restart server so that new certificate can be generated
+        if (!isDirector(peerInfo)) {
+            new AsyncTask<Void, Void, X509Certificate>() {
+
+                @Override
+                protected X509Certificate doInBackground(Void... params) {
+                    return chameleonApplication.stopAndStartConnectionServer();
+                }
+
+                @Override
+                protected void onPostExecute(X509Certificate certificate) {
+                    super.onPostExecute(certificate);
+
+                    // Crew member needs to send its certificate to peer so it can be used
+                    // as trusted certificate to enable director to connect to crew
+                    sendPeerMessage(PeerMessage.Type.START_SESSION,
+                            gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)));
+                }
+            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        }
+
 
         // Prepare camera preview
         chameleonApplication.preparePreview();
@@ -142,17 +173,8 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        chameleonApplication.startConnectionServerIfNotRunning();
-
         // Start listening for server events
         chameleonApplication.getServerEventListenerManager().addListener(this);
-
-        // Retrieve peer info to start streaming
-        Intent intent = getIntent();
-        log.info("Intent = {}", intent);
-        peerInfo = gson.fromJson(intent.getStringExtra(PEER_INFO), PeerInfo.class);
-
-        setRole();
 
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
@@ -166,7 +188,7 @@ public class ConnectionEstablishedActivity
 
         log.info("PeerInfo = {}", peerInfo);
 
-        if(isDirector) {
+        if(isDirector(peerInfo)) {
             peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
         } else {
             peerUserNameTextView.setText("Directed by " + peerInfo.getUserName());
@@ -192,13 +214,8 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.start_recording_button_enabled);
 
                     // Director should send message to crew to stop recording
-                    if (isDirector) {
-                        PeerMessage peerMsg = PeerMessage.builder()
-                                .type(PeerMessage.Type.STOP_RECORDING)
-                                .senderUserName(getUserName())
-                                .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo)
-                                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    if (isDirector(peerInfo)) {
+                        sendPeerMessage(PeerMessage.Type.STOP_RECORDING);
                     }
 
                     stopRecording();
@@ -215,13 +232,8 @@ public class ConnectionEstablishedActivity
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
                     // Director should send message to crew to start recording
-                    if (isDirector) {
-                        PeerMessage peerMsg = PeerMessage.builder()
-                                .type(PeerMessage.Type.START_RECORDING)
-                                .senderUserName(getUserName())
-                                .build();
-                        new SendMessageToPeerTask(peerMsg, peerInfo)
-                                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    if (isDirector(peerInfo)) {
+                        sendPeerMessage(PeerMessage.Type.START_RECORDING);
                     }
 
                     startRecording();
@@ -231,7 +243,7 @@ public class ConnectionEstablishedActivity
             }
         });
 
-        if (isDirector) {
+        if (isDirector(peerInfo)) {
             // I am the director. So, should be able to start/stop recording.
             recordButton.setEnabled(true);
             recordButton.setVisibility(View.VISIBLE);
@@ -263,6 +275,13 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
                 sessionActionsLayout.setVisibility(View.VISIBLE);
+
+                // Delete recorded video
+                File recordedFile = new File(localRecordingMetadata.getAbsoluteFilePath());
+                if (recordedFile.exists()) {
+                    recordedFile.delete();
+                }
+                localRecordingMetadata = null;
             }
         });
 
@@ -270,20 +289,34 @@ public class ConnectionEstablishedActivity
         disconnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PeerMessage msg = PeerMessage.builder()
-                        .type(PeerMessage.Type.TERMINATE_SESSION)
-                        .senderUserName(getUserName()).build();
-                new SendMessageToPeerTask(msg, peerInfo).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                sendPeerMessage(PeerMessage.Type.TERMINATE_SESSION);
                 terminateSession("Terminating session..");
             }
         });
 
     }
 
-    private void setRole() {
-        if(PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole())) {
-            isDirector = true;
-        }
+    private void sendPeerMessage(final PeerMessage.Type msgType) {
+        PeerMessage msg = PeerMessage.builder()
+                .type(msgType).senderUserName(getUserName()).build();
+        sendPeerMessage(msg);
+    }
+
+    private void sendPeerMessage(final PeerMessage.Type msgType, final String msgContents) {
+        PeerMessage msg = PeerMessage.builder()
+                .type(msgType)
+                .contents(msgContents)
+                .senderUserName(getUserName()).build();
+        sendPeerMessage(msg);
+    }
+
+    private void sendPeerMessage(final PeerMessage msg) {
+        new SendMessageToPeerTask(msg, peerInfo)
+                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    private boolean isDirector(final PeerInfo peerInfo) {
+        return PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole());
     }
 
     private void startRecording() {
@@ -480,9 +513,6 @@ public class ConnectionEstablishedActivity
             case TERMINATE_SESSION:
                 terminateSession(peerInfo.getUserName() + " terminated session.");
                 break;
-            case SESSION_HEARTBEAT:
-                latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-                break;
             case START_RECORDING:
                 processStartRecordingMessage(clientSocket);
                 break;
@@ -584,7 +614,7 @@ public class ConnectionEstablishedActivity
                 }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter pw = new PrintWriter(socket.getOutputStream());
@@ -647,7 +677,7 @@ public class ConnectionEstablishedActivity
                 }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
                 log.debug("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
                 log.debug("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
 
@@ -695,7 +725,7 @@ public class ConnectionEstablishedActivity
 
                 long totalBytesReceived = 0;
 
-                remoteVideoFile = chameleonApplication.getOutputMediaFile(ChameleonApplication.MEDIA_TYPE_VIDEO);
+                remoteVideoFile = chameleonApplication.createVideoFile(true);
                 if (remoteVideoFile.exists()) {
                     remoteVideoFile.delete();
                 }
@@ -925,7 +955,7 @@ public class ConnectionEstablishedActivity
                     }
 
                     SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                    socket.setEnabledProtocols(new String[]{"TLSv1.2"});
+                    socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
 
                     final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 

@@ -99,6 +99,16 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             }
         });
 
+        final ImageView settingsButton = (ImageView) findViewById(R.id.settings_button);
+
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(VideoLibraryGridActivity.this, PreferencesActivity.class);
+                startActivity(i);
+            }
+        });
+
         final ImageButton minimizeGallery = (ImageButton) findViewById(R.id.minimize_gallery);
         minimizeGallery.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -109,7 +119,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         });
 
         VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
-        File folder = new File(((ChameleonApplication) getApplication()).getOutputMediaDirectory());
+        File folder = FileUtil.getOutputMediaDirectory();
         final List<File> libraryFiles = new ArrayList<File>();
         Collections.addAll(libraryFiles, folder.listFiles(new FileFilter() {
             @Override
@@ -147,9 +157,12 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 File item = libraryFiles.get(position);
-                Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
-                intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
-                startActivity(intentToPlayVideo);
+                // Don't allow user to click videos being merged
+                if (!mergingFilenames.contains(item.getName())) {
+                    Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
+                    intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
+                    startActivity(intentToPlayVideo);
+                }
             }
         });
 
@@ -174,13 +187,12 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         };
 
         videoInfoCache = new LruCache<>(1000);
-
     }
 
-    private static <K,V> Map<K,V> createFixedSizeLRUCache(final int maxSize) {
-        return new LinkedHashMap<K,V>(maxSize * 4/3, 0.75f, true) {
+    private static <K, V> Map<K, V> createFixedSizeLRUCache(final int maxSize) {
+        return new LinkedHashMap<K, V>(maxSize * 4 / 3, 0.75f, true) {
             @Override
-            protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
                 return size() > maxSize;
             }
         };

@@ -87,8 +87,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         //Setup MediaMuxer to save MediaCodec output to given file
         try {
             recordingMetadata = null;
-            outputFile = chameleonApplication.getOutputMediaFile(
-                    ChameleonApplication.MEDIA_TYPE_VIDEO);
+            outputFile = chameleonApplication.createVideoFile(true);
             if (outputFile.exists()) {
                 outputFile.delete();
             }

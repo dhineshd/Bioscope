@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
@@ -27,11 +26,14 @@ import com.trioscope.chameleon.stream.ServerEventListenerManager;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
+import com.trioscope.chameleon.util.FileUtil;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.VideoMerger;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
+import java.security.KeyPair;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.Executor;
@@ -98,7 +100,7 @@ public class ChameleonApplication extends Application {
             new ServerEventListenerManager();
 
     @Setter
-    private ConnectionServer connectionServer;
+    private volatile ConnectionServer connectionServer;
 
     @Getter
     private static MetricsHelper metrics;
@@ -139,15 +141,24 @@ public class ChameleonApplication extends Application {
         startup();
     }
 
-    public void startConnectionServerIfNotRunning() {
+    public X509Certificate stopAndStartConnectionServer() {
         // Setup connection server to receive connections from client
-        if (connectionServer == null) {
-            connectionServer = new ConnectionServer(
-                    ChameleonApplication.SERVER_PORT,
-                    serverEventListenerManager,
-                    SSLUtil.getInitializedSSLServerSocketFactory(getApplicationContext()));
-            connectionServer.start();
+        if (connectionServer != null) {
+            connectionServer.stop();
+            connectionServer = null;
         }
+        // Generate new keypair and certificate
+        KeyPair keyPair = SSLUtil.createKeypair();
+        X509Certificate certificate = SSLUtil.generateCertificate(keyPair);
+
+        log.info("public key = {}", keyPair.getPublic());
+
+        connectionServer = new ConnectionServer(
+                ChameleonApplication.SERVER_PORT,
+                serverEventListenerManager,
+                SSLUtil.createSSLServerSocketFactory(keyPair.getPrivate(), certificate));
+        connectionServer.start();
+        return certificate;
     }
 
     public void stopConnectionServer() {
@@ -281,8 +292,6 @@ public class ChameleonApplication extends Application {
     public void startup() {
         log.info("Starting up application resources..");
 
-        startConnectionServerIfNotRunning();
-
         //Code for phone
         // Commenting this out until we implement call handling logic. Need to register
         // in every onResume() and unregister in every onPause()
@@ -292,10 +301,6 @@ public class ChameleonApplication extends Application {
 //        incomingPhoneCallBroadcastReceiver = new IncomingPhoneCallBroadcastReceiver(this);
 //        registerReceiver(incomingPhoneCallBroadcastReceiver, phoneStateChangedIntentFilter);
 //        log.info("Registered IncomingPhoneCallBroadcastReceiver");
-
-        // Reset session flags
-        //sessionStatus = SessionStatus.DISCONNECTED;
-        //streamListener.setStreamingStarted(false);
 
     }
 
@@ -357,68 +362,21 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public String getOutputMediaDirectory() {
-        return getMediaStorageDir().getPath();
-    }
-
-    /**
-     * Create a File using given file name.
-     *
-     * @param filename
-     * @return created file
-     */
-    public File getOutputMediaFile(final String filename) {
-        return new File(getOutputMediaDirectory() + File.separator + filename);
-    }
-
     /**
      * Create a file for saving given media type.
      *
-     * @param type
-     * @return created file
+     * @param isTempLocation flag that determines whether this should be in a tmp location
+     * @return created File
      */
-    public File getOutputMediaFile(final int type) {
+    public File createVideoFile(final boolean isTempLocation) {
 
-        File mediaStorageDir = getMediaStorageDir();
-
-        // Create a media file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "BIOSCOPE_" + timeStamp + ".jpg");
-        } else if (type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "BIOSCOPE_" + timeStamp + ".mp4");
-        } else if (type == MEDIA_TYPE_AUDIO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "BIOSCOPE_" + timeStamp + ".3gp");
-        } else {
-            return null;
-        }
-
-        if (mediaFile != null) {
-            log.info("File name is {}", mediaFile.getAbsolutePath());
-        }
-        return mediaFile;
-    }
-
-    private File getMediaStorageDir() {
-        // To be safe, you should check that the SDCard is mounted
-        // using Environment.getExternalStorageState() before doing this.
-
-        log.info("DCIM directory is: {}", Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM));
+        File mediaStorageDir = isTempLocation? FileUtil.getTempDirectory()
+                : FileUtil.getOutputMediaDirectory();
 
         if (!isExternalStorageWritable()) {
             log.error("External Storage is not mounted for Read-Write");
             return null;
         }
-
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DCIM), this.getString(R.string.app_name));
-        // This location works best if you want the created images to be shared
-        // between applications and persist after your app has been uninstalled.
 
         // Create the storage directory if it does not exist
         if (!mediaStorageDir.exists()) {
@@ -427,14 +385,16 @@ public class ChameleonApplication extends Application {
                 return null;
             }
         }
-        return mediaStorageDir;
-    }
 
-    /**
-     * Create a file Uri for saving an image or video
-     */
-    private Uri getOutputMediaFileUri(int type) {
-        return Uri.fromFile(getOutputMediaFile(type));
+        // Create a media file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                "BIOSCOPE_" + timeStamp + ".mp4");
+
+        if (mediaFile != null) {
+            log.info("File name is {}", mediaFile.getAbsolutePath());
+        }
+        return mediaFile;
     }
 
     private boolean isExternalStorageWritable() {

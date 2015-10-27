@@ -42,16 +42,27 @@ public class FileUtil {
     }
 
     public static File getMergedOutputFile(String fileName) {
-        File base = getDCIMDirectory();
-        File mergedOutputDirectory = getMergedOutputDirectory();
-
+        File mergedOutputDirectory = getOutputMediaDirectory();
         File result = new File(mergedOutputDirectory, fileName);
         log.info("Created merged output file {}", result.getPath());
         return result;
     }
 
-    private static File getMergedOutputDirectory() {
+    public static File getOutputMediaDirectory() {
         File mergedOutputDirectory = new File(getDCIMDirectory(), "Bioscope/");
+
+        // Create the storage directory if it does not exist
+        if (!mergedOutputDirectory.exists()) {
+            if (!mergedOutputDirectory.mkdirs()) {
+                log.error("Failed to create directory");
+                throw new RuntimeException("Failed to create directory " + mergedOutputDirectory.getPath());
+            }
+        }
+        return mergedOutputDirectory;
+    }
+
+    public static File getTempDirectory() {
+        File mergedOutputDirectory = new File(getDCIMDirectory(), "Bioscope/.tmp/");
 
         // Create the storage directory if it does not exist
         if (!mergedOutputDirectory.exists()) {

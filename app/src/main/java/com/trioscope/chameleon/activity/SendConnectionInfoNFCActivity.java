@@ -34,6 +34,7 @@ import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import org.apache.http.conn.util.InetAddressUtils;
 
@@ -41,9 +42,12 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.zip.Deflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,15 +65,13 @@ public class SendConnectionInfoNFCActivity
     private WifiP2pManager.GroupInfoListener wifiP2pGroupInfoListener;
     private Button cancelButton;
     private WiFiNetworkConnectionInfo wiFiNetworkConnectionInfo;
-    private Gson mGson = new Gson();
     private ChameleonApplication chameleonApplication;
     private Set<Intent> processedIntents = new HashSet<Intent>();
     private Gson gson = new Gson();
     private boolean isWifiHotspotRequiredForNextStep;
     private VideoView nfcTutVideoView;
     private ImageView progressBarInteriorImageView;
-    private boolean firstClientRequestReceived;
-
+    private X509Certificate serverCertificate;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,7 +80,26 @@ public class SendConnectionInfoNFCActivity
 
         log.info("Created");
         chameleonApplication = (ChameleonApplication) getApplication();
-        chameleonApplication.startConnectionServerIfNotRunning();
+
+        // Start server in background
+        new AsyncTask<Void, Void, X509Certificate>() {
+
+            @Override
+            protected X509Certificate doInBackground(Void... params) {
+                // Start the server (will generate new certificate)
+                return chameleonApplication.stopAndStartConnectionServer();
+            }
+
+            @Override
+            protected void onPostExecute(X509Certificate certificate) {
+                super.onPostExecute(certificate);
+                serverCertificate = certificate;
+                chameleonApplication.getServerEventListenerManager().addListener(
+                        SendConnectionInfoNFCActivity.this);
+                setupWifiHotspotTask = new SetupWifiHotspotTask();
+                setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         connectionStatusTextView = (TextView) findViewById(R.id.textView_sender_connection_status);
         progressBar = (ProgressBar) findViewById(R.id.send_conn_info_prog_bar);
@@ -94,14 +115,9 @@ public class SendConnectionInfoNFCActivity
             }
         });
 
-        setupWifiHotspotTask = new SetupWifiHotspotTask();
-        setupWifiHotspotTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
         // Register callback
         mNfcAdapter.setNdefPushMessageCallback(this, this);
         mNfcAdapter.setOnNdefPushCompleteCallback(this, this);
-
-        chameleonApplication.getServerEventListenerManager().addListener(this);
 
         nfcTutVideoView = (VideoView) findViewById(R.id.nfc_tut_video_view);
         nfcTutVideoView.setVideoPath("android.resource://" + getPackageName() + "/" + R.raw.nfc_tutorial);
@@ -117,6 +133,11 @@ public class SendConnectionInfoNFCActivity
 
         nfcTutVideoView.start();
 
+        // Make UI elements visible
+        progressBar.setVisibility(View.VISIBLE);
+        progressBarInteriorImageView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setVisibility(View.VISIBLE);
+        connectionStatusTextView.setText("Preparing\nto\nconnect");
     }
 
     @Override
@@ -144,10 +165,13 @@ public class SendConnectionInfoNFCActivity
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
         if (wiFiNetworkConnectionInfo != null) {
-            String text = mGson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
+            //String text = gson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
+            byte[] serializedConnectionInfo = serializeConnectionInfo(wiFiNetworkConnectionInfo);
+
+            log.info("connectionInfo = {}", serializedConnectionInfo.length);
             NdefMessage msg = new NdefMessage(
                     new NdefRecord[]{createMime(
-                            getString(R.string.mime_type_nfc_connect_wifi), text.getBytes())
+                            getString(R.string.mime_type_nfc_connect_wifi), serializedConnectionInfo)
                             /**
                              * The Android Application Record (AAR) is commented out. When a device
                              * receives a push with an AAR in it, the application specified in the AAR
@@ -165,6 +189,18 @@ public class SendConnectionInfoNFCActivity
         return null;
     }
 
+    private byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
+        String str = gson.toJson(connectionInfo);
+        byte[] output = new byte[2000];
+        Deflater compresser = new Deflater();
+        compresser.setLevel(Deflater.BEST_COMPRESSION);
+        compresser.setInput(str.getBytes());
+        compresser.finish();
+        int compressedDataLength = compresser.deflate(output);
+        log.info("Compressed data length = {}", compressedDataLength);
+        compresser.end();
+        return Arrays.copyOfRange(output, 0, compressedDataLength);
+    }
 
     @Override
     public void onNdefPushComplete(NfcEvent event) {
@@ -196,7 +232,7 @@ public class SendConnectionInfoNFCActivity
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
         final WiFiNetworkConnectionInfo connectionInfo =
-                mGson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
+                gson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
         processedIntents.add(intent);
 
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
@@ -246,26 +282,33 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public void onClientRequest(final Socket clientSocket, final PeerMessage messageFromClient) {
-        log.info("Starting connection establshed activity!");
-        final Intent intent = new Intent(SendConnectionInfoNFCActivity.this, ConnectionEstablishedActivity.class);
-        PeerInfo peerInfo = PeerInfo.builder()
-                .ipAddress(clientSocket.getInetAddress())
-                .port(ChameleonApplication.SERVER_PORT)
-                .role(PeerInfo.Role.CREW_MEMBER)
-                .userName(messageFromClient.getSenderUserName())
-                .build();
-        intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
 
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                log.info("Thread is " + Thread.currentThread());
-                connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
-                progressBar.setVisibility(View.VISIBLE);
-                isWifiHotspotRequiredForNextStep = true;
-                startActivity(intent);
-            }
-        });
+        if (PeerMessage.Type.START_SESSION.equals(messageFromClient.getType())) {
+            log.info("Starting connection established activity!");
+            final Intent intent = new Intent(SendConnectionInfoNFCActivity.this,
+                    ConnectionEstablishedActivity.class);
+            PeerInfo peerInfo = PeerInfo.builder()
+                    .ipAddress(clientSocket.getInetAddress())
+                    .port(ChameleonApplication.SERVER_PORT)
+                    .role(PeerInfo.Role.CREW_MEMBER)
+                    .userName(messageFromClient.getSenderUserName())
+                    .build();
+            intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
+            String contents = messageFromClient.getContents();
+            byte[] bytes = gson.fromJson(contents, byte[].class);
+            intent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY, bytes);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    log.info("Thread is " + Thread.currentThread());
+                    connectionStatusTextView.setText("Connecting\nto\n" + messageFromClient.getSenderUserName());
+                    progressBar.setVisibility(View.VISIBLE);
+                    isWifiHotspotRequiredForNextStep = true;
+                    startActivity(intent);
+                }
+            });
+        }
     }
 
 
@@ -288,11 +331,6 @@ public class SendConnectionInfoNFCActivity
 
         // Turn on Wifi device (if not already on)
         final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-
-        progressBar.setVisibility(View.VISIBLE);
-        progressBarInteriorImageView.setVisibility(View.VISIBLE);
-        connectionStatusTextView.setVisibility(View.VISIBLE);
-        connectionStatusTextView.setText("Preparing\nto\nconnect");
 
         if (wifiManager.isWifiEnabled()) {
             log.info("Wifi already enabled..");
@@ -422,37 +460,42 @@ public class SendConnectionInfoNFCActivity
 
                 wifiP2pGroupInfoListener = new WifiP2pManager.GroupInfoListener() {
                     @Override
-                    public void onGroupInfoAvailable(WifiP2pGroup group) {
+                    public void onGroupInfoAvailable(final WifiP2pGroup group) {
 
                         if (group != null && wiFiNetworkConnectionInfo == null) {
 
-                            try {
+                            log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
+                                    group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
 
-                                log.info("Wifi hotspot details: SSID ({}), Passphrase ({}), InterfaceName ({}), GO ({}) ",
-                                        group.getNetworkName(), group.getPassphrase(), group.getInterface(), group.getOwner());
+                            // Retrieve connection info in background
+                            new AsyncTask<Void, Void, Void>() {
 
-                                wiFiNetworkConnectionInfo =
-                                        WiFiNetworkConnectionInfo.builder()
-                                                .SSID(group.getNetworkName())
-                                                .passPhrase(group.getPassphrase())
-                                                .serverIpAddress(getIpAddressForInterface(group.getInterface()).getHostAddress())
-                                                .serverPort(ChameleonApplication.SERVER_PORT)
-                                                .userName(getUserName())
-                                                .build();
+                                @Override
+                                protected Void doInBackground(Void... params) {
 
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
+                                    wiFiNetworkConnectionInfo =
+                                            WiFiNetworkConnectionInfo.builder()
+                                                    .SSID(group.getNetworkName())
+                                                    .passPhrase(group.getPassphrase())
+                                                    .serverIpAddress(getIpAddressForInterface(
+                                                            group.getInterface()).getHostAddress())
+                                                    .serverPort(ChameleonApplication.SERVER_PORT)
+                                                    .userName(getUserName())
+                                                    .certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
+                                                    .build();
+                                    //serializedConnectionInfo = getSerializedConnectionInfo(wiFiNetworkConnectionInfo);
+                                    return null;
+                                }
 
-                                        progressBar.setVisibility(View.INVISIBLE);
-                                        progressBarInteriorImageView.setVisibility(View.VISIBLE);
-                                        connectionStatusTextView.setVisibility(View.VISIBLE);
-                                        connectionStatusTextView.setText("Beam\nto\nconnect");
-                                    }
-                                });
-                            } catch (Exception e) {
-                                log.error("Failed to set connection info", e);
-                            }
+                                @Override
+                                protected void onPostExecute(Void aVoid) {
+                                    super.onPostExecute(aVoid);
+                                    progressBar.setVisibility(View.INVISIBLE);
+                                    progressBarInteriorImageView.setVisibility(View.VISIBLE);
+                                    connectionStatusTextView.setVisibility(View.VISIBLE);
+                                    connectionStatusTextView.setText("Beam\nto\nconnect");
+                                }
+                            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
                         }
                     }
                 };
