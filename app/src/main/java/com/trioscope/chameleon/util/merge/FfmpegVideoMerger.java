@@ -248,7 +248,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         // Copy watermark logo to temp directory and then refer to it
         try {
             Bitmap bm = BitmapFactory.decodeResource(context.getResources(), R.drawable.watermark_logo);
-            File file = new File(FileUtil.getTempDirectory(), "watermark_logo.png");
+            File file = new File(FileUtil.getOutputMediaDirectory(), "watermark_logo.png");
             FileOutputStream outStream = new FileOutputStream(file);
             bm.compress(Bitmap.CompressFormat.PNG, 100, outStream);
             outStream.flush();

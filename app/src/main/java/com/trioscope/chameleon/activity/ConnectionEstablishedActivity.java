@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -56,7 +55,9 @@ import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -91,7 +92,6 @@ public class ConnectionEstablishedActivity
     private ImageView imageViewProgressBarBackground;
     private TextView textViewFileTransfer;
     private SurfaceView previewDisplay;
-    private long clockDifferenceMs;
     private TextView peerUserNameTextView;
     private TextView recordingTimerTextView;
     private long recordingStartTime;
@@ -107,6 +107,7 @@ public class ConnectionEstablishedActivity
     private volatile long latestPeerHeartbeatMessageTimeMs;
     private Handler heartbeatCheckHandler;
     private Runnable heartbeatCheckRunnable;
+    private List<Long> clockDifferenceMeasurementsMillis = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -505,7 +506,6 @@ public class ConnectionEstablishedActivity
     public void onClientRequest(Socket clientSocket, PeerMessage messageFromClient) {
 
         log.info("Received message from client = {}", messageFromClient.getType());
-
         switch (messageFromClient.getType()) {
             case SEND_STREAM:
                 startStreamingToPeer(clientSocket);
@@ -631,9 +631,10 @@ public class ConnectionEstablishedActivity
                         StartRecordingResponse response =
                                 gson.fromJson(message.getContents(), StartRecordingResponse.class);
                         long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse - localCurrentTimeMsBeforeSendingRequest) / 2;
-                        clockDifferenceMs = response.getCurrentTimeMillis() -
+                        long clockDifferenceMs = response.getCurrentTimeMillis() -
                                 localCurrentTimeMsAfterReceivingResponse +
                                 networkLatencyMs;
+                        clockDifferenceMeasurementsMillis.add(clockDifferenceMs);
                         log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                         log.debug("Remote current time = {}", response.getCurrentTimeMillis());
                         log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
@@ -655,7 +656,6 @@ public class ConnectionEstablishedActivity
 
         private Long remoteRecordingStartTimeMillis;
         private boolean remoteRecordingHorizontallyFlipped;
-        private long remoteClockAheadOfLocalClockMillis = 0L;
         private File remoteVideoFile;
 
         @Override
@@ -716,9 +716,10 @@ public class ConnectionEstablishedActivity
                             long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
                                     localCurrentTimeMsBeforeSendingRequest) / 2;
                             log.debug("network communication latency = {} ms", networkCommunicationLatencyMs);
-                            remoteClockAheadOfLocalClockMillis = response.getCurrentTimeMillis() -
+                            long clockDifferenceMs = response.getCurrentTimeMillis() -
                                     localCurrentTimeMsAfterReceivingResponse +
                                     networkCommunicationLatencyMs;
+                            clockDifferenceMeasurementsMillis.add(clockDifferenceMs);
                         }
                     }
                 }
@@ -776,12 +777,18 @@ public class ConnectionEstablishedActivity
         protected void onPostExecute(Void aVoid) {
             hideProgressBar();
 
+            // Compute difference between two clock using multiple measurements
+            long clockDifferenceMsSum = 0;
+            for (long clockDifferenceMeasurementMs : clockDifferenceMeasurementsMillis) {
+                clockDifferenceMsSum += clockDifferenceMeasurementMs;
+            }
+            long clockDifferenceMs = clockDifferenceMsSum / clockDifferenceMeasurementsMillis.size();
+
             // Adjust recording start time for remote recording to account for
             // clock difference between two devices
-            long clockAdjustmentMs = (remoteClockAheadOfLocalClockMillis + clockDifferenceMs) / 2;
-            remoteRecordingStartTimeMillis -= clockAdjustmentMs;
+            remoteRecordingStartTimeMillis -= clockDifferenceMs;
 
-            log.debug("Adjusted remote recording start time millis by {} ms", clockAdjustmentMs);
+            log.debug("Adjusted remote recording start time millis by {} ms", clockDifferenceMs);
             log.debug("Local recording start time = {} ms", localRecordingMetadata.getStartTimeMillis());
             log.debug("Remote recording start time = {} ms", remoteRecordingStartTimeMillis);
 
@@ -841,10 +848,6 @@ public class ConnectionEstablishedActivity
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
 
-                // Get recording time
-                MediaMetadataRetriever metadataRetriever = new MediaMetadataRetriever();
-                metadataRetriever.setDataSource(fileToSend.getAbsolutePath());
-                log.debug("File recording time = {}", metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE));
                 clientSocket.setSendBufferSize(ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES);
                 clientSocket.setReceiveBufferSize(ChameleonApplication.SEND_RECEIVE_BUFFER_SIZE_BYTES);
                 outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
@@ -905,7 +908,7 @@ public class ConnectionEstablishedActivity
                     MetricNames.Label.TIME_TO_TRANSFER_FILE.getName(),
                     (endTime - startTime));
 
-            log.info("Time to trasfer file is {}ms", (endTime-startTime));
+            log.info("Time to transfer file is {} ms", (endTime - startTime));
 
         }
     }
@@ -1003,7 +1006,7 @@ public class ConnectionEstablishedActivity
                                                     bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
                                                     bmpRef.get().getHeight(), matrix, true);
                                             imageView.setImageBitmap(rotatedBitmap);
-                                            imageView.setVisibility(View.VISIBLE);
+                                            //imageView.setVisibility(View.VISIBLE);
                                         }
                                     }
                                 });
