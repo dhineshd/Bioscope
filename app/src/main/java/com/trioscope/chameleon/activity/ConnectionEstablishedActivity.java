@@ -33,7 +33,6 @@ import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
-import com.trioscope.chameleon.stream.messages.StartRecordingResponse;
 import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
@@ -216,7 +215,7 @@ public class ConnectionEstablishedActivity
 
                     // Director should send message to crew to stop recording
                     if (isDirector(peerInfo)) {
-                        sendPeerMessage(PeerMessage.Type.STOP_RECORDING);
+                        sendPeerMessage(PeerMessage.Type.STOP_RECORDING, true);
                     }
 
                     stopRecording();
@@ -234,7 +233,7 @@ public class ConnectionEstablishedActivity
 
                     // Director should send message to crew to start recording
                     if (isDirector(peerInfo)) {
-                        sendPeerMessage(PeerMessage.Type.START_RECORDING);
+                        sendPeerMessage(PeerMessage.Type.START_RECORDING, true);
                     }
 
                     startRecording();
@@ -290,29 +289,51 @@ public class ConnectionEstablishedActivity
         disconnectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                sendPeerMessage(PeerMessage.Type.TERMINATE_SESSION);
+                sendPeerMessage(PeerMessage.Type.TERMINATE_SESSION, false);
                 terminateSession("Terminating session..");
             }
         });
 
     }
 
-    private void sendPeerMessage(final PeerMessage.Type msgType) {
+    private void sendPeerMessage(
+            final PeerMessage.Type msgType,
+            final Socket peerSocket) {
         PeerMessage msg = PeerMessage.builder()
-                .type(msgType).senderUserName(getUserName()).build();
-        sendPeerMessage(msg);
+                .type(msgType).senderUserName(getUserName())
+                .sendTimeMillis(System.currentTimeMillis())
+                .build();
+        sendPeerMessage(msg, peerSocket, false);
     }
 
-    private void sendPeerMessage(final PeerMessage.Type msgType, final String msgContents) {
+    private void sendPeerMessage(
+            final PeerMessage.Type msgType,
+            final boolean shouldWaitForResponse) {
+        PeerMessage msg = PeerMessage.builder()
+                .type(msgType)
+                .senderUserName(getUserName())
+                .sendTimeMillis(System.currentTimeMillis())
+                .build();
+        sendPeerMessage(msg, null, shouldWaitForResponse);
+    }
+
+    private void sendPeerMessage(
+            final PeerMessage.Type msgType,
+            final String msgContents) {
         PeerMessage msg = PeerMessage.builder()
                 .type(msgType)
                 .contents(msgContents)
-                .senderUserName(getUserName()).build();
-        sendPeerMessage(msg);
+                .senderUserName(getUserName())
+                .sendTimeMillis(System.currentTimeMillis())
+                .build();
+        sendPeerMessage(msg, null, false);
     }
 
-    private void sendPeerMessage(final PeerMessage msg) {
-        new SendMessageToPeerTask(msg, peerInfo)
+    private void sendPeerMessage(
+            final PeerMessage msg,
+            final Socket peerSocket,
+            final boolean shouldWaitForResponse) {
+        new SendMessageToPeerTask(msg, peerInfo, peerSocket, shouldWaitForResponse)
                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
@@ -517,7 +538,7 @@ public class ConnectionEstablishedActivity
                 processStartRecordingMessage(clientSocket);
                 break;
             case STOP_RECORDING:
-                stopRecording();
+                processStopRecordingMessage(clientSocket);
                 break;
             case SEND_RECORDED_VIDEO:
                 sendRecordedVideo(clientSocket);
@@ -565,23 +586,14 @@ public class ConnectionEstablishedActivity
 
     private void processStartRecordingMessage(final Socket clientSocket) {
         log.debug("Received message to start recording!");
-        try {
-            PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
-            StartRecordingResponse response = StartRecordingResponse.builder()
-                    .currentTimeMillis(System.currentTimeMillis()).build();
-            PeerMessage responseMsg = PeerMessage.builder()
-                    .type(PeerMessage.Type.START_RECORDING_RESPONSE)
-                    .senderUserName(getUserName())
-                    .contents(gson.toJson(response)).build();
-            log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
-            pw.println(gson.toJson(responseMsg));
-            pw.close();
+        startRecording();
+        sendPeerMessage(PeerMessage.Type.START_RECORDING_RESPONSE, clientSocket);
+    }
 
-            startRecording();
-
-        } catch (IOException e) {
-            log.error("Failed to send START_RECORDING_RESPONSE", e);
-        }
+    private void processStopRecordingMessage(final Socket clientSocket) {
+        log.debug("Received message to start recording!");
+        stopRecording();
+        sendPeerMessage(PeerMessage.Type.STOP_RECORDING_RESPONSE, clientSocket);
     }
 
     private void sendRecordedVideo(final Socket clientSocket) {
@@ -598,11 +610,14 @@ public class ConnectionEstablishedActivity
     }
 
     @AllArgsConstructor
+    @RequiredArgsConstructor
     class SendMessageToPeerTask extends AsyncTask<Void, Void, Void> {
         @NonNull
         private PeerMessage peerMsg;
         @NonNull
         private PeerInfo peerInfo;
+        private Socket peerSocket;
+        private boolean shouldWaitForResponse;
 
         @Override
         protected Void doInBackground(Void... params) {
@@ -613,32 +628,41 @@ public class ConnectionEstablishedActivity
                     return null;
                 }
 
-                SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
+                if (peerSocket == null) {
+                    peerSocket = sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
+                    //peerSocket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
+                }
 
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter pw = new PrintWriter(socket.getOutputStream());
+                PrintWriter pw = new PrintWriter(peerSocket.getOutputStream());
                 String serializedMsgToSend = gson.toJson(peerMsg);
                 log.debug("Sending msg = {}", serializedMsgToSend);
                 long localCurrentTimeMsBeforeSendingRequest = System.currentTimeMillis();
                 pw.println(serializedMsgToSend);
                 pw.close();
-                if (PeerMessage.Type.START_RECORDING.equals(peerMsg.getType())) {
+
+                // Compute clock difference from send and recv time of this message
+                if (shouldWaitForResponse) {
+                    log.info("Waiting for response after sending msg type = {}", peerMsg.getType());
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(peerSocket.getInputStream()));
                     String recvMsg = bufferedReader.readLine();
                     long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
                     if (recvMsg != null) {
                         PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
-                        StartRecordingResponse response =
-                                gson.fromJson(message.getContents(), StartRecordingResponse.class);
-                        long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse - localCurrentTimeMsBeforeSendingRequest) / 2;
-                        long clockDifferenceMs = response.getCurrentTimeMillis() -
-                                localCurrentTimeMsAfterReceivingResponse +
-                                networkLatencyMs;
-                        clockDifferenceMeasurementsMillis.add(clockDifferenceMs);
-                        log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
-                        log.debug("Remote current time = {}", response.getCurrentTimeMillis());
-                        log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
-                        log.debug("Clock difference ms = {}", clockDifferenceMs);
+                        if (message != null && message.getSendTimeMillis() != null) {
+                            log.info("Received response msg type = {}", message.getType());
+                            long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
+                                    localCurrentTimeMsBeforeSendingRequest) / 2;
+                            long clockDifferenceMs = message.getSendTimeMillis() -
+                                    localCurrentTimeMsAfterReceivingResponse +
+                                    networkLatencyMs;
+                            clockDifferenceMeasurementsMillis.add(clockDifferenceMs);
+                            log.debug("Local current time before sending request = {}",
+                                    localCurrentTimeMsBeforeSendingRequest);
+                            log.debug("Remote current time = {}", message.getSendTimeMillis());
+                            log.debug("Local current time after receiving response = {}",
+                                    localCurrentTimeMsAfterReceivingResponse);
+                            log.debug("Clock difference ms = {}", clockDifferenceMs);
+                        }
                     }
                 }
             } catch (IOException e) {
@@ -685,6 +709,7 @@ public class ConnectionEstablishedActivity
                 PeerMessage peerMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO)
                         .senderUserName(getUserName())
+                        .sendTimeMillis(System.currentTimeMillis())
                         .build();
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -711,12 +736,12 @@ public class ConnectionEstablishedActivity
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
                             remoteRecordingHorizontallyFlipped = response.isRecordingHorizontallyFlipped();
                             log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
-                            log.debug("Remote current time = {}", response.getCurrentTimeMillis());
+                            log.debug("Remote current time = {}", message.getSendTimeMillis());
                             log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
                             long networkCommunicationLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
                                     localCurrentTimeMsBeforeSendingRequest) / 2;
                             log.debug("network communication latency = {} ms", networkCommunicationLatencyMs);
-                            long clockDifferenceMs = response.getCurrentTimeMillis() -
+                            long clockDifferenceMs = message.getSendTimeMillis() -
                                     localCurrentTimeMsAfterReceivingResponse +
                                     networkCommunicationLatencyMs;
                             clockDifferenceMeasurementsMillis.add(clockDifferenceMs);
@@ -778,6 +803,7 @@ public class ConnectionEstablishedActivity
             hideProgressBar();
 
             // Compute difference between two clock using multiple measurements
+            log.info("Number of clock difference measurements = {}", clockDifferenceMeasurementsMillis.size());
             long clockDifferenceMsSum = 0;
             for (long clockDifferenceMeasurementMs : clockDifferenceMeasurementsMillis) {
                 clockDifferenceMsSum += clockDifferenceMeasurementMs;
@@ -839,11 +865,13 @@ public class ConnectionEstablishedActivity
                         .fileSizeBytes(fileSizeBytes)
                         .recordingStartTimeMillis(recordingMetadata.getStartTimeMillis())
                         .recordingHorizontallyFlipped(recordingMetadata.isHorizontallyFlipped())
-                        .currentTimeMillis(System.currentTimeMillis()).build();
+                        .build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)
                         .senderUserName(getUserName())
-                        .contents(gson.toJson(response)).build();
+                        .contents(gson.toJson(response))
+                        .sendTimeMillis(System.currentTimeMillis())
+                        .build();
                 log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
