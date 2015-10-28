@@ -57,15 +57,19 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String PACKAGED_FFMPEG_ARM_WITH_NEON = "ffmpeg/armeabi-v7a-neon/bin/ffmpeg";
     private static final String PACKAGED_FFMPEG_X86 = "ffmpeg/x86/bin/ffmpeg";
     private static final String DEPACKAGED_CMD_NAME = "ffmpeg";
-    private static final String DEPACKAGED_LIB_OPENH = "libopenh264.so.bz2";
-    private static final String URL_LIBOPENH = "http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2";
+
+    private static final DepackageUtil.Asset DEPACKAGED_LIB_OPENH = DepackageUtil.Asset.builder()
+            .url("http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2")
+            .expectedZippedMd5("b94a0e5d421dd4acc8200ed0c4cd521e")
+            .outputName("libopenh264.so.bz2")
+            .expectedMd5("6555f3f12cb3be7aa684a497f2a2bbda")
+            .build();
 
     private static final Pattern INPUT_DURATION_PATTERN = Pattern.compile("Duration: (\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
     private static final Pattern STATUS_DURATION_PATTERN = Pattern.compile("time=(\\d\\d):(\\d\\d):(\\d\\d\\.\\d\\d)");
 
     private static final int MERGING_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS.getId();
     private static final int COMPLETED_NOTIFICATION_ID = NotificationIds.MERGING_VIDEOS_COMPLETE.getId();
-    private static final String LIBOPENH_MD5SUM = "b94a0e5d421dd4acc8200ed0c4cd521e";
 
     private Context context;
     private DepackageUtil depackageUtil;
@@ -108,7 +112,7 @@ public class FfmpegVideoMerger implements VideoMerger {
             depackageUtil.depackageAsset(PACKAGED_FFMPEG_ARM, DEPACKAGED_CMD_NAME);
         }
 
-        depackageUtil.downloadAsset(URL_LIBOPENH, DEPACKAGED_LIB_OPENH, progressUpdatable, LIBOPENH_MD5SUM);
+        depackageUtil.downloadAsset(DEPACKAGED_LIB_OPENH, progressUpdatable);
 
         prepared = true;
     }
@@ -355,13 +359,12 @@ public class FfmpegVideoMerger implements VideoMerger {
                     mergeTime);
 
 
-
             try {
                 MediaMetadataRetriever mmr = new MediaMetadataRetriever();
                 mmr.setDataSource(outputFile.getAbsolutePath());
                 Long durationOfVideo = Long.parseLong(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
 
-                if(durationOfVideo != null) {
+                if (durationOfVideo != null) {
                     log.info("Duration of merged video is {}ms", durationOfVideo);
                     //Publish merge time
                     ChameleonApplication.getMetrics().sendTime(

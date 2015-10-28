@@ -4,11 +4,13 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.os.PowerManager;
 
+import com.trioscope.chameleon.util.DepackageUtil.Asset;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,21 +29,22 @@ import lombok.extern.slf4j.Slf4j;
  */
 @RequiredArgsConstructor
 @Slf4j
-public class DownloadAsyncTask extends AsyncTask<String, Integer, String> {
+public class DownloadAsyncTask extends AsyncTask<Asset, Integer, String> {
     private final Context context;
     private final ProgressUpdatable progressUpdatable;
+    private final DepackageUtil depackageUtil;
     private PowerManager.WakeLock wakeLock;
 
     @Override
-    protected String doInBackground(String... params) {
-        log.info("Downloading {} to {}", params[0], params[1]);
+    protected String doInBackground(DepackageUtil.Asset... params) {
+        Asset asset = params[0];
+        log.info("Downloading asset {}", asset);
         InputStream input = null;
         OutputStream output = null;
         HttpURLConnection connection = null;
-        String outputName = params[1];
-        String expectedMd5sum = params[2];
+        String expectedMd5sum = asset.getExpectedZippedMd5();
         try {
-            URL url = new URL(params[0]);
+            URL url = new URL(asset.getUrl());
             log.info("Connecting to url {}", url);
             connection = (HttpURLConnection) url.openConnection();
             connection.connect();
@@ -59,7 +62,8 @@ public class DownloadAsyncTask extends AsyncTask<String, Integer, String> {
 
             // download the file
             input = connection.getInputStream();
-            output = new FileOutputStream(params[1]);
+            File downloadOutputFile = depackageUtil.getDownloadFile(asset.getOutputName());
+            output = new FileOutputStream(downloadOutputFile);
 
             byte data[] = new byte[4096];
             long total = 0;
@@ -78,17 +82,18 @@ public class DownloadAsyncTask extends AsyncTask<String, Integer, String> {
             }
 
 
-            if (outputName.endsWith(".bz2")) {
-                String unzippedFileName = outputName.substring(0, outputName.length() - 4);
-                log.info("Unzipping bz2 file {} to {}", outputName, unzippedFileName);
+            if (asset.getOutputName().endsWith(".bz2")) {
+                String unzippedOutputName = asset.getOutputName().substring(0, asset.getOutputName().length() - 4);
+                File unzippedOutputFile = depackageUtil.getOutputFile(unzippedOutputName);
+                log.info("Unzipping bz2 file {} to {}", output, unzippedOutputFile);
                 FileOutputStream out = null;
                 BZip2CompressorInputStream bzIn = null;
                 try {
                     MessageDigest md = MessageDigest.getInstance("MD5");
-                    FileInputStream fin = new FileInputStream(outputName);
+                    FileInputStream fin = new FileInputStream(downloadOutputFile);
                     DigestInputStream dis = new DigestInputStream(fin, md);
                     BufferedInputStream in = new BufferedInputStream(dis);
-                    out = new FileOutputStream(unzippedFileName);
+                    out = new FileOutputStream(unzippedOutputFile);
                     bzIn = new BZip2CompressorInputStream(in);
                     final byte[] buffer = new byte[1024];
                     int n = 0;

@@ -8,11 +8,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,24 +38,22 @@ public class DepackageUtil {
     // TODO: Make this threadsafe so we can download multiple assets at once
     private long downloadId;
 
-    public boolean downloadAsset(String assetUrl, String outputName, ProgressUpdatable progressUpdatable, String expectedMd5sum) {
-        log.info("Using download manager to download {}", assetUrl);
-
-        String directoryPath = getOutputDirectory().getPath();
-        if (outputName.endsWith(".bz2")) {
-            String unzippedFileName = directoryPath + File.separator + outputName.substring(0, outputName.length() - 4);
-            File f = new File(unzippedFileName);
-            if (f.exists()) {
-                log.info("File {} already exists, not going to download", unzippedFileName);
-                return true;
-            }
+    public boolean downloadAsset(Asset asset, ProgressUpdatable progressUpdatable) {
+        if (asset.getUrl() == null) {
+            log.info("No URL set for asset {}", asset);
+            return true;
         }
 
+        log.info("Using download manager to download {}", asset.getUrl());
 
-        DownloadAsyncTask downloadTask = new DownloadAsyncTask(context, progressUpdatable);
+        if (hasDownloaded(asset)) {
+            log.info("Asset already downloaded, not going to download again {}", asset);
+            return true;
+        }
 
-        String outputFileName = directoryPath + File.separator + outputName;
-        downloadTask.execute(assetUrl, outputFileName, expectedMd5sum);
+        DownloadAsyncTask downloadTask = new DownloadAsyncTask(context, progressUpdatable, this);
+
+        downloadTask.execute(asset);
 
         return true;
     }
@@ -101,6 +106,10 @@ public class DepackageUtil {
         return true;
     }
 
+    public File getDownloadFile(String outputName) {
+        return new File(context.getExternalFilesDir(null).getPath() + File.separator + outputName);
+    }
+
     public File getOutputFile(String name) {
         File outputDir = getOutputDirectory();
         File outputFile = new File(outputDir.getPath() + File.separator + name);
@@ -114,13 +123,77 @@ public class DepackageUtil {
         return outputDir;
     }
 
-    public boolean hasDownloaded(String outputName) {
-        String fileName = context.getExternalFilesDir(null).getPath() + File.separator + outputName;
+    public boolean hasDownloaded(Asset asset) {
+        File file = getOutputFile(asset.getOutputName());
 
-        if (fileName.endsWith(".bz2")) {
-            fileName = getOutputDirectory().getPath() + File.separator + outputName.substring(0, outputName.length() - 4);
+        if (file.getAbsolutePath().endsWith(".bz2")) {
+            file = getOutputFile(asset.getOutputName().substring(0, asset.getOutputName().length() - 4));
         }
 
-        return new File(fileName).exists();
+        if (file.exists()) {
+            // File exists, check the md5 too
+            String md5sum = getMd5Sum(file);
+
+            if (md5sum.equals(asset.getExpectedMd5())) {
+                log.info("Md5sum {} matches for file {}", md5sum, file);
+                return true;
+            } else {
+                log.info("Md5sum {} doesnt match {} for file {}", md5sum, asset.getExpectedMd5(), file);
+                return false;
+            }
+
+        } else {
+            log.info("File doesnt exist, so it has not been downloaded");
+            return false;
+        }
+    }
+
+    public String getMd5Sum(File f) {
+        log.info("Calculating md5 for {}", f);
+        InputStream is = null;
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            is = new FileInputStream(f);
+            is = new DigestInputStream(is, md);
+            while (is.read() != -1) ;
+            byte[] digest = md.digest();
+            String md5sum = bytesToHex(digest);
+            log.info("Calculated md5sum {} for {}", md5sum, f);
+            return md5sum;
+        } catch (FileNotFoundException e) {
+            log.warn("File not found, cant calculate MD5", e);
+        } catch (NoSuchAlgorithmException e) {
+            log.warn("MD5 algorithm not detected", e);
+        } catch (IOException e) {
+            log.warn("Error reading file, cant calculate MD5", e);
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (IOException e) {
+                }
+            }
+        }
+
+        return null;
+    }
+
+    final protected static char[] hexArray = "0123456789abcdef".toCharArray();
+
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
+
+    @Builder
+    @Data
+    public class Asset {
+        private String expectedMd5, url, expectedZippedMd5, outputName;
     }
 }
