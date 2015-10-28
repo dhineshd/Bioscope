@@ -148,8 +148,8 @@ public class FfmpegVideoMerger implements VideoMerger {
 
         NotificationManager notificationManager = (NotificationManager) this.context.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationBuilder = new Notification.Builder(this.context)
-                .setContentTitle("Chameleon Video Merge")
-                .setContentText("Chameleon video merge is in progress")
+                .setContentTitle(VideoMerger.MERGE_NOTIFICATION_TITLE)
+                .setContentText(VideoMerger.MERGE_IN_PROGRESS_NOTIFICATION_TEXT)
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setOngoing(true)
                 .setProgress(100, 0, false);
@@ -379,7 +379,8 @@ public class FfmpegVideoMerger implements VideoMerger {
             }
 
 
-            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationManager notificationManager = (NotificationManager)
+                    context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.cancel(MERGING_NOTIFICATION_ID);
 
             // Delete input videos since we now have merged video
@@ -493,7 +494,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationBuilder.setProgress(100, progressPerc, false);
             String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
-            notificationBuilder.setContentText("Chameleon video merge is in progress (" +
+            notificationBuilder.setContentText("Merge progress (" +
                     String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 

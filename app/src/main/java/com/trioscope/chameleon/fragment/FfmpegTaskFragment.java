@@ -18,6 +18,7 @@ import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.MergeConfiguration;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 import com.trioscope.chameleon.util.merge.VideoConfiguration;
+import com.trioscope.chameleon.util.merge.VideoMerger;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
@@ -118,8 +119,8 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
 
         NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationBuilder = new Notification.Builder(currentContext)
-                .setContentTitle("Chameleon Video Merge")
-                .setContentText("Chameleon video merge is in progress")
+                .setContentTitle(VideoMerger.MERGE_NOTIFICATION_TITLE)
+                .setContentText(VideoMerger.MERGE_IN_PROGRESS_NOTIFICATION_TEXT)
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setOngoing(true)
                 .setProgress(100, 0, false);
@@ -149,7 +150,8 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationBuilder.setProgress(100, progressPerc, false);
         String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
-        notificationBuilder.setContentText("Chameleon video merge is in progress (" + String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
+        notificationBuilder.setContentText(VideoMerger.MERGE_IN_PROGRESS_NOTIFICATION_TEXT
+                + " (" + String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
         notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
     }
 
@@ -193,8 +195,8 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         NotificationManager notificationManager = (NotificationManager) currentContext.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(MERGING_NOTIFICATION_ID);
         Notification n = new Notification.Builder(currentContext)
-                .setContentTitle("Chameleon Merge Complete")
-                .setContentText("Chameleon video merge has completed")
+                .setContentTitle(VideoMerger.MERGE_NOTIFICATION_TITLE)
+                .setContentText(VideoMerger.MERGE_COMPLETED_NOTIFICATION_TEXT)
                 .setSmallIcon(R.drawable.ic_launcher)
                 .build();
         notificationManager.notify(COMPLETED_NOTIFICATION_ID, n);
