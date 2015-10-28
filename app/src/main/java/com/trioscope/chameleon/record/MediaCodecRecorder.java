@@ -259,8 +259,6 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.info("Converting color format from YUV420Planar to YUV420SemiPlanar w = {}, h = {}",
-                        cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
                 finalFrameData = ColorConversionUtil.convertI420ToNV12AndReturnByteArray(
                         frameData.getBytes(), cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             } else {

@@ -7,6 +7,7 @@ import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -45,9 +46,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -79,6 +78,8 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     private LruCache<String, Bitmap> thumbnailCache;
     private Typeface appFontTypefaceRegular;
     private Typeface appFontTypefaceBold;
+    private List<File> libraryFiles = new ArrayList<>();
+    private CacheVideoInfoTask cacheVideoInfoTask;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,7 +121,6 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
         VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
         File folder = FileUtil.getOutputMediaDirectory();
-        final List<File> libraryFiles = new ArrayList<File>();
         Collections.addAll(libraryFiles, folder.listFiles(new FileFilter() {
             @Override
             public boolean accept(File pathname) {
@@ -189,14 +189,33 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
         videoInfoCache = new LruCache<>(1000);
     }
 
-    private static <K, V> Map<K, V> createFixedSizeLRUCache(final int maxSize) {
-        return new LinkedHashMap<K, V>(maxSize * 4 / 3, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-                return size() > maxSize;
+    private class CacheVideoInfoTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+
+            try {
+                // Retrieve info for all library files
+                BioscopeDBHelper helper = new BioscopeDBHelper(VideoLibraryGridActivity.this);
+                for (final File file : libraryFiles) {
+
+                    // Task cancelled
+                    if (isCancelled()) {
+                        break;
+                    }
+
+                    if (file != null) {
+                        getVideoInfo(file, helper);
+                    }
+                }
+                helper.close();
+            } catch (Exception e) {
+                log.warn("Failed to cache video info", e);
             }
-        };
-    }
+
+            return null;
+        }
+    };
 
     @Builder
     @Getter
@@ -211,12 +230,22 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
     protected void onPause() {
         super.onPause();
         log.info("onPause invoked!");
+        if (cacheVideoInfoTask != null) {
+            cacheVideoInfoTask.cancel(true);
+            cacheVideoInfoTask = null;
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         log.info("onResume invoked!");
+
+        // Cache video info to save time when loading video in library
+        if (cacheVideoInfoTask == null) {
+            cacheVideoInfoTask = new CacheVideoInfoTask();
+            cacheVideoInfoTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        }
     }
 
     @Override
@@ -273,17 +302,7 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
 
                 } else {
                     setProgressVisible(viewHolder, false);
-                    VideoInfo videoInfo = videoInfoCache.get(videoFile.getName());
-                    if (videoInfo == null) {
-                        // Loading video in gallery for first time, retrieve and cache info.
-                        videoInfo = VideoInfo.builder()
-                                .title("with " + getVideographer(videoFile, helper))
-                                .duration(milliToMinutes(Double.valueOf(getVideoDuration(videoFile))))
-                                .lastModified(videoFile.lastModified())
-                                .build();
-                        videoInfoCache.put(videoFile.getName(), videoInfo);
-                    }
-                    updateUIElements(videoFile, videoInfo, viewHolder);
+                    updateUIElements(videoFile, getVideoInfo(videoFile, helper), viewHolder);
                 }
                 helper.close();
 
@@ -341,25 +360,6 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             });
         }
 
-        @Timed
-        private String getVideoDuration(final File videoFile) {
-            MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-            log.info("Video file path = {}", videoFile.getAbsolutePath());
-            mmr.setDataSource(videoFile.getAbsolutePath());
-            return mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-        }
-
-        @Timed
-        private String getVideographer(final File videoFile, final BioscopeDBHelper dbHelper) {
-            String videoWith = "Unknown";
-            //Load the other videographers from db
-            List<String> videographers = dbHelper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
-            if (!videographers.isEmpty()) {
-                videoWith = StringUtils.join(videographers, ", ");
-            }
-            return videoWith;
-        }
-
         private void setProgressVisible(ViewHolder viewHolder, boolean isVisible) {
             int statusA = isVisible ? View.INVISIBLE : View.VISIBLE;
             int statusB = isVisible ? View.VISIBLE : View.INVISIBLE;
@@ -372,6 +372,41 @@ public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMess
             viewHolder.progressBar.setVisibility(statusB);
             viewHolder.progressBarText.setVisibility(statusB);
         }
+    }
+
+
+    @Timed
+    private VideoInfo getVideoInfo(final File videoFile, final BioscopeDBHelper dbHelper) {
+        VideoInfo videoInfo = videoInfoCache.get(videoFile.getName());
+        if (videoInfo == null) {
+            // Loading video in gallery for first time, retrieve and cache info.
+            videoInfo = VideoInfo.builder()
+                    .title("with " + getVideographer(videoFile, dbHelper))
+                    .duration(milliToMinutes(Double.valueOf(getVideoDuration(videoFile))))
+                    .lastModified(videoFile.lastModified())
+                    .build();
+            videoInfoCache.put(videoFile.getName(), videoInfo);
+        }
+        return videoInfo;
+    }
+
+    @Timed
+    private String getVideoDuration(final File videoFile) {
+        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+        log.info("Video file path = {}", videoFile.getAbsolutePath());
+        mmr.setDataSource(videoFile.getAbsolutePath());
+        return mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+    }
+
+    @Timed
+    private String getVideographer(final File videoFile, final BioscopeDBHelper dbHelper) {
+        String videoWith = "Unknown";
+        //Load the other videographers from db
+        List<String> videographers = dbHelper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
+        if (!videographers.isEmpty()) {
+            videoWith = StringUtils.join(videographers, ", ");
+        }
+        return videoWith;
     }
 
     // Not using getter/setter or Lombok for optimization

@@ -638,14 +638,12 @@ public class ConnectionEstablishedActivity
 
                 // Compute clock difference from send and recv time of this message
                 if (shouldWaitForResponse) {
-                    log.info("Waiting for response after sending msg type = {}", peerMsg.getType());
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(peerSocket.getInputStream()));
                     String recvMsg = bufferedReader.readLine();
                     long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
                     if (recvMsg != null) {
                         PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
                         if (message != null && message.getSendTimeMillis() != null) {
-                            log.info("Received response msg type = {}", message.getType());
                             long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
                                     localCurrentTimeMsBeforeSendingRequest) / 2;
                             long clockDifferenceMs = message.getSendTimeMillis() -
@@ -755,8 +753,6 @@ public class ConnectionEstablishedActivity
                     inputStream = new BufferedInputStream(socket.getInputStream());
                     int bytesRead = 0;
                     while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        log.info("Receiving recorded file from peer.. bytes = {}, total rcvd = {}, " +
-                                "file size = {}", bytesRead, totalBytesReceived, fileSizeBytes);
                         outputStream.write(buffer, 0, bytesRead);
                         totalBytesReceived += bytesRead;
                         int fileTransferPercentage = (int) (100 * totalBytesReceived / fileSizeBytes);
@@ -796,7 +792,7 @@ public class ConnectionEstablishedActivity
             hideProgressBar();
 
             // Compute difference between two clock using multiple measurements
-            log.info("Number of clock difference measurements = {}", clockDifferenceMeasurementsMillis.size());
+            log.debug("Number of clock difference measurements = {}", clockDifferenceMeasurementsMillis.size());
             long clockDifferenceMsSum = 0;
             for (long clockDifferenceMeasurementMs : clockDifferenceMeasurementsMillis) {
                 clockDifferenceMsSum += clockDifferenceMeasurementMs;
