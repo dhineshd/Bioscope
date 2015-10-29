@@ -31,7 +31,7 @@
                 android:layout_width="109dp"
                 android:layout_height="186dp"
                 android:layout_gravity="center"
-                android:visibility="invisible"/>
+                android:visibility="visible"/>
 
             <ImageView
                 android:layout_width="110dp"
@@ -122,23 +122,6 @@
                     android:layout_marginBottom="36dp"
                     android:visibility="invisible"
                     android:stateListAnimator="@anim/button_elevation_anim" />
-
-                <com.trioscope.chameleon.views.TextButton
-                    style="@style/textButtonPrimary"
-                    android:id="@+id/button_disconnect"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_alignParentRight="true"
-                    android:layout_alignParentBottom="true"
-                    android:gravity="center"
-                    android:paddingRight="40dp"
-                    android:layout_marginBottom="55dp"
-                    android:background="@null"
-                    android:visibility="visible"
-                    android:text="Disconnect"
-                    android:textSize="20sp"
-                    android:textColor="@android:color/white"/>
-
             </RelativeLayout>
 
         </LinearLayout>
@@ -147,6 +130,17 @@
             android:layout_width="match_parent"
             android:layout_height="30dp"
             android:background="#40808080">
+
+            <ImageButton
+                android:id="@+id/button_disconnect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:src="@drawable/disconnect_icon"
+                android:background="@null"
+                android:layout_alignParentLeft="true"
+                android:paddingLeft="20dp"
+                />
 
             <TextView
                 android:id="@+id/textview_peer_user_name"
@@ -163,13 +157,12 @@
 
             <ImageButton
                 android:id="@+id/button_switch_cameras"
-                android:layout_width="50dp"
-                android:layout_height="match_parent"
-                android:scaleType="fitCenter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
                 android:src="@drawable/video_icon"
                 android:background="@null"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentEnd="true"
+                android:layout_alignParentRight="true"
                 android:paddingRight="20dp"
                 />
         </RelativeLayout>

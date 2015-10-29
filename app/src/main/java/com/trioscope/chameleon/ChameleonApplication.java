@@ -378,22 +378,16 @@ public class ChameleonApplication extends Application {
             return null;
         }
 
-        // Create the storage directory if it does not exist
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                log.error("failed to create directory");
-                return null;
-            }
-        }
-
         // Create a media file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                 "BIOSCOPE_" + timeStamp + ".mp4");
 
-        if (mediaFile != null) {
-            log.info("File name is {}", mediaFile.getAbsolutePath());
+        // Remove existing file with same name (if any)
+        if (mediaFile.exists()) {
+            mediaFile.delete();
         }
+        log.info("File name is {}", mediaFile.getAbsolutePath());
         return mediaFile;
     }
 

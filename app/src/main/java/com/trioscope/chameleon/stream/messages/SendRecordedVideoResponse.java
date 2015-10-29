@@ -15,6 +15,4 @@ public class SendRecordedVideoResponse {
     @NonNull
     private Long recordingStartTimeMillis;
     private boolean recordingHorizontallyFlipped;
-    @NonNull
-    private Long currentTimeMillis;
 }

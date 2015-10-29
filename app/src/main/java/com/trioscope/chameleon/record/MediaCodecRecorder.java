@@ -82,24 +82,23 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         videoTrackIndex = -1;
         audioTrackIndex = -1;
 
+        // Start listening for camera frames
+        // Note : This should happen before video encoder setup
+        // so that we setup video encoder with correct frame size
+        cameraFrameBuffer.addListener(this);
+
         setupVideoEncoder();
 
         //Setup MediaMuxer to save MediaCodec output to given file
         try {
             recordingMetadata = null;
             outputFile = chameleonApplication.createVideoFile(true);
-            if (outputFile.exists()) {
-                outputFile.delete();
-            }
             mediaMuxer = new MediaMuxer(
                     outputFile.getAbsolutePath(),
                     MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 
             // Start audio recording task
             startAudioRecordingTask();
-
-            // Start listening for camera frames
-            cameraFrameBuffer.addListener(this);
 
             isRecording = true;
 
@@ -108,6 +107,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         } catch (IOException e) {
             log.error("Failed to start recording!", e);
             mediaMuxer = null;
+            cameraFrameBuffer.removeListener(this);
         }
         return false;
     }
@@ -259,12 +259,9 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.debug("Converting color format from YUV420Planar to YUV420SemiPlanar");
                 finalFrameData = ColorConversionUtil.convertI420ToNV12AndReturnByteArray(
                         frameData.getBytes(), cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
             } else {
-//                ColorConversionUtil.rotateI420By90Degrees(frameData.getBytes(),
-//                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
                 finalFrameData = frameData.getBytes();
             }
 

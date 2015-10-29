@@ -9,6 +9,5 @@ import lombok.Data;
 public class FrameInfo {
     private long timestampNanos;
     private int orientationDegrees;
-    private boolean verticallyFlipped;
     private boolean horizontallyFlipped;
 }

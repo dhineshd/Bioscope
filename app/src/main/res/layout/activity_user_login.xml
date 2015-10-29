@@ -16,6 +16,7 @@
         android:layout_marginTop="198dp"
         android:hint="Username"
         android:id="@+id/editUserNameText"
+        android:maxLength="15"
         android:layout_centerHorizontal="true"
         android:layout_marginBottom="43dp"
         android:background="@drawable/username_edit_text_border_shape"

@@ -449,7 +449,6 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             // Front camera produces upside-down and mirror image of original frame
             frameInfo.setOrientationDegrees(isUsingFrontFacingCamera()? 270 : 90);
-            frameInfo.setVerticallyFlipped(isUsingFrontFacingCamera());
             frameInfo.setHorizontallyFlipped(isUsingFrontFacingCamera());
 
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);

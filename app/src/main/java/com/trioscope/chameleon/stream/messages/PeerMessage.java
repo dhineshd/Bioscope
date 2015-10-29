@@ -19,6 +19,7 @@ public class PeerMessage {
         START_RECORDING,
         START_RECORDING_RESPONSE,
         STOP_RECORDING,
+        STOP_RECORDING_RESPONSE,
         SEND_RECORDED_VIDEO,
         SEND_RECORDED_VIDEO_RESPONSE
     }
@@ -28,4 +29,5 @@ public class PeerMessage {
     @NonNull
     private String senderUserName;
     private String contents;
+    private Long sendTimeMillis;
 }
