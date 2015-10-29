@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
     public static final long UPDATE_SEEK_TIME_DELAY = 500;
+    private static final int FIRST_FRAMES_MS_INCREMENT = 100;
 
     private final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
@@ -266,20 +267,29 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer.pause();
         minorVideoMediaPlayer.pause();
 
+        seekVideosToWithCallback(seekPoint, new SeekVideosCallback() {
+            @Override
+            public void videosSeeked(int majorVideoSeekedTo, int minorVideoSeekedTo) {
+                long diff = majorVideoAheadOfMinorByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
+
+                startWithDelay(diff);
+            }
+        });
+    }
+
+    private void seekVideosToWithCallback(int seekPoint, final SeekVideosCallback callback) {
         majorVideoSeekedTo = null;
         minorVideoSeekedTo = null;
         majorVideoMediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
             @Override
             public void onSeekComplete(MediaPlayer mp) {
                 synchronized (seekLock) {
-                    majorVideoSeekedTo = mp.getCurrentPosition();
+                    majorVideoSeekedTo = majorVideoMediaPlayer.getCurrentPosition();
                     log.info("Major video seek completed, current position is {}", majorVideoSeekedTo);
 
                     if (minorVideoSeekedTo != null) {
-                        log.info("Minor video already seeked, going to start the videos");
-                        long diff = majorVideoAheadOfMinorByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
-
-                        startWithDelay(diff);
+                        log.info("Minor video already seeked, going to call callback");
+                        callback.videosSeeked(majorVideoSeekedTo, minorVideoSeekedTo);
                     }
                 }
             }
@@ -289,14 +299,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onSeekComplete(MediaPlayer mp) {
                 synchronized (seekLock) {
-                    minorVideoSeekedTo = mp.getCurrentPosition();
+                    minorVideoSeekedTo = minorVideoMediaPlayer.getCurrentPosition();
                     log.info("Minor video seek completed, current position is {}", minorVideoSeekedTo);
 
                     if (majorVideoSeekedTo != null) {
-                        log.info("Major video already seeked, going to start the videos");
-                        long diff = majorVideoAheadOfMinorByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
-
-                        startWithDelay(diff);
+                        log.info("Major video already seeked, going to call callback");
+                        callback.videosSeeked(majorVideoSeekedTo, minorVideoSeekedTo);
                     }
                 }
             }
@@ -371,7 +379,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         log.info("Video Media Players are starting {}", majorVideoAheadOfMinorVideoByMillis);
 
-        startWithDelay(majorVideoAheadOfMinorVideoByMillis);
+        skipFirstFrames(majorVideoAheadOfMinorVideoByMillis);
 
         // Record progress with the seekbar
         SeekBar seekBar = (SeekBar) findViewById(R.id.merge_preview_seekbar);
@@ -386,6 +394,25 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
+    }
+
+    private void skipFirstFrames(long majorVideoAheadOfMinorVideoByMillis) {
+        skipFirstFramesHelper(majorVideoAheadOfMinorVideoByMillis, FIRST_FRAMES_MS_INCREMENT);
+    }
+
+    private void skipFirstFramesHelper(final long majorVideoAheadOfMinorVideoByMillis, final int seekTo) {
+        log.info("Seeking to {}ms", seekTo);
+        seekVideosToWithCallback(seekTo, new SeekVideosCallback() {
+            @Override
+            public void videosSeeked(int majorVideoSeekedTo, int minorVideoSeekedTo) {
+                if (majorVideoSeekedTo == 0 || minorVideoSeekedTo == 0) {
+                    log.info("Attempted to seek to {}, but we are still at 0ms", seekTo);
+                    skipFirstFramesHelper(majorVideoAheadOfMinorVideoByMillis, seekTo + PreviewMergeActivity.FIRST_FRAMES_MS_INCREMENT);
+                } else {
+                    startWithDelay(majorVideoAheadOfMinorVideoByMillis);
+                }
+            }
+        });
     }
 
     private void startWithDelay(long majorVideoAheadOfMinorVideoByMillis) {
