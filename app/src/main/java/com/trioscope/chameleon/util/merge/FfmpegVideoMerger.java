@@ -19,6 +19,7 @@ import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
 import com.trioscope.chameleon.types.NotificationIds;
+import com.trioscope.chameleon.util.Asset;
 import com.trioscope.chameleon.util.DepackageUtil;
 import com.trioscope.chameleon.util.FileUtil;
 
@@ -58,7 +59,7 @@ public class FfmpegVideoMerger implements VideoMerger {
     private static final String PACKAGED_FFMPEG_X86 = "ffmpeg/x86/bin/ffmpeg";
     private static final String DEPACKAGED_CMD_NAME = "ffmpeg";
 
-    private static final DepackageUtil.Asset DEPACKAGED_LIB_OPENH = DepackageUtil.Asset.builder()
+    private static final Asset DEPACKAGED_LIB_OPENH = Asset.builder()
             .url("http://ciscobinary.openh264.org/libopenh264-1.4.0-android19.so.bz2")
             .expectedZippedMd5("b94a0e5d421dd4acc8200ed0c4cd521e")
             .outputName("libopenh264.so.bz2")

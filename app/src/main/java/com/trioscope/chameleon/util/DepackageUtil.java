@@ -18,8 +18,6 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-import lombok.Builder;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +42,7 @@ public class DepackageUtil {
             return true;
         }
 
-        log.info("Using download manager to download {}", asset.getUrl());
+        log.info("Requested to download {}", asset.getUrl());
 
         if (hasDownloaded(asset)) {
             log.info("Asset already downloaded, not going to download again {}", asset);
@@ -188,12 +186,5 @@ public class DepackageUtil {
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
         return new String(hexChars);
-    }
-
-
-    @Builder
-    @Data
-    public class Asset {
-        private String expectedMd5, url, expectedZippedMd5, outputName;
     }
 }

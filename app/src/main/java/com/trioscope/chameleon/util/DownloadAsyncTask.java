@@ -4,7 +4,6 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.os.PowerManager;
 
-import com.trioscope.chameleon.util.DepackageUtil.Asset;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -36,7 +35,7 @@ public class DownloadAsyncTask extends AsyncTask<Asset, Integer, String> {
     private PowerManager.WakeLock wakeLock;
 
     @Override
-    protected String doInBackground(DepackageUtil.Asset... params) {
+    protected String doInBackground(Asset... params) {
         Asset asset = params[0];
         log.info("Downloading asset {}", asset);
         InputStream input = null;
