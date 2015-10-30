@@ -2,6 +2,7 @@ package com.trioscope.chameleon.util;
 
 import android.content.Context;
 
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 
 import org.slf4j.Logger;
@@ -146,6 +147,7 @@ public class DepackageUtil {
         }
     }
 
+    @Timed
     public String getMd5Sum(File f) {
         log.info("Calculating md5 for {}", f);
         InputStream is = null;
