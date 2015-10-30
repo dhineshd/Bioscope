@@ -55,6 +55,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private Surface previewSurface;
     private Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
     private int curLensFacing = -1;
+    private int currentOrientationDegrees;
 
 
     @Setter
@@ -106,7 +107,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         try {
             CameraCharacteristics cc = cameraManager.getCameraCharacteristics(cameraDevice.getId());
             curLensFacing = cc.get(CameraCharacteristics.LENS_FACING);
+            currentOrientationDegrees = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
             log.debug("Camera is facing {}", curLensFacing);
+            log.info("Camera orientation degrees = {}", cc.get(CameraCharacteristics.SENSOR_ORIENTATION));
         } catch (CameraAccessException e) {
             log.error("Unable to access camerainformation", e);
         }
@@ -448,7 +451,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             frameInfo.setTimestampNanos(image.getTimestamp());
 
             // Front camera produces upside-down and mirror image of original frame
-            frameInfo.setOrientationDegrees(isUsingFrontFacingCamera()? 270 : 90);
+            frameInfo.setOrientationDegrees(currentOrientationDegrees);
             frameInfo.setHorizontallyFlipped(isUsingFrontFacingCamera());
 
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
