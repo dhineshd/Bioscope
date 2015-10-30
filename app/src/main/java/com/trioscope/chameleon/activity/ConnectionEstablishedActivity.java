@@ -1063,7 +1063,7 @@ public class ConnectionEstablishedActivity
                         if (recvMsg != null) {
                             StreamMetadata streamMetadata = gson.fromJson(recvMsg, StreamMetadata.class);
                             matrix.setScale(1, streamMetadata.isHorizontallyFlipped() ? -1 : 1);
-                            matrix.postRotate(90);
+                            matrix.postRotate(streamMetadata.getOrientationDegrees());
                             final int bytesRead = inputStream.read(buffer);
                             if (bytesRead != -1) {
                                 streamImageReceived = true;

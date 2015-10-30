@@ -42,10 +42,9 @@ public class CameraFrameUtil {
             final int frameHeight,
             final int targetWidth,
             final int targetHeight,
-            final boolean horizontallyFlipped,
             final int quality) {
         byte[] nv21Bytes = ColorConversionUtil.scaleAndConvertI420ToNV21AndReturnByteArray(
-                frameData, frameWidth, frameHeight, targetWidth, targetHeight, horizontallyFlipped);
+                frameData, frameWidth, frameHeight, targetWidth, targetHeight, false);
         YuvImage yuvimage = new YuvImage(nv21Bytes, ImageFormat.NV21, targetWidth, targetHeight, null);
         yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
                 quality, stream);

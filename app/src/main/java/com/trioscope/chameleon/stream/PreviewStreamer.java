@@ -82,8 +82,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     if (data.getBytes() != null) {
                         byteArray = CameraFrameUtil.convertYUV420888ByteArrayToJPEGByteArray(
                                 data.getBytes(), stream, cameraWidth, cameraHeight, streamPreviewWidth,
-                                streamPreviewHeight, frameInfo.isHorizontallyFlipped(),
-                                STREAMING_COMPRESSION_QUALITY);
+                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
                     }
                 } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
                     byteArray = CameraFrameUtil.convertNV21ToJPEGByteArray(data.getBytes(),
@@ -98,6 +97,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                     StreamMetadata streamMetadata = StreamMetadata.builder()
                             .horizontallyFlipped(frameInfo.isHorizontallyFlipped())
+                            .orientationDegrees(frameInfo.getOrientationDegrees())
                             .build();
                     PrintWriter pw = new PrintWriter(destOutputStream);
                     pw.println(gson.toJson(streamMetadata));
