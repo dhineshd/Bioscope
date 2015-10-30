@@ -88,6 +88,7 @@ public class ConnectionEstablishedActivity
     private boolean isRecording;
     private SSLSocketFactory sslSocketFactory;
     private ProgressBar progressBar;
+    private ProgressBar progressBarCrewNotification;
     private ImageView imageViewProgressBarBackground;
     private TextView textViewFileTransfer;
     private SurfaceView previewDisplay;
@@ -107,6 +108,8 @@ public class ConnectionEstablishedActivity
     private Handler heartbeatCheckHandler;
     private Runnable heartbeatCheckRunnable;
     private List<Long> clockDifferenceMeasurementsMillis = new ArrayList<>();
+    private TextView textViewCrewNotification;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -290,6 +293,9 @@ public class ConnectionEstablishedActivity
             }
         });
 
+        progressBarCrewNotification = (ProgressBar) findViewById(R.id.progressbar_crew_notification);
+
+        textViewCrewNotification = (TextView) findViewById(R.id.textview_crew_notification);
     }
 
     private void sendPeerMessage(
@@ -345,8 +351,27 @@ public class ConnectionEstablishedActivity
             @Override
             public void run() {
                 switchCamerasButton.setVisibility(View.INVISIBLE);
+
+                showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
+
+                new Handler().postDelayed(new Runnable() {
+
+                    @Override
+                    public void run() {
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                hideCrewNotificationProgressBar();
+                            }
+                        });
+                    }
+                }, 1200);
+
             }
         });
+
+
 
         // Start recorder
         recorder.startRecording();
@@ -370,6 +395,25 @@ public class ConnectionEstablishedActivity
 
                 // Show button to switch cameras
                 switchCamerasButton.setVisibility(View.VISIBLE);
+
+                showCrewNotificationProgressBar("Cut!");
+
+                new Handler().postDelayed(new Runnable() {
+
+                    @Override
+                    public void run() {
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                hideCrewNotificationProgressBar();
+                            }
+                        });
+                    }
+                }, 1200);
+
+
+
             }
         });
 
@@ -950,6 +994,19 @@ public class ConnectionEstablishedActivity
         progressBar.setVisibility(View.INVISIBLE);
         imageViewProgressBarBackground.setVisibility(View.INVISIBLE);
         textViewFileTransfer.setVisibility(View.INVISIBLE);
+    }
+
+    private void showCrewNotificationProgressBar(final String progressBarText) {
+        textViewCrewNotification.setText(progressBarText);
+        textViewCrewNotification.setVisibility(View.VISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.VISIBLE);
+        progressBarCrewNotification.setVisibility(View.VISIBLE);
+    }
+
+    private void hideCrewNotificationProgressBar() {
+        progressBarCrewNotification.setVisibility(View.INVISIBLE);
+        imageViewProgressBarBackground.setVisibility(View.INVISIBLE);
+        textViewCrewNotification.setVisibility(View.INVISIBLE);
     }
 
     @AllArgsConstructor
