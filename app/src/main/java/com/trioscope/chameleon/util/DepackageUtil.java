@@ -130,21 +130,15 @@ public class DepackageUtil {
         }
 
         if (file.exists()) {
-
-            // Commenting out md5 check until we find a way to speed it up
-            // since it takes a long time to open the app every time
-
-
             // File exists, check the md5 too
-//            String md5sum = getMd5Sum(file);
-//            if (md5sum.equals(asset.getExpectedMd5())) {
-//                log.info("Md5sum {} matches for file {}", md5sum, file);
-//                return true;
-//            } else {
-//                log.info("Md5sum {} doesnt match {} for file {}", md5sum, asset.getExpectedMd5(), file);
-//                return false;
-//            }
-            return true;
+            String md5sum = getMd5Sum(file);
+            if (md5sum.equals(asset.getExpectedMd5())) {
+                log.info("Md5sum {} matches for file {}", md5sum, file);
+                return true;
+            } else {
+                log.info("Md5sum {} doesnt match {} for file {}", md5sum, asset.getExpectedMd5(), file);
+                return false;
+            }
         } else {
             log.info("File doesnt exist, so it has not been downloaded");
             return false;
@@ -159,7 +153,8 @@ public class DepackageUtil {
             MessageDigest md = MessageDigest.getInstance("MD5");
             is = new FileInputStream(f);
             is = new DigestInputStream(is, md);
-            while (is.read() != -1) ;
+            byte[] bs = new byte[1024]; // Read the file 1kb at a time
+            while (is.read(bs) == bs.length) ;
             byte[] digest = md.digest();
             String md5sum = bytesToHex(digest);
             log.info("Calculated md5sum {} for {}", md5sum, f);
