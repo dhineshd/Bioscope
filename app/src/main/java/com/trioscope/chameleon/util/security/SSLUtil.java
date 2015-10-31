@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SSLUtil {
     private static final String CERT_ALIAS = "bioscope_server_cert";
+    private static final int KEY_SIZE_BITS = 1024; // Sufficient since keys dont last beyond a session
     public static final String SSL_PROTOCOL = "TLSv1.2";
 
     static {
@@ -174,9 +175,11 @@ public class SSLUtil {
     @Timed
     public static KeyPair createKeypair() {
         try {
-            return KeyPairGenerator.getInstance("RSA").generateKeyPair();
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(KEY_SIZE_BITS);
+            return generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            log.error("Failed to generate certificate for given keypair", e);
+            log.error("Failed to generate given keypair", e);
         }
         return null;
     }
