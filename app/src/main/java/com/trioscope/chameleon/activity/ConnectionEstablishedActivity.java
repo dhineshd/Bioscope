@@ -356,22 +356,25 @@ public class ConnectionEstablishedActivity
             public void run() {
                 switchCamerasButton.setVisibility(View.INVISIBLE);
 
-                showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
+                //Do this for crew
+                if(!isDirector(peerInfo)) {
+                    showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
 
-                new Handler().postDelayed(new Runnable() {
 
-                    @Override
-                    public void run() {
+                    new Handler().postDelayed(new Runnable() {
 
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                hideCrewNotificationProgressBar();
-                            }
-                        });
-                    }
-                }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
+                        @Override
+                        public void run() {
 
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    hideCrewNotificationProgressBar();
+                                }
+                            });
+                        }
+                    }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
+                }
             }
         });
 
