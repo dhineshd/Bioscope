@@ -267,6 +267,8 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
+
+
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
@@ -281,6 +283,8 @@ public class ConnectionEstablishedActivity
 
                 // File will be deleted during temp directory cleanup
                 localRecordingMetadata = null;
+
+                sendPeerMessage(PeerMessage.Type.RETAKE_SESSION, false);
             }
         });
 
@@ -366,7 +370,7 @@ public class ConnectionEstablishedActivity
                             }
                         });
                     }
-                }, 1200);
+                }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
 
             }
         });
@@ -396,28 +400,26 @@ public class ConnectionEstablishedActivity
                 // Show button to switch cameras
                 switchCamerasButton.setVisibility(View.VISIBLE);
 
-                showCrewNotificationProgressBar("Cut!");
+                if (!isDirector(peerInfo)) {
 
-                new Handler().postDelayed(new Runnable() {
+                    showCrewNotificationProgressBar("Cut!");
 
-                    @Override
-                    public void run() {
+                    new Handler().postDelayed(new Runnable() {
 
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                hideCrewNotificationProgressBar();
-                            }
-                        });
-                    }
-                }, 1200);
+                        @Override
+                        public void run() {
 
-
-
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showCrewNotificationProgressBar("Waiting\nfor\n" + peerInfo.getUserName());
+                                }
+                            });
+                        }
+                    }, 1200);
+                }
             }
         });
-
-
     }
 
     private void initializeRecordingTimer() {
@@ -583,6 +585,9 @@ public class ConnectionEstablishedActivity
             case SEND_RECORDED_VIDEO:
                 sendRecordedVideo(clientSocket);
                 break;
+            case RETAKE_SESSION:
+                processRetakeSessionMessage();
+                break;
             default:
                 log.debug("Unknown message received from client. Type = {}",
                         messageFromClient.getType());
@@ -641,12 +646,46 @@ public class ConnectionEstablishedActivity
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+
+                //Hide crewNotificationProgressBar prior to sending video
+                hideCrewNotificationProgressBar();
+
                 sendVideoToPeerTask = new SendVideoToPeerTask(
                         clientSocket,
                         localRecordingMetadata);
                 sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
         });
+    }
+
+    private void processRetakeSessionMessage() {
+        log.debug("Received message to Retake recording!");
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                if (!isDirector(peerInfo)) {
+
+                    showCrewNotificationProgressBar("Retake!\nConnecting\nto\n"+ peerInfo.getUserName());
+
+                    new Handler().postDelayed(new Runnable() {
+
+                        @Override
+                        public void run() {
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    hideCrewNotificationProgressBar();
+                                }
+                            });
+                        }
+                    }, 1200);
+                }
+            }
+        });
+
     }
 
     @AllArgsConstructor
