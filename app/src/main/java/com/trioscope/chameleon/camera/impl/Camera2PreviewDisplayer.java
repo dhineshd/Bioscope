@@ -15,12 +15,12 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 3;
+    private static final int MAX_NUM_IMAGES = 5;
     private final Context context;
     private final CameraManager cameraManager;
     private CameraInfo cameraInfo;
@@ -150,7 +150,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         } catch (CameraAccessException e) {
             log.error("Unable to retrieve supported encodings", e);
         }
-        log.debug("Supported image encoding formats = {}", encodings);
+        log.info("Supported image encoding formats = {}", encodings);
 
         return encodings;
     }
@@ -278,9 +278,13 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         captureSession = session;
                         try {
                             requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_OFF);
-                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                                    Range.create(20, 20));
+                                    CaptureRequest.CONTROL_AF_MODE_AUTO);
+
+                            requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE,
+                                    CaptureRequest.CONTROL_AWB_MODE_AUTO);
+
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+                                    CaptureRequest.CONTROL_AE_MODE_ON);
 
 
                             // Finally, we start displaying the camera preview.
@@ -426,37 +430,37 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         byte[] buffer;
         CameraFrameData frameData;
         FrameInfo frameInfo;
+        byte[] tempBuffer;
 
         @Override
-        public void onImageAvailable(ImageReader reader) {
+        @Timed
+        public void onImageAvailable(final ImageReader reader) {
             //TODO : Are we dropping images by not using acquireNextImage?
             Image image = reader.acquireLatestImage();
             if (image == null) {
-                log.warn("Null image from acquire latest image -- skipping");
+                log.debug("Null image from acquire latest image -- skipping");
                 return;
             }
 
-            //buffer = ImageUtil.getDataFromImage(image);
-            //frameData = new CameraFrameData(image);
-            //frameInfo = new FrameInfo();
-
             if (buffer == null) {
-                buffer = ImageUtil.getDataFromImage(image);
+                tempBuffer = new byte[image.getHeight() * image.getWidth() / 2];
+                buffer = ImageUtil.getDataFromImage(image, tempBuffer);
                 frameData = new CameraFrameData(buffer);
                 frameInfo = new FrameInfo();
             } else {
                 // Reuse buffer
-                ImageUtil.getDataFromImage(image, buffer);
+                ImageUtil.getDataFromImage(image, buffer, tempBuffer);
             }
             frameInfo.setTimestampNanos(image.getTimestamp());
 
-            // Front camera produces upside-down and mirror image of original frame
             frameInfo.setOrientationDegrees(currentOrientationDegrees);
+
+            // Front camera produces mirror image of original frame
             frameInfo.setHorizontallyFlipped(isUsingFrontFacingCamera());
 
-            cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
-
             image.close();
+
+            cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
         }
     }
 }

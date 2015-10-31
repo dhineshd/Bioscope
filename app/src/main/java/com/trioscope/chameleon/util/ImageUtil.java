@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ImageUtil {
     @Timed
-    public static byte[] getDataFromImage(Image image) {
+    public static byte[] getDataFromImage(final Image image, byte[] tempBuffer) {
         int format = image.getFormat();
         int width = image.getWidth();
         int height = image.getHeight();
@@ -28,63 +28,65 @@ public class ImageUtil {
             throw new RuntimeException("Unsupported image format: " + format);
         }
 
-        getDataFromImage(image, data);
+        getDataFromImage(image, data, tempBuffer);
         return data;
     }
 
-    public static void getDataFromImage(Image image, byte[] data) {
+    @Timed
+    public static void getDataFromImage(final Image image, final byte[] data, byte[] tempBuffer) {
         int format = image.getFormat();
         int width = image.getWidth();
         int height = image.getHeight();
-        int rowStride, pixelStride;
+        int pixelStride;
         // Read image data
         Image.Plane[] planes = image.getPlanes();
         // Check image validity
         if (format == ImageFormat.JPEG) {
             // JPEG doesn't have pixelstride and rowstride, treat it as 1D buffer.
             ByteBuffer buffer = planes[0].getBuffer();
-            data = new byte[buffer.capacity()];
             buffer.get(data);
         } else if (format == ImageFormat.YUV_420_888) {
             int offset = 0;
-            byte[] rowData = new byte[planes[0].getRowStride()];
+            //byte[] rowData = new byte[planes[0].getRowStride() * height / 2];
+            int bytesPerPixel = ImageFormat.getBitsPerPixel(format) / 8;
+
             for (int i = 0; i < planes.length; i++) {
                 ByteBuffer buffer = planes[i].getBuffer();
-                rowStride = planes[i].getRowStride();
                 pixelStride = planes[i].getPixelStride();
+
                 // For multi-planar yuv images, assuming yuv420 with 2x2 chroma subsampling.
                 int w = (i == 0) ? width : width / 2;
                 int h = (i == 0) ? height : height / 2;
-                for (int row = 0; row < h; row++) {
-                    boolean firstIterationForPlane = true;
 
-                    int bytesPerPixel = ImageFormat.getBitsPerPixel(format) / 8;
-                    if (pixelStride == bytesPerPixel) {
-                        // Special case: optimized read of the entire row
-                        int length = w * bytesPerPixel;
-                        buffer.get(data, offset, length);
-                        // Advance buffer the remainder of the row stride
-                        buffer.position(buffer.position() + rowStride - length);
-                        offset += length;
-                    } else {
-                        // Generic case: should work for any pixelStride but slower.
-                        // Use use intermediate buffer to avoid read byte-by-byte from
-                        // DirectByteBuffer, which is very bad for performance.
-                        // Also need avoid access out of bound by only reading the available
-                        // bytes in the bytebuffer.
-                        int readSize = rowStride;
-                        if (buffer.remaining() < readSize) {
-                            readSize = buffer.remaining();
-                        }
-                        buffer.get(rowData, 0, readSize);
-                        for (int col = 0; col < w; col++) {
-                            data[offset++] = rowData[col * pixelStride];
-                        }
-                    }
+                if (pixelStride == bytesPerPixel) {
+                    // Special case: optimized read of all rows
+                    int length = w * h * bytesPerPixel;
+                    buffer.get(data, offset, length);
+                    offset += length;
+                } else {
+                    // Generic case: should work for any pixelStride but slower.
+                    // Use use intermediate buffer to avoid read byte-by-byte from
+                    // DirectByteBuffer, which is very bad for performance.
+                    // Also need avoid access out of bound by only reading the available
+                    // bytes in the bytebuffer.
+                    int length = buffer.remaining();
+
+                    buffer.get(tempBuffer, 0, length);
+
+                    offset = copyBuffer(length, pixelStride, data, tempBuffer, offset);
+
                 }
             }
         } else {
             throw new RuntimeException("Unsupported image format: " + format);
         }
+    }
+
+    @Timed
+    private static int copyBuffer(int length, int pixelStride, byte[] data, byte[] tempBuffer, int offset) {
+        for (int index = 0; index < length; index += pixelStride) {
+            data[offset++] = tempBuffer[index];
+        }
+        return offset;
     }
 }
