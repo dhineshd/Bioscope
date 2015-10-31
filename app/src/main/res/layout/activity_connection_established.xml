@@ -68,6 +68,25 @@
             android:layout_gravity="center"
             android:id="@+id/textview_file_transfer_status"/>
 
+        <ProgressBar
+            android:id="@+id/progressbar_crew_notification"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            android:visibility="invisible"
+            android:indeterminateDrawable="@drawable/circular_progress_bar"
+            android:indeterminateDuration="1200"
+            android:rotation="270"/>
+
+        <com.trioscope.chameleon.views.ProgressBarTextView
+            style="@style/progressBarText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:id="@+id/textview_crew_notification"/>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
