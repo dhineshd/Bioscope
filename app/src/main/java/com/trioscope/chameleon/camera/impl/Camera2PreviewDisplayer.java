@@ -15,6 +15,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -53,7 +54,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private SimpleImageListener simpleImageListener;
     private CameraCaptureSession captureSession;
     private Surface previewSurface;
-    private Size frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+    private Size frameSize;
     private int curLensFacing = -1;
     private int currentOrientationDegrees;
 
@@ -70,6 +71,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         this.context = context;
         this.cameraDevice = cameraDevice;
         this.cameraManager = cameraManager;
+        updateCameraInfo();
     }
 
     private void updateCameraInfo() {
@@ -80,9 +82,16 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         // Supposed to be universally supported by Camera2
         CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
 
+        getSupportedEncodings();
+
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
         frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+
+        // TODO : Fix frame processing latency for API 23 and remove this
+        if (Build.VERSION.SDK_INT == 23) {
+            frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE_API_23;
+        }
 
         if (!supportedSizes.contains(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE)) {
             // Find supported size with desired aspect ratio
@@ -110,6 +119,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             currentOrientationDegrees = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
             log.debug("Camera is facing {}", curLensFacing);
             log.info("Camera orientation degrees = {}", cc.get(CameraCharacteristics.SENSOR_ORIENTATION));
+            log.info("Camera auto exposure available modes = {}", cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES));
+            log.info("Camera auto white-balance available modes = {}", cc.get(CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES));
         } catch (CameraAccessException e) {
             log.error("Unable to access camerainformation", e);
         }

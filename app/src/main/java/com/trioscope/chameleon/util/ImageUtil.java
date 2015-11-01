@@ -47,35 +47,34 @@ public class ImageUtil {
             buffer.get(data);
         } else if (format == ImageFormat.YUV_420_888) {
             int offset = 0;
-            //byte[] rowData = new byte[planes[0].getRowStride() * height / 2];
             int bytesPerPixel = ImageFormat.getBitsPerPixel(format) / 8;
 
-            for (int i = 0; i < planes.length; i++) {
-                ByteBuffer buffer = planes[i].getBuffer();
+            // y-plane
+
+            // Special case: optimized read of all rows
+            ByteBuffer buffer = planes[0].getBuffer();
+            int length = width * height * bytesPerPixel;
+            buffer.get(data, offset, length);
+            offset += length;
+
+            // u and v planes
+
+            for (int i = 1; i < planes.length; i++) {
+                buffer = planes[i].getBuffer();
                 pixelStride = planes[i].getPixelStride();
 
                 // For multi-planar yuv images, assuming yuv420 with 2x2 chroma subsampling.
-                int w = (i == 0) ? width : width / 2;
-                int h = (i == 0) ? height : height / 2;
 
-                if (pixelStride == bytesPerPixel) {
-                    // Special case: optimized read of all rows
-                    int length = w * h * bytesPerPixel;
-                    buffer.get(data, offset, length);
-                    offset += length;
-                } else {
-                    // Generic case: should work for any pixelStride but slower.
-                    // Use use intermediate buffer to avoid read byte-by-byte from
-                    // DirectByteBuffer, which is very bad for performance.
-                    // Also need avoid access out of bound by only reading the available
-                    // bytes in the bytebuffer.
-                    int length = buffer.remaining();
+                // Generic case: should work for any pixelStride but slower.
+                // Use use intermediate buffer to avoid read byte-by-byte from
+                // DirectByteBuffer, which is very bad for performance.
+                // Also need avoid access out of bound by only reading the available
+                // bytes in the bytebuffer.
+                length = buffer.remaining();
 
-                    buffer.get(tempBuffer, 0, length);
+                buffer.get(tempBuffer, 0, length);
 
-                    offset = copyBuffer(length, pixelStride, data, tempBuffer, offset);
-
-                }
+                offset = copyBuffer(length, pixelStride, data, tempBuffer, offset);
             }
         } else {
             throw new RuntimeException("Unsupported image format: " + format);
@@ -83,10 +82,14 @@ public class ImageUtil {
     }
 
     @Timed
-    private static int copyBuffer(int length, int pixelStride, byte[] data, byte[] tempBuffer, int offset) {
-        for (int index = 0; index < length; index += pixelStride) {
-            data[offset++] = tempBuffer[index];
+    private static int copyBuffer(final int length, final int pixelStride, final byte[] data,
+                                  final byte[] tempBuffer, int offset) {
+        int len = length / pixelStride;
+        for (int i = 0; i < len; i++) {
+            tempBuffer[i] = tempBuffer[i * pixelStride];
         }
+        System.arraycopy(tempBuffer, 0, data, offset, len);
+        offset += len;
         return offset;
     }
 }
