@@ -462,6 +462,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private void cleanup() {
         log.info("Performing cleanup");
 
+        if (updateSeekBarRunnable != null)
+            updateSeekBarRunnable.setCancelled(true);
+
         // Stop runnable
         if (updateSeekBarRunnable != null)
             updateSeekBarRunnable.setCancelled(true);
@@ -583,7 +586,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         @Override
         public void run() {
             if (!cancelled) {
-                int curPosition = mediaPlayer.getCurrentPosition();
+                if (majorVideoMediaPlayer.is)
+                    int curPosition = mediaPlayer.getCurrentPosition();
 
                 int progress = (int) Math.min(Math.round(100.0 * (double) curPosition / duration), 100);
 
