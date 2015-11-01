@@ -229,7 +229,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-b:a");
         params.add("256k");
         params.add("-b:v");
-        params.add("5000k");
+        params.add("10000k");
         params.add("-filter_complex");
         params.add("[0] " + (shouldHorizontallyFlipMajorVideo ? "hflip," : "") + "scale=1080:1920 [major]; " +
                 "[1] " + (shouldHorizontallyFlipMinorVideo ? "hflip," : "") + "scale=412:732, " +
