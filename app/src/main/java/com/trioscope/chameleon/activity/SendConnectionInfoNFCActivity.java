@@ -29,6 +29,7 @@ import android.widget.VideoView;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
@@ -48,6 +49,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -218,12 +220,30 @@ public class SendConnectionInfoNFCActivity
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        log.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
+
+        // Check to see that the Activity started due to an Android Beam
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+            processIntent(getIntent());
+        }
+    }
+
+    @Override
     public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        log.info("new intent received {}", intent);
+        // onResume gets called after this to handle the intent
+        setIntent(intent);
+    }
+
+    private void processIntent(Intent intent) {
         if (processedIntents.contains(intent)) {
             log.info("Ignoring already processed intent = {}", intent);
             return;
         }
-
         log.info("Processing intent = {}", intent);
         Parcelable[] rawMsgs = intent.getParcelableArrayExtra(
                 NfcAdapter.EXTRA_NDEF_MESSAGES);
@@ -231,12 +251,25 @@ public class SendConnectionInfoNFCActivity
         NdefMessage msg = (NdefMessage) rawMsgs[0];
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
-        final WiFiNetworkConnectionInfo connectionInfo =
-                gson.fromJson(new String(msg.getRecords()[0].getPayload()), WiFiNetworkConnectionInfo.class);
+        final WiFiNetworkConnectionInfo connectionInfo = deserializeConnectionInfo(msg.getRecords()[0].getPayload());
         processedIntents.add(intent);
 
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
         newFragment.show(getFragmentManager(), "dialog");
+    }
+
+    private WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
+        try {
+            Inflater decompresser = new Inflater();
+            decompresser.setInput(bytes);
+            byte[] result = new byte[3500];
+            int resultLength = decompresser.inflate(result);
+            decompresser.end();
+            return gson.fromJson(new String(result, 0, resultLength), WiFiNetworkConnectionInfo.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize connection info", e);
+        }
+        return null;
     }
 
     @Override
