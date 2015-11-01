@@ -251,6 +251,10 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
+        if (videoEncoder == null) {
+            log.debug("Video encoder not setup.. not processing video");
+            return;
+        }
         log.debug("Processing video..");
 
         // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)

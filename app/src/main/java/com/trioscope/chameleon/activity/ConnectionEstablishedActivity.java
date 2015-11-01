@@ -360,18 +360,11 @@ public class ConnectionEstablishedActivity
                 if(!isDirector(peerInfo)) {
                     showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
 
-
                     new Handler().postDelayed(new Runnable() {
 
                         @Override
                         public void run() {
-
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    hideCrewNotificationProgressBar();
-                                }
-                            });
+                            hideCrewNotificationProgressBar();
                         }
                     }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
                 }
@@ -405,21 +398,7 @@ public class ConnectionEstablishedActivity
 
                 if (!isDirector(peerInfo)) {
 
-                    showCrewNotificationProgressBar("Cut!");
-
-                    new Handler().postDelayed(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    showCrewNotificationProgressBar("Waiting\nfor\n" + peerInfo.getUserName());
-                                }
-                            });
-                        }
-                    }, 1200);
+                    showCrewNotificationProgressBar("Cut!\nWaiting for\n" + peerInfo.getUserName() + "...");
                 }
             }
         });
@@ -676,13 +655,7 @@ public class ConnectionEstablishedActivity
 
                         @Override
                         public void run() {
-
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    hideCrewNotificationProgressBar();
-                                }
-                            });
+                            hideCrewNotificationProgressBar();
                         }
                     }, 1200);
                 }
