@@ -409,6 +409,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     log.info("Attempted to seek to {}, but we are still at 0ms", seekTo);
                     skipFirstFramesHelper(majorVideoAheadOfMinorVideoByMillis, seekTo + PreviewMergeActivity.FIRST_FRAMES_MS_INCREMENT);
                 } else {
+                    long adjustedSeekDiff = majorVideoAheadOfMinorVideoByMillis - (majorVideoSeekedTo - minorVideoSeekedTo);
+                    log.info("Adjusted seek diff from {} to {} based on seek points major,minor={},{}", adjustedSeekDiff, majorVideoAheadOfMinorVideoByMillis, majorVideoSeekedTo, minorVideoSeekedTo);
                     startWithDelay(majorVideoAheadOfMinorVideoByMillis);
                 }
             }
@@ -574,7 +576,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         private int duration;
 
         @Setter
-        private boolean cancelled;
+        private volatile boolean cancelled;
 
         public UpdateSeekBarRunnable(SeekBar seekBar, MediaPlayer mediaPlayer) {
             this.duration = mediaPlayer.getDuration();
