@@ -50,10 +50,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ChameleonApplication extends Application {
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
-    public static final int MEDIA_TYPE_AUDIO = 3;
-
     // Stream image buffer size is set to be the same as minimum socket buffer size
     // which ensures that each image can be transferred in a single send eliminating
     // the need to maintain sequence numbers when sending data. So, we
@@ -63,6 +59,7 @@ public class ChameleonApplication extends Application {
     public static final double DEFAULT_ASPECT_WIDTH_RATIO = 16;
     public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
+    public static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
     public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";

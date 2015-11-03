@@ -50,7 +50,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private static final int AUDIO_BIT_RATE = 256 * 1024;
     private static final int AUDIO_SAMPLES_PER_FRAME = 2 * 1024; // AAC
     private static final int VIDEO_FRAME_RATE = 30;
-    private static final int VIDEO_BIT_RATE = 5000000;
+    private static final int VIDEO_BIT_RATE = 10000000;
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.CAMCORDER;
     private static final int VIDEO_COLOR_FORMAT =
@@ -251,6 +251,10 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
             final long presentationTimeMicros,
             final long frameReceiveTimeMillis) {
 
+        if (videoEncoder == null) {
+            log.debug("Video encoder not setup.. not processing video");
+            return;
+        }
         log.debug("Processing video..");
 
         // Since Qualcomm video encoder (default encoder on Nexus 5, LG G4)

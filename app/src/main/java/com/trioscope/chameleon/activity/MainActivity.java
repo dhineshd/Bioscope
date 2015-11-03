@@ -19,7 +19,6 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 
-import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
@@ -34,7 +33,6 @@ import static android.view.View.OnClickListener;
 
 @Slf4j
 public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    private ChameleonApplication chameleonApplication;
     private GestureDetectorCompat gestureDetector;
     private Set<Intent> processedIntents = new HashSet<Intent>();
 
@@ -44,8 +42,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        chameleonApplication = (ChameleonApplication) getApplication();
 
         gestureDetector = new GestureDetectorCompat(this, new GestureDetector.SimpleOnGestureListener() {
             @Override

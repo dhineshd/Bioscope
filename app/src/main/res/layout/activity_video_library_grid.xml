@@ -10,12 +10,13 @@
         android:background="@color/bioscope_teal">
 
         <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_alignParentRight="true"
             android:layout_centerHorizontal="true"
             android:layout_centerVertical="true"
             android:layout_marginRight="18dp"
+            android:padding="3dp"
             android:adjustViewBounds="true"
             android:src="@drawable/settings_icon"
             android:id="@+id/settings_button"

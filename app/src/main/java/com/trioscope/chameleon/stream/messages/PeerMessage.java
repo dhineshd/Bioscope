@@ -21,7 +21,8 @@ public class PeerMessage {
         STOP_RECORDING,
         STOP_RECORDING_RESPONSE,
         SEND_RECORDED_VIDEO,
-        SEND_RECORDED_VIDEO_RESPONSE
+        SEND_RECORDED_VIDEO_RESPONSE,
+        RETAKE_SESSION
     }
 
     @NonNull
