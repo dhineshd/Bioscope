@@ -103,11 +103,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-
-        // Disabling until library is ready
         return gestureDetector.onTouchEvent(event);
-
-        //return false;
     }
 
     @Override

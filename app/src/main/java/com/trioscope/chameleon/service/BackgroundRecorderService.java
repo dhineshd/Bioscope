@@ -8,7 +8,6 @@ import android.media.MediaRecorder;
 import android.os.IBinder;
 
 import com.trioscope.chameleon.SystemOverlayGLSurface;
-import com.trioscope.chameleon.stream.RecordingEventListener;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +33,6 @@ public class BackgroundRecorderService extends Service {
 
     @Setter
     private File outputFile;
-    @Setter
-    private RecordingEventListener recordingEventListener;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -95,10 +92,6 @@ public class BackgroundRecorderService extends Service {
         }
 
         mediaRecorder.start();
-
-        // Started recording
-        recordingEventListener.onStartRecording(System.currentTimeMillis());
-
 
         LOG.info("Created mediaRecorder {} during surface creation, backgroundRecorderService is {}", mediaRecorder, this);
     }

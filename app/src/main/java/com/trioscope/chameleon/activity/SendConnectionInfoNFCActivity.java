@@ -203,7 +203,8 @@ public class SendConnectionInfoNFCActivity
     protected void onResume() {
         super.onResume();
 
-        log.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
+        log.info("Activity has resumed from background {}",
+                PreferenceManager.getDefaultSharedPreferences(this).getAll());
 
         // Check to see that the Activity started due to an Android Beam
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {

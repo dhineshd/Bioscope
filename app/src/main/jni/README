@@ -1,0 +1,1 @@
+Run 'ndk-build' from command line from inside this directory after making changes to .mk and .cpp files. It will copy the built libraries to the 'libs' directory.
