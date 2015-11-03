@@ -296,27 +296,6 @@ public class ChameleonApplication extends Application {
 
     }
 
-    public void cleanupAndExit() {
-        log.info("Tearing down application resources..");
-
-        //  Tear down server
-        if (connectionServer != null) {
-            connectionServer.stop();
-            connectionServer = null;
-        }
-
-        // Tear down Wifi hotspot
-        tearDownWifiHotspot();
-
-        // Tear down wifi if it was disabled before app was started
-        tearDownWifiIfNecessary();
-
-        // Tear down phone call receiver
-        //unregisterReceiverSafely(incomingPhoneCallBroadcastReceiver);
-
-        System.exit(0);
-    }
-
     public void tearDownWifiHotspot() {
 
         log.debug("Tearing down Wifi components..");

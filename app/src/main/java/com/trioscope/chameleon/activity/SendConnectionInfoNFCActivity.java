@@ -269,9 +269,7 @@ public class SendConnectionInfoNFCActivity
                 task.cancel(true);
             }
         }
-        if (wifiP2pGroupInfoListener != null) {
-            wifiP2pGroupInfoListener = null;
-        }
+        wifiP2pGroupInfoListener = null;
 
         // Tear down wifi hotspot if not needed anymore
         if (!isWifiHotspotRequiredForNextStep) {

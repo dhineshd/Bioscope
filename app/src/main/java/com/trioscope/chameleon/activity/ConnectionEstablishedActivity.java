@@ -55,7 +55,6 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -343,7 +342,7 @@ public class ConnectionEstablishedActivity
                 .executeOnExecutor(asyncTaskThreadPool);
     }
 
-    private boolean isDirector(final PeerInfo peerInfo) {
+    private static boolean isDirector(final PeerInfo peerInfo) {
         return PeerInfo.Role.CREW_MEMBER.equals(peerInfo.getRole());
     }
 
@@ -685,7 +684,6 @@ public class ConnectionEstablishedActivity
 
                 if (peerSocket == null) {
                     peerSocket = sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                    //peerSocket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
                 }
 
                 PrintWriter pw = new PrintWriter(peerSocket.getOutputStream());
@@ -702,7 +700,7 @@ public class ConnectionEstablishedActivity
                     long localCurrentTimeMsAfterReceivingResponse = System.currentTimeMillis();
                     if (recvMsg != null) {
                         PeerMessage message = gson.fromJson(recvMsg, PeerMessage.class);
-                        if (message != null && message.getSendTimeMillis() != null) {
+                        if (message != null && message.getSendTimeMillis() != -1) {
                             long networkLatencyMs = (localCurrentTimeMsAfterReceivingResponse -
                                     localCurrentTimeMsBeforeSendingRequest) / 2;
                             long clockDifferenceMs = message.getSendTimeMillis() -
@@ -754,9 +752,6 @@ public class ConnectionEstablishedActivity
                 }
 
                 SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerInfo.getIpAddress(), peerInfo.getPort());
-                socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
-                log.debug("SSL client enabled protocols {}", Arrays.toString(socket.getEnabledProtocols()));
-                log.debug("SSL client enabled cipher suites {}", Arrays.toString(socket.getEnabledCipherSuites()));
 
                 // Request recorded file from peer
                 PeerMessage peerMsg = PeerMessage.builder()
@@ -1029,7 +1024,6 @@ public class ConnectionEstablishedActivity
         private static final int STREAM_MESSAGE_INTERVAL_MSEC = 5000;
         private static final int MAX_ATTEMPTS_TO_STREAM = 3;
 
-        @NonNull
         private InetAddress peerIp;
         private int port;
 
@@ -1048,7 +1042,6 @@ public class ConnectionEstablishedActivity
                     }
 
                     SSLSocket socket = (SSLSocket) sslSocketFactory.createSocket(peerIp, port);
-                    socket.setEnabledProtocols(new String[]{SSLUtil.SSL_PROTOCOL});
 
                     final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 

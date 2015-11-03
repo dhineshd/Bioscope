@@ -292,7 +292,8 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
         });
     }
 
-    private void retrieveIpAddressAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
+    private void retrieveIpAddressAndEstablishConnection(
+            final WiFiNetworkConnectionInfo connectionInfo) {
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
             String ipAddress = null;
             @Override

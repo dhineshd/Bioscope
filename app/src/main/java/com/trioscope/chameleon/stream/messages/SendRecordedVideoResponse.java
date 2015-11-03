@@ -2,7 +2,6 @@ package com.trioscope.chameleon.stream.messages;
 
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NonNull;
 
 /**
  * Created by dhinesh.dharman on 7/16/15.
@@ -10,9 +9,12 @@ import lombok.NonNull;
 @Builder
 @Getter
 public class SendRecordedVideoResponse {
-    @NonNull
-    private Long fileSizeBytes;
-    @NonNull
-    private Long recordingStartTimeMillis;
+    // Version will be used for handling backward incompatible
+    // changes to message format
+    public static final int CURRENT_VERSION = 1;
+
+    private int version = CURRENT_VERSION;
+    private long fileSizeBytes = -1;
+    private long recordingStartTimeMillis = -1;
     private boolean recordingHorizontallyFlipped;
 }
