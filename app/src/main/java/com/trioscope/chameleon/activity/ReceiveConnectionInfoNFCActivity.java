@@ -30,7 +30,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.zip.Inflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -85,27 +84,12 @@ public class ReceiveConnectionInfoNFCActivity extends EnableForegroundDispatchFo
 
         if (connectionInfoAsJson != null) {
             connectionStatusTextView.setVisibility(TextView.VISIBLE);
-//            WiFiNetworkConnectionInfo connectionInfo =
-//                    gson.fromJson(connectionInfoAsJson, WiFiNetworkConnectionInfo.class);
-            WiFiNetworkConnectionInfo connectionInfo = deserializeConnectionInfo(connectionInfoAsJson);
+            WiFiNetworkConnectionInfo connectionInfo = WiFiNetworkConnectionInfo.
+                    deserializeConnectionInfo(connectionInfoAsJson);
             enableWifiAndEstablishConnection(connectionInfo);
         } else {
             log.warn("connectionInfoAsJson is null");
         }
-    }
-
-    private WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
-        try {
-            Inflater decompresser = new Inflater();
-            decompresser.setInput(bytes);
-            byte[] result = new byte[3500];
-            int resultLength = decompresser.inflate(result);
-            decompresser.end();
-            return gson.fromJson(new String(result, 0, resultLength), WiFiNetworkConnectionInfo.class);
-        } catch (Exception e) {
-            log.error("Failed to deserialize connection info", e);
-        }
-        return null;
     }
 
     @Override

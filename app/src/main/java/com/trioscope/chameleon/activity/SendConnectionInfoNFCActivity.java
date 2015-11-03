@@ -29,7 +29,6 @@ import android.widget.VideoView;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
@@ -44,12 +43,9 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,6 +70,8 @@ public class SendConnectionInfoNFCActivity
     private VideoView nfcTutVideoView;
     private ImageView progressBarInteriorImageView;
     private X509Certificate serverCertificate;
+    private byte[] serializedConnectionInfo;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -125,13 +123,12 @@ public class SendConnectionInfoNFCActivity
         nfcTutVideoView.setVideoPath("android.resource://" + getPackageName() + "/" + R.raw.nfc_tutorial);
 
         nfcTutVideoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                                                  @Override
-                                                  public void onPrepared(MediaPlayer mp) {
-                                                      mp.setLooping(true);
-                                                      mp.setVolume(0, 0);
-                                                  }
-                                              }
-        );
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                mp.setVolume(0f, 0f);
+                mp.setLooping(true);
+            }
+        });
 
         nfcTutVideoView.start();
 
@@ -166,10 +163,7 @@ public class SendConnectionInfoNFCActivity
 
     @Override
     public NdefMessage createNdefMessage(NfcEvent event) {
-        if (wiFiNetworkConnectionInfo != null) {
-            //String text = gson.toJson(wiFiNetworkConnectionInfo, WiFiNetworkConnectionInfo.class);
-            byte[] serializedConnectionInfo = serializeConnectionInfo(wiFiNetworkConnectionInfo);
-
+        if (serializedConnectionInfo != null) {
             log.info("connectionInfo = {}", serializedConnectionInfo.length);
             NdefMessage msg = new NdefMessage(
                     new NdefRecord[]{createMime(
@@ -191,19 +185,6 @@ public class SendConnectionInfoNFCActivity
         return null;
     }
 
-    private byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
-        String str = gson.toJson(connectionInfo);
-        byte[] output = new byte[2000];
-        Deflater compresser = new Deflater();
-        compresser.setLevel(Deflater.BEST_COMPRESSION);
-        compresser.setInput(str.getBytes());
-        compresser.finish();
-        int compressedDataLength = compresser.deflate(output);
-        log.info("Compressed data length = {}", compressedDataLength);
-        compresser.end();
-        return Arrays.copyOfRange(output, 0, compressedDataLength);
-    }
-
     @Override
     public void onNdefPushComplete(NfcEvent event) {
 
@@ -213,7 +194,6 @@ public class SendConnectionInfoNFCActivity
                           public void run() {
                               showProgressBar();
                               connectionStatusTextView.setText("Connecting...");
-
                           }
                       }
         );
@@ -251,25 +231,12 @@ public class SendConnectionInfoNFCActivity
         NdefMessage msg = (NdefMessage) rawMsgs[0];
         // record 0 contains the MIME type, record 1 is the AAR, if present
 
-        final WiFiNetworkConnectionInfo connectionInfo = deserializeConnectionInfo(msg.getRecords()[0].getPayload());
+        final WiFiNetworkConnectionInfo connectionInfo = WiFiNetworkConnectionInfo.
+                deserializeConnectionInfo(msg.getRecords()[0].getPayload());
         processedIntents.add(intent);
 
         DialogFragment newFragment = MultipleWifiHotspotAlertDialogFragment.newInstance(connectionInfo);
         newFragment.show(getFragmentManager(), "dialog");
-    }
-
-    private WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
-        try {
-            Inflater decompresser = new Inflater();
-            decompresser.setInput(bytes);
-            byte[] result = new byte[3500];
-            int resultLength = decompresser.inflate(result);
-            decompresser.end();
-            return gson.fromJson(new String(result, 0, resultLength), WiFiNetworkConnectionInfo.class);
-        } catch (Exception e) {
-            log.error("Failed to deserialize connection info", e);
-        }
-        return null;
     }
 
     @Override
@@ -516,7 +483,10 @@ public class SendConnectionInfoNFCActivity
                                                     .userName(getUserName())
                                                     .certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
                                                     .build();
-                                    //serializedConnectionInfo = getSerializedConnectionInfo(wiFiNetworkConnectionInfo);
+
+                                    serializedConnectionInfo = WiFiNetworkConnectionInfo.
+                                            serializeConnectionInfo(wiFiNetworkConnectionInfo);
+
                                     return null;
                                 }
 

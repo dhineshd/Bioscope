@@ -39,8 +39,6 @@ import java.util.Date;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import javax.microedition.khronos.egl.EGLConfig;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -56,8 +54,9 @@ public class ChameleonApplication extends Application {
     // need to ensure that the compressed stream image size is less than this value.
     public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 16 * 1024;
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
-    public static final double DEFAULT_ASPECT_WIDTH_RATIO = 16;
-    public static final double DEFAULT_ASPECT_HEIGHT_RATIO = 9;
+    public static final int CERTIFICATE_BUFFER_SIZE = 2 * 1024;
+    public static final int DEFAULT_ASPECT_WIDTH_RATIO = 16;
+    public static final int DEFAULT_ASPECT_HEIGHT_RATIO = 9;
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
 
@@ -79,10 +78,6 @@ public class ChameleonApplication extends Application {
     private CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
 
     private boolean previewStarted = false;
-
-    @Getter
-    @Setter
-    private EGLConfig eglConfig;
 
     @Getter
     private PreviewDisplayer previewDisplayer;

@@ -57,6 +57,8 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -110,6 +112,7 @@ public class ConnectionEstablishedActivity
     private List<Long> clockDifferenceMeasurementsMillis = new ArrayList<>();
     private TextView textViewCrewNotification;
 
+    private Executor asyncTaskThreadPool = Executors.newFixedThreadPool(2);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,7 +185,6 @@ public class ConnectionEstablishedActivity
         previewStreamer = new PreviewStreamer(chameleonApplication.getCameraFrameBuffer());
 
         // Start streaming preview from peer
-
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
         streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
@@ -267,8 +269,6 @@ public class ConnectionEstablishedActivity
             public void onClick(View v) {
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
-
-
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
                 receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             }
@@ -340,7 +340,7 @@ public class ConnectionEstablishedActivity
             final Socket peerSocket,
             final boolean shouldWaitForResponse) {
         new SendMessageToPeerTask(msg, peerInfo, peerSocket, shouldWaitForResponse)
-                .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                .executeOnExecutor(asyncTaskThreadPool);
     }
 
     private boolean isDirector(final PeerInfo peerInfo) {
@@ -1031,11 +1031,12 @@ public class ConnectionEstablishedActivity
 
         @NonNull
         private InetAddress peerIp;
-        @NonNull
-        private Integer port;
+        private int port;
 
         @Override
         protected Void doInBackground(Void... params) {
+            final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
+
             while (!isCancelled()) {
 
                 try {
@@ -1051,7 +1052,6 @@ public class ConnectionEstablishedActivity
 
                     final ImageView imageView = (ImageView) findViewById(R.id.imageView_stream_remote);
 
-                    final byte[] buffer = new byte[ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES];
                     InputStream inputStream = socket.getInputStream();
                     final Matrix matrix = new Matrix();
 
