@@ -111,7 +111,7 @@ public class ConnectionEstablishedActivity
     private List<Long> clockDifferenceMeasurementsMillis = new ArrayList<>();
     private TextView textViewCrewNotification;
 
-    private Executor asyncTaskThreadPool = Executors.newFixedThreadPool(2);
+    private Executor asyncTaskThreadPool = Executors.newFixedThreadPool(4);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -161,7 +161,7 @@ public class ConnectionEstablishedActivity
                     sendPeerMessage(PeerMessage.Type.START_SESSION,
                             gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)));
                 }
-            }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            }.executeOnExecutor(asyncTaskThreadPool);
         }
 
 
@@ -185,7 +185,7 @@ public class ConnectionEstablishedActivity
 
         // Start streaming preview from peer
         streamFromPeerTask = new StreamFromPeerTask(peerInfo.getIpAddress(), peerInfo.getPort());
-        streamFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        streamFromPeerTask.executeOnExecutor(asyncTaskThreadPool);
 
         // Create recorder
         recorder = new MediaCodecRecorder(chameleonApplication, chameleonApplication.getCameraFrameBuffer());
@@ -197,8 +197,6 @@ public class ConnectionEstablishedActivity
         } else {
             peerUserNameTextView.setText("Directed by " + peerInfo.getUserName());
         }
-
-
 
         switchCamerasButton = (ImageButton) findViewById(R.id.button_switch_cameras);
         switchCamerasButton.setOnClickListener(new View.OnClickListener() {
@@ -269,7 +267,7 @@ public class ConnectionEstablishedActivity
                 endSessionLayout.setVisibility(View.INVISIBLE);
 
                 receiveVideoFromPeerTask = new ReceiveVideoFromPeerTask(peerInfo);
-                receiveVideoFromPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                receiveVideoFromPeerTask.executeOnExecutor(asyncTaskThreadPool);
             }
         });
 
@@ -467,6 +465,12 @@ public class ConnectionEstablishedActivity
     }
 
     @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        log.info("Memory level = {}", level);
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         log.info("onPause invoked!");
@@ -634,7 +638,7 @@ public class ConnectionEstablishedActivity
                 sendVideoToPeerTask = new SendVideoToPeerTask(
                         clientSocket,
                         localRecordingMetadata);
-                sendVideoToPeerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                sendVideoToPeerTask.executeOnExecutor(asyncTaskThreadPool);
             }
         });
     }
