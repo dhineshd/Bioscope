@@ -16,6 +16,7 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
 import android.os.Build;
+import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -121,7 +122,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             log.info("Camera orientation degrees = {}", cc.get(CameraCharacteristics.SENSOR_ORIENTATION));
             log.info("Camera auto exposure available modes = {}", cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES));
             log.info("Camera auto white-balance available modes = {}", cc.get(CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES));
-        } catch (CameraAccessException e) {
+            log.info("CONTROL_AE_COMPENSATION_RANGE = {}", cc.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE));
+            log.info("CONTROL_AE_COMPENSATION_STEP = {}", cc.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP));
+        } catch (Exception e) {
             log.error("Unable to access camerainformation", e);
         }
     }
@@ -261,7 +264,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private void startPreviewHelper() {
         try {
             updateCameraInfo();
-            CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            final CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
             log.debug("Timestamp source for camera2: {}", characteristics.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE));
 
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -296,6 +299,15 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
                             requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
                                     CaptureRequest.CONTROL_AE_MODE_ON);
+
+                            // Limit frame rate range to guarantee reliable app performance
+                            // Note : (30, 30) is guaranteed to be supported on all devices
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                    Range.create(30, 30));
+
+                            // Set max brightness
+                            requestBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
+                                    characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE).getUpper());
 
 
                             // Finally, we start displaying the camera preview.
