@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -16,6 +17,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,10 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private int streamPreviewWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
     private int streamPreviewHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
     private int consecutiveFailureCount = 0;
+    private ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(
+            cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
+    private ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(
+            streamPreviewWidth * streamPreviewHeight * 3/2);
 
     @Override
     public void startStreaming(OutputStream destOs) {
@@ -68,6 +74,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     }
 
     @Override
+    @Timed
     public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, final FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();
@@ -76,12 +83,16 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
             log.debug("Decided to send current frame across stream");
             try {
                 stream.reset();
+                inputByteBuffer.clear();
+                outputByteBuffer.clear();
                 byte[] byteArray = null;
 
                 if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
                     if (data.getBytes() != null) {
-                        byteArray = CameraFrameUtil.convertYUV420888ByteArrayToJPEGByteArray(
-                                data.getBytes(), stream, cameraWidth, cameraHeight, streamPreviewWidth,
+                        inputByteBuffer.put(data.getBytes());
+                        byteArray = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
+                                inputByteBuffer, outputByteBuffer, stream, cameraWidth,
+                                cameraHeight, streamPreviewWidth,
                                 streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
                     }
                 } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
@@ -94,7 +105,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     byteArray = stream.toByteArray();
                 }
                 if (byteArray != null) {
-                    log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
+                    log.info("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                     StreamMetadata streamMetadata = StreamMetadata.builder()
                             .horizontallyFlipped(frameInfo.isHorizontallyFlipped())
                             .orientationDegrees(frameInfo.getOrientationDegrees())

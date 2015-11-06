@@ -12,6 +12,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 
 import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -77,6 +78,8 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private File outputFile;
     private RecordingMetadata recordingMetadata;
     private volatile int processedCameraFrameCount = 0;
+    private ByteBuffer inputByteBuffer;
+    private ByteBuffer outputByteBuffer;
 
     @Override
     public boolean startRecording() {
@@ -201,6 +204,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     }
 
     @Override
+    @Timed
     public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
         cameraFrameSize = cameraInfo.getCameraResolution();
         long frameReceiveTimeMillis = System.currentTimeMillis();
@@ -266,8 +270,24 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                finalFrameData = ColorConversionUtil.convertI420ToNV12AndReturnByteArray(
-                        frameData.getBytes(), cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+//                finalFrameData = ColorConversionUtil.convertI420ToNV12AndReturnByteArray(
+//                        frameData.getBytes(), cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+                if (inputByteBuffer == null) {
+                    inputByteBuffer = ByteBuffer.allocateDirect(
+                            cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
+                }
+                if (outputByteBuffer == null) {
+                    outputByteBuffer = ByteBuffer.allocateDirect(
+                            cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
+                }
+                inputByteBuffer.clear();
+                outputByteBuffer.clear();
+
+                inputByteBuffer.put(frameData.getBytes());
+                ColorConversionUtil.convertI420ByteBufferToNV12ByteBuffer(
+                        inputByteBuffer, outputByteBuffer,
+                        cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+                finalFrameData = outputByteBuffer.array();
             } else {
                 finalFrameData = frameData.getBytes();
             }
