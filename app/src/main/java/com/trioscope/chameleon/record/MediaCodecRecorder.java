@@ -2,7 +2,6 @@ package com.trioscope.chameleon.record;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
-import android.media.Image;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -21,7 +20,6 @@ import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.util.ColorConversionUtil;
-import com.trioscope.chameleon.util.ImageUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -292,16 +290,6 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
                 finalFrameData = frameData.getBytes();
             }
 
-        } else if (frameData.getImage() != null) {
-            if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.debug("Converting color format from YUV420Planar to YUV420SemiPlanar for image");
-                Image.Plane[] imagePlanes = frameData.getImage().getPlanes();
-                ColorConversionUtil.convertI420ToNV12Method2(imagePlanes[0].getBuffer(),
-                        imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
-                        finalFrameData, cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
-            } else {
-                ImageUtil.getDataFromImage(frameData.getImage(), finalFrameData);
-            }
         }
 
         // Process video

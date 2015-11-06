@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.media.Image;
 
 import com.trioscope.chameleon.util.ColorConversionUtil;
 
@@ -63,27 +62,6 @@ public class CameraFrameUtil {
         ColorConversionUtil.scaleAndConvertI420ByteBufferToNV21ByteBuffer(
                 frameData, outputBuffer, frameWidth, frameHeight, targetWidth, targetHeight);
         YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                quality, stream);
-        return stream.toByteArray();
-    }
-
-    public static byte[] convertYUV420888ImageToJPEGByteArray(
-            final Image frameData,
-            final byte[] outputByteArray,
-            final ByteArrayOutputStream stream,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight,
-            final int quality) {
-        Image.Plane[] imagePlanes = frameData.getPlanes();
-        ColorConversionUtil.scaleAndConvertI420ToNV21Method2(
-                imagePlanes[0].getBuffer(), imagePlanes[1].getBuffer(), imagePlanes[2].getBuffer(),
-                outputByteArray, frameWidth, frameHeight, targetWidth, targetHeight);
-        YuvImage yuvimage = new YuvImage(
-                outputByteArray,
-                ImageFormat.NV21, targetWidth, targetHeight, null);
         yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
                 quality, stream);
         return stream.toByteArray();
