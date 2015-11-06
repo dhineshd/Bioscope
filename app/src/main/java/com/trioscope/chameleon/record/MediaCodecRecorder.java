@@ -55,6 +55,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.CAMCORDER;
     private static final int VIDEO_COLOR_FORMAT =
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible;
+    private static final int CAMERA_FRAMES_TO_SKIP_BEFORE_STARTING_AUDIO_COUNT = 20;
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
@@ -75,12 +76,14 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private byte[] finalFrameData;
     private File outputFile;
     private RecordingMetadata recordingMetadata;
+    private volatile int processedCameraFrameCount = 0;
 
     @Override
     public boolean startRecording() {
         firstFrameReceivedForRecordingTimeMillis = null;
         videoTrackIndex = -1;
         audioTrackIndex = -1;
+        processedCameraFrameCount = 0;
 
         // Start listening for camera frames
         // Note : This should happen before video encoder setup
@@ -306,6 +309,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
 
             if (videoBufferInfo.size != 0 && muxerStarted) {
                 mediaMuxer.writeSampleData(videoTrackIndex, outputBuffer, videoBufferInfo);
+                processedCameraFrameCount++;
 
                 if (firstFrameReceivedForRecordingTimeMillis == null) {
                     firstFrameReceivedForRecordingTimeMillis = frameReceiveTimeMillis;
@@ -366,7 +370,12 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
                 audioBufferInfo.size = 0;
             }
 
-            if (audioBufferInfo.size != 0 && muxerStarted) {
+            // Skipping some frames so that audio track starts after some video frames
+            // have been processed already. This ensures that distorted frames do not
+            // show up at the beginning of the video due to audio starting before video.
+            if (audioBufferInfo.size != 0 &&
+                    muxerStarted &&
+                    processedCameraFrameCount > CAMERA_FRAMES_TO_SKIP_BEFORE_STARTING_AUDIO_COUNT) {
 
                 mediaMuxer.writeSampleData(audioTrackIndex, outputBuffer, audioBufferInfo);
 
