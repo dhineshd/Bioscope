@@ -498,7 +498,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationBuilder.setProgress(100, progressPerc, false);
             String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
-            notificationBuilder.setContentText("Merge progress (" +
+            notificationBuilder.setContentText("Save progress (" +
                     String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 
