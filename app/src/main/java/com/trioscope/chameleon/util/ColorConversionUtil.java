@@ -26,6 +26,7 @@ public class ColorConversionUtil {
             byte[] input, int oldWidth, int oldHeight, int newWidth, int newHeight, boolean inversion);
 
     public static native void scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-            ByteBuffer input, ByteBuffer output, int oldWidth, int oldHeight, int newWidth, int newHeight);
+            ByteBuffer input, ByteBuffer output, ByteBuffer tempBuf,
+            int oldWidth, int oldHeight, int newWidth, int newHeight);
 
 }

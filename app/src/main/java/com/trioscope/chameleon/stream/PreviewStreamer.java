@@ -50,6 +50,8 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
             cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
     private ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(
             streamPreviewWidth * streamPreviewHeight * 3/2);
+    private ByteBuffer tempByteBuffer = ByteBuffer.allocateDirect(
+            streamPreviewWidth * streamPreviewHeight * 3/2);
 
     @Override
     public void startStreaming(OutputStream destOs) {
@@ -91,8 +93,8 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     if (data.getBytes() != null) {
                         inputByteBuffer.put(data.getBytes());
                         byteArray = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
-                                inputByteBuffer, outputByteBuffer, stream, cameraWidth,
-                                cameraHeight, streamPreviewWidth,
+                                inputByteBuffer, outputByteBuffer, tempByteBuffer,
+                                stream, cameraWidth, cameraHeight, streamPreviewWidth,
                                 streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
                     }
                 } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {

@@ -53,6 +53,7 @@ public class CameraFrameUtil {
     public static byte[] convertYUV420888ByteBufferToJPEGByteArray(
             final ByteBuffer frameData,
             final ByteBuffer outputBuffer,
+            final ByteBuffer tempBuffer,
             final ByteArrayOutputStream stream,
             final int frameWidth,
             final int frameHeight,
@@ -60,7 +61,7 @@ public class CameraFrameUtil {
             final int targetHeight,
             final int quality) {
         ColorConversionUtil.scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-                frameData, outputBuffer, frameWidth, frameHeight, targetWidth, targetHeight);
+                frameData, outputBuffer, tempBuffer, frameWidth, frameHeight, targetWidth, targetHeight);
         YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, targetWidth, targetHeight, null);
         yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
                 quality, stream);
