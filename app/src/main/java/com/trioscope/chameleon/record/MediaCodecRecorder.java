@@ -54,7 +54,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.CAMCORDER;
     private static final int VIDEO_COLOR_FORMAT =
             MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible;
-    private static final int CAMERA_FRAMES_TO_SKIP_BEFORE_STARTING_AUDIO_COUNT = 20;
+    private static final int CAMERA_FRAMES_TO_SKIP_BEFORE_STARTING_AUDIO_COUNT = 30;
 
     @NonNull
     private volatile ChameleonApplication chameleonApplication;
