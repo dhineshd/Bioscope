@@ -11,6 +11,5 @@ import lombok.Getter;
 public class RecordingMetadata {
     private String absoluteFilePath;
     private long startTimeMillis;
-    private boolean horizontallyFlipped;
     private String videographer;
 }

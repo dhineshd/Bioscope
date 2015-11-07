@@ -733,7 +733,6 @@ public class ConnectionEstablishedActivity
         private PeerInfo peerInfo;
 
         private Long remoteRecordingStartTimeMillis;
-        private boolean remoteRecordingHorizontallyFlipped;
         private File remoteVideoFile;
 
         @Override
@@ -785,7 +784,6 @@ public class ConnectionEstablishedActivity
                         if (response != null) {
                             fileSizeBytes = response.getFileSizeBytes();
                             remoteRecordingStartTimeMillis = response.getRecordingStartTimeMillis();
-                            remoteRecordingHorizontallyFlipped = response.isRecordingHorizontallyFlipped();
                             log.debug("Local current time before sending request = {}", localCurrentTimeMsBeforeSendingRequest);
                             log.debug("Remote current time = {}", message.getSendTimeMillis());
                             log.debug("Local current time after receiving response = {}", localCurrentTimeMsAfterReceivingResponse);
@@ -867,7 +865,6 @@ public class ConnectionEstablishedActivity
             RecordingMetadata remoteRecordingMetadata = RecordingMetadata.builder()
                     .absoluteFilePath(remoteVideoFile.getAbsolutePath())
                     .startTimeMillis(remoteRecordingStartTimeMillis)
-                    .horizontallyFlipped(remoteRecordingHorizontallyFlipped)
                     .videographer(peerInfo.getUserName())
                     .build();
 
@@ -910,7 +907,6 @@ public class ConnectionEstablishedActivity
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
                         .fileSizeBytes(fileSizeBytes)
                         .recordingStartTimeMillis(recordingMetadata.getStartTimeMillis())
-                        .recordingHorizontallyFlipped(recordingMetadata.isHorizontallyFlipped())
                         .build();
                 PeerMessage responseMsg = PeerMessage.builder()
                         .type(PeerMessage.Type.SEND_RECORDED_VIDEO_RESPONSE)

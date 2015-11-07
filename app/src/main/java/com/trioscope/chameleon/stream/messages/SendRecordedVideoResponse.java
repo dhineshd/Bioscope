@@ -16,5 +16,4 @@ public class SendRecordedVideoResponse {
     private int version = CURRENT_VERSION;
     private long fileSizeBytes = -1;
     private long recordingStartTimeMillis = -1;
-    private boolean recordingHorizontallyFlipped;
 }

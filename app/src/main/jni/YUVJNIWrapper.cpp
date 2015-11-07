@@ -48,7 +48,7 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_conve
 }
 
 JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_convertI420ByteBufferToNV12ByteBuffer(
-        JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv12Buf, int w, int h) {
+        JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv12Buf, int w, int h, bool isHorizontallyFlipped) {
 
     int Ysize = w * h;
 
@@ -59,13 +59,37 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_convertI420
     unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(nv12Buf);
     unsigned char* dst_uv = dst_y + Ysize;
 
-    libyuv::I420ToNV12(
+    I420ToNV12(
             (uint8*) src_y, w,
             (uint8*) src_u, w / 2,
             (uint8*) src_v, w / 2,
             (uint8*) dst_y, w,
             (uint8*) dst_uv, w,
-            w, h);
+            w, isHorizontallyFlipped? -h : h);
+}
+
+JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_transformI420ByteBuffer(
+        JNIEnv* env, jobject thiz, jobject i420InputBuf, jobject i420OutputBuf, int w, int h,
+        bool isHorizontallyFlipped) {
+
+    int Ysize = w * h;
+
+    unsigned char* src_y = (unsigned char*) env->GetDirectBufferAddress(i420InputBuf);
+    unsigned char* src_u = src_y + Ysize;
+    unsigned char* src_v = src_u + (Ysize / 4);
+
+    unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(i420OutputBuf);
+    unsigned char* dst_u = dst_y + Ysize;
+    unsigned char* dst_v = dst_u + (Ysize / 4);
+
+    I420Copy(
+            (uint8*) src_y, w,
+            (uint8*) src_u, w / 2,
+            (uint8*) src_v, w / 2,
+            (uint8*) dst_y, w,
+            (uint8*) dst_u, w / 2,
+            (uint8*) dst_v, w / 2,
+            w, isHorizontallyFlipped? -h : h);
 }
 
 JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndConvertI420ToNV21AndReturnByteArray(

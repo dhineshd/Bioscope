@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
-import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -183,10 +182,10 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 videoMerger.mergeVideos(
                         VideoConfiguration.builder()
                                 .file(new File(majorMetadata.getAbsoluteFilePath()))
-                                .horizontallyFlipped(majorMetadata.isHorizontallyFlipped()).build(),
+                                .build(),
                         VideoConfiguration.builder()
                                 .file(new File(minorMetadata.getAbsoluteFilePath()))
-                                .horizontallyFlipped(minorMetadata.isHorizontallyFlipped()).build(),
+                                .build(),
                         new File(outputFile.getAbsolutePath()),
                         config.build());
 
@@ -251,14 +250,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         this.majorVideoPath = majorVideoPath;
         this.minorVideoPath = minorVideoPath;
 
-        if (majorVideoPath.equals(localRecordingMetadata.getAbsoluteFilePath())) {
-            updateDisplayOrientation(majorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
-            updateDisplayOrientation(minorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
-        } else {
-            updateDisplayOrientation(majorVideoTextureView, remoteRecordingMetadata.isHorizontallyFlipped());
-            updateDisplayOrientation(minorVideoTextureView, localRecordingMetadata.isHorizontallyFlipped());
-        }
-
         try {
             majorVideoMediaPlayer.setDataSource(majorVideoPath);
             majorVideoMediaPlayer.prepare();
@@ -304,23 +295,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
         }
-    }
-
-    private void updateDisplayOrientation(
-            final TextureView textureView,
-            final boolean horizontallyFlipped) {
-
-        Matrix matrix = new Matrix();
-        // Need to generate mirror image
-        if (horizontallyFlipped) {
-            matrix.setScale(-1, 1);
-            matrix.postTranslate(textureView.getLayoutParams().width, 0);
-        } else {
-            matrix.setScale(1, 1);
-            matrix.postTranslate(0, 0);
-        }
-        textureView.setTransform(matrix);
-
     }
 
     @Override
