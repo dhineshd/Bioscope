@@ -13,19 +13,27 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <TextureView
-            android:id="@+id/textureview_major_video"
+        <SurfaceView
+            android:id="@+id/surfaceview_major_video"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center" />
 
-        <TextureView
-            android:id="@+id/textureview_minor_video"
+        <RelativeLayout
             android:layout_width="109dp"
             android:layout_height="186dp"
             android:layout_marginLeft="18dp"
             android:layout_marginBottom="48dp"
-            android:layout_gravity="bottom" />
+            android:layout_gravity="bottom"
+            android:padding="0dp"
+            android:background="@android:color/white">
+
+            <SurfaceView
+                android:id="@+id/surfaceview_minor_video"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+        </RelativeLayout>
 
         <ImageView
             android:layout_width="112dp"
