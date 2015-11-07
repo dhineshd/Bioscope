@@ -130,8 +130,8 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
 }
 
 JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-		JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv21Buf, jobject tempBuf,
-        int oldW, int oldH, int newW, int newH, bool isHorizontallyFlipped) {
+		JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv21Buf, jobject scalingBuf,  jobject rotationBuf,
+        int oldW, int oldH, int newW, int newH, bool isHorizontallyFlipped, int orientationDegrees) {
     int newLen = newW * newH * 3 / 2;
 
     int oldYsize = oldW * oldH;
@@ -141,31 +141,53 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
     unsigned char* src_u = src_y + oldYsize;
     unsigned char* src_v = src_u + (oldYsize / 4);
 
-    unsigned char* temp_y = (unsigned char*) env->GetDirectBufferAddress(tempBuf);
-    unsigned char* temp_u = temp_y + newYsize;
-    unsigned char* temp_v = temp_u + (newYsize / 4);
+    unsigned char* scaling_y = (unsigned char*) env->GetDirectBufferAddress(scalingBuf);
+    unsigned char* scaling_u =scaling_y + newYsize;
+    unsigned char* scaling_v = scaling_u + (newYsize / 4);
 
-    libyuv::I420Scale(
+    I420Scale(
 		src_y, oldW,
 		src_u, oldW / 2,
         src_v, oldW / 2,
         oldW, isHorizontallyFlipped ? -oldH : oldH,
-        temp_y, newW,
-        temp_u, newW / 2,
-        temp_v, newW / 2,
+        scaling_y, newW,
+        scaling_u, newW / 2,
+        scaling_v, newW / 2,
         newW, newH,
-        libyuv::kFilterNone);
+        kFilterNone);
+
+    unsigned char* rotation_y = (unsigned char*) env->GetDirectBufferAddress(rotationBuf);
+    unsigned char* rotation_u = rotation_y + newYsize;
+    unsigned char* rotation_v = rotation_u + (newYsize / 4);
+
+    RotationMode rotationMode;
+    switch (orientationDegrees) {
+        case 90: rotationMode = kRotate90; break;
+        case 180: rotationMode = kRotate180; break;
+        case 270: rotationMode = kRotate270; break;
+        default: rotationMode = kRotate0;
+    }
+
+    I420Rotate(
+            scaling_y, newW,
+            scaling_u, newW / 2,
+            scaling_v, newW / 2,
+            rotation_y, newH,
+            rotation_u, newH / 2,
+            rotation_v, newH / 2,
+            newW, newH,
+            rotationMode);
 
     unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(nv21Buf);
     unsigned char* dst_uv = dst_y + newYsize;
 
-    libyuv::I420ToNV21(
-    (uint8*) temp_y, newW,
-    (uint8*) temp_u, newW / 2,
-    (uint8*) temp_v, newW / 2,
-    (uint8*) dst_y, newW,
-    (uint8*) dst_uv, newW,
-    newW, newH);
+    I420ToNV21(
+        (uint8*) rotation_y, newH,
+        (uint8*) rotation_u, newH / 2,
+        (uint8*) rotation_v, newH / 2,
+        (uint8*) dst_y, newH,
+        (uint8*) dst_uv, newH,
+        newH, newW);
 }
 
 }

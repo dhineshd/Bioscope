@@ -53,19 +53,23 @@ public class CameraFrameUtil {
     public static byte[] convertYUV420888ByteBufferToJPEGByteArray(
             final ByteBuffer frameData,
             final ByteBuffer outputBuffer,
-            final ByteBuffer tempBuffer,
+            final ByteBuffer scalingBuffer,
+            final ByteBuffer rotationBuffer,
             final ByteArrayOutputStream stream,
             final int frameWidth,
             final int frameHeight,
             final int targetWidth,
             final int targetHeight,
             final int quality,
-            final boolean isHorizontallyFlipped) {
+            final boolean isHorizontallyFlipped,
+            final int orientationDegrees) {
         ColorConversionUtil.scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-                frameData, outputBuffer, tempBuffer, frameWidth, frameHeight, targetWidth, targetHeight,
-                isHorizontallyFlipped);
-        YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
+                frameData, outputBuffer, scalingBuffer, rotationBuffer,
+                frameWidth, frameHeight, targetWidth, targetHeight,
+                isHorizontallyFlipped, orientationDegrees);
+        // Swapping height and width since rotation will be 90 or 270 resulting in transpose.
+        YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, targetHeight, targetWidth, null);
+        yuvimage.compressToJpeg(new Rect(0, 0, targetHeight, targetWidth),
                 quality, stream);
         return stream.toByteArray();
     }

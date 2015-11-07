@@ -33,7 +33,6 @@ import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.stream.messages.PeerMessage;
 import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
-import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.network.IpUtil;
@@ -1069,33 +1068,21 @@ public class ConnectionEstablishedActivity
                     while (!isCancelled() && attemptsLeft > 0) {
 
                         boolean streamImageReceived = false;
-                        BufferedReader bufferedReader = new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
-                        String recvMsg = bufferedReader.readLine();
-                        if (recvMsg != null) {
-                            StreamMetadata streamMetadata = gson.fromJson(recvMsg, StreamMetadata.class);
-                            matrix.setScale(1, 1);
-                            matrix.postRotate(streamMetadata.getOrientationDegrees());
-                            final int bytesRead = inputStream.read(buffer);
-                            if (bytesRead != -1) {
-                                streamImageReceived = true;
-                                latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
-                                log.debug("Received preview image from remote server bytes = " + bytesRead);
-                                final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
-                                        BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        if (imageView != null && bmpRef.get() != null) {
-                                            // TODO : Rotate image without using bitmap
-                                            Bitmap rotatedBitmap = Bitmap.createBitmap(
-                                                    bmpRef.get(), 0, 0, bmpRef.get().getWidth(),
-                                                    bmpRef.get().getHeight(), matrix, true);
-                                            imageView.setImageBitmap(rotatedBitmap);
-                                        }
+                        final int bytesRead = inputStream.read(buffer);
+                        if (bytesRead != -1) {
+                            streamImageReceived = true;
+                            latestPeerHeartbeatMessageTimeMs = System.currentTimeMillis();
+                            log.debug("Received preview image from remote server bytes = " + bytesRead);
+                            final WeakReference<Bitmap> bmpRef = new WeakReference<Bitmap>(
+                                    BitmapFactory.decodeByteArray(buffer, 0, bytesRead));
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (imageView != null && bmpRef.get() != null) {
+                                        imageView.setImageBitmap(bmpRef.get());
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                         if (!streamImageReceived) {
                             attemptsLeft--;
