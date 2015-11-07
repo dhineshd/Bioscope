@@ -1,4 +1,4 @@
-<RelativeLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,67 +7,71 @@
     android:paddingLeft="0px"
     android:paddingRight="0px"
     android:paddingTop="0px"
+    android:background="@android:color/black"
     tools:context="com.trioscope.chameleon.activity.PreviewMergeActivity">
 
-    <FrameLayout
+    <RelativeLayout
+        android:id="@+id/relativeLayout_major_video"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:padding="2dp"
+        android:background="@drawable/border_image">
 
         <SurfaceView
             android:id="@+id/surfaceview_major_video"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_gravity="center" />
+            android:layout_centerInParent="true" />
 
-        <RelativeLayout
-            android:layout_width="108dp"
-            android:layout_height="192dp"
-            android:layout_gravity="bottom"
-            android:layout_marginLeft="18dp"
-            android:layout_marginBottom="48dp"
-            android:padding="2dp"
-            android:background="@drawable/border_image">
+    </RelativeLayout>
 
-            <SurfaceView
-                android:id="@+id/surfaceview_minor_video"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_centerInParent="true"/>
+    <RelativeLayout
+        android:id="@+id/relativeLayout_minor_video"
+        android:layout_width="108dp"
+        android:layout_height="192dp"
+        android:layout_gravity="bottom"
+        android:layout_marginLeft="54px"
+        android:layout_marginBottom="300px"
+        android:padding="2dp"
+        android:background="@drawable/border_image">
 
-        </RelativeLayout>
+        <SurfaceView
+            android:id="@+id/surfaceview_minor_video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true"/>
 
-        <com.trioscope.chameleon.views.PrimaryButton
-            android:id="@+id/button_merge"
-            android:background="@drawable/primary_button_small_background"
-            android:stateListAnimator="@anim/button_elevation_anim"
-            android:layout_width="78dp"
-            android:layout_height="78dp"
-            style="@style/primaryButtonSmallText"
-            android:layout_marginBottom="36dp"
-            android:layout_gravity="bottom|center"
-            android:text="Save" />
+    </RelativeLayout>
 
-        <ImageButton
-            android:id="@+id/button_swap_merge_preview"
-            android:src="@drawable/reverse_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="36dp"
-            android:scaleType="fitCenter"
-            android:layout_gravity="bottom|right"
-            android:background="@null" />
+    <com.trioscope.chameleon.views.PrimaryButton
+        android:id="@+id/button_merge"
+        android:background="@drawable/primary_button_small_background"
+        android:stateListAnimator="@anim/button_elevation_anim"
+        android:layout_width="78dp"
+        android:layout_height="78dp"
+        style="@style/primaryButtonSmallText"
+        android:layout_marginBottom="10dp"
+        android:layout_gravity="bottom|center"
+        android:text="Save" />
 
-        <TextView
-            android:id="@+id/textView_touch_replay"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:text="Touch to replay"
-            android:textSize="20sp"
-            android:textColor="#80FFFFFF"
-            android:visibility="invisible"/>
+    <ImageButton
+        android:id="@+id/button_swap_video_positions"
+        android:src="@drawable/reverse_icon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="5dp"
+        android:scaleType="fitCenter"
+        android:layout_gravity="bottom|right"
+        android:background="@null" />
+
+    <ImageButton
+        android:id="@+id/button_switch_preview_mode"
+        android:src="@drawable/side_by_side"
+        android:layout_width="75dp"
+        android:layout_height="75dp"
+        android:layout_margin="5dp"
+        android:scaleType="fitCenter"
+        android:layout_gravity="bottom|left"
+        android:background="@null" />
 
     </FrameLayout>
-
-</RelativeLayout>

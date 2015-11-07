@@ -57,7 +57,7 @@ public class ChameleonApplication extends Application {
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final int CERTIFICATE_BUFFER_SIZE = 3 * 1024;
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
-    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
+    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1280, 720);
     private static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";

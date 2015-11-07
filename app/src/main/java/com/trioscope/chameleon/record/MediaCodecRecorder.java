@@ -314,8 +314,8 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         if (videoInputBufferIndex >= 0) {
             ByteBuffer inputBuffer = videoEncoder.getInputBuffer(videoInputBufferIndex);
             log.debug("video bytebuffer size = {}, frame size = {}", inputBuffer.capacity(), finalFrameData.length);
-            inputBuffer.put(finalFrameData);
-            videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, finalFrameData.length, presentationTimeMicros, 0);
+            inputBuffer.put(finalFrameData, 0, inputBuffer.capacity());
+            videoEncoder.queueInputBuffer(videoInputBufferIndex, 0, inputBuffer.capacity(), presentationTimeMicros, 0);
         }
 
         MediaCodec.BufferInfo videoBufferInfo = new MediaCodec.BufferInfo();

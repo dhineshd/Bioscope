@@ -11,7 +11,12 @@ public interface VideoMerger {
     String MERGE_IN_PROGRESS_NOTIFICATION_TEXT = "Saving file...";
     String MERGE_COMPLETED_NOTIFICATION_TEXT = "Saved file successfully";
 
-    void mergeVideos(VideoConfiguration videoConfig1, VideoConfiguration videoConfig2, File outputDestination, MergeConfiguration configuration);
+    int MERGE_LAYOUT_TYPE_SIDE_BY_SIDE = 1;
+    int MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE = 2;
+
+    void mergeVideos(
+            VideoConfiguration videoConfig1, VideoConfiguration videoConfig2,
+            File outputDestination, MergeConfiguration configuration);
 
     Collection<File> getTemporaryFiles();
 

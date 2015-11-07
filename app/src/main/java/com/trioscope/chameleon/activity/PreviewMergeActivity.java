@@ -1,10 +1,13 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
+import android.graphics.Point;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -13,8 +16,9 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.TextView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -42,11 +46,13 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     private MediaPlayer majorVideoMediaPlayer, minorVideoMediaPlayer;
     private boolean majorVideoSurfaceReady, minorVideoSurfaceReady;
     private SurfaceHolder majorVideoHolder, minorVideoHolder;
+    private RelativeLayout majorVideoLayout, minorVideoLayout;
+    private ImageButton switchPreviewModeButton;
 
-    private TextView touchReplayTextView;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
     boolean doubleBackToExitPressedOnce = false;
+    private int mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,6 +106,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 MergeConfiguration.MergeConfigurationBuilder config = MergeConfiguration.builder();
                 config.videoStartOffsetMilli(offsetMillis);
+                config.mergeLayoutType(mergeLayoutType);
                 videoMerger.mergeVideos(
                         VideoConfiguration.builder()
                                 .file(new File(majorMetadata.getAbsoluteFilePath()))
@@ -115,11 +122,13 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 BioscopeDBHelper helper = new BioscopeDBHelper(PreviewMergeActivity.this);
                 if (minorMetadata.getVideographer() != null) {
                     log.info("Inserting {} as minor videographer", minorMetadata.getVideographer());
-                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, minorMetadata.getVideographer());
+                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER,
+                            minorMetadata.getVideographer());
                 }
                 if (majorMetadata.getVideographer() != null) {
                     log.info("Inserting {} as major videographer", majorMetadata.getVideographer());
-                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER, majorMetadata.getVideographer());
+                    helper.insertVideoInfo(outputFile.getName(), VideoInfoType.VIDEOGRAPHER,
+                            majorMetadata.getVideographer());
                 }
                 helper.close();
 
@@ -128,17 +137,75 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             }
         });
 
-        ImageButton swapMergePreviewButton = (ImageButton) findViewById(R.id.button_swap_merge_preview);
-        swapMergePreviewButton.setOnClickListener(new View.OnClickListener() {
+        ImageButton swapVideoPositions = (ImageButton) findViewById(R.id.button_swap_video_positions);
+        swapVideoPositions.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // swapping the video paths
-                startVideos(minorVideoPath, majorVideoPath,
+                playVideos(minorVideoPath, majorVideoPath,
                         getMajorVideoAheadOfMinorVideoByMillis(minorVideoPath));
             }
         });
 
-        touchReplayTextView = (TextView) findViewById(R.id.textView_touch_replay);
+        switchPreviewModeButton = (ImageButton) findViewById(R.id.button_switch_preview_mode);
+        switchPreviewModeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                majorVideoSurfaceReady = false;
+                minorVideoSurfaceReady = false;
+
+                switchPreviewLayoutMode(majorVideoLayout, minorVideoLayout);
+            }
+        });
+
+        majorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_major_video);
+        minorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_minor_video);
+    }
+
+    private void switchPreviewLayoutMode(
+            final RelativeLayout majorVideoLayout,
+            final RelativeLayout minorVideoLayout) {
+        FrameLayout.LayoutParams majorLayoutParams =
+                (FrameLayout.LayoutParams) majorVideoLayout.getLayoutParams();
+        FrameLayout.LayoutParams minorLayoutParams =
+                (FrameLayout.LayoutParams) minorVideoLayout.getLayoutParams();
+
+        if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+
+            majorLayoutParams.height = 1280;
+            majorLayoutParams.width = 720;
+            majorLayoutParams.setMargins(0, 300, 0, 0);
+            majorLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+            majorVideoLayout.setLayoutParams(majorLayoutParams);
+
+            minorLayoutParams.height = 1280;
+            minorLayoutParams.width = 720;
+            minorLayoutParams.setMargins(0, 300, 0, 0);
+            minorLayoutParams.gravity = Gravity.TOP | Gravity.RIGHT;
+            minorVideoLayout.setLayoutParams(minorLayoutParams);
+
+            switchPreviewModeButton.setImageResource(R.drawable.picture_in_picture);
+            mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE;
+        } else {
+            Display display = getWindowManager().getDefaultDisplay();
+            Point size = new Point();
+            display.getSize(size);
+            majorLayoutParams.width = size.x;
+            majorLayoutParams.height = size.y;
+            majorLayoutParams.setMargins(0, 0, 0, 0);
+            majorLayoutParams.gravity = Gravity.NO_GRAVITY;
+            majorVideoLayout.setLayoutParams(majorLayoutParams);
+
+            minorLayoutParams.height = 732;
+            minorLayoutParams.width = 412;
+            minorLayoutParams.setMargins(54, 0, 0, 300);
+            minorLayoutParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
+            minorVideoLayout.setLayoutParams(minorLayoutParams);
+
+            switchPreviewModeButton.setImageResource(R.drawable.side_by_side);
+            mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE;
+        }
     }
 
     private long getMajorVideoAheadOfMinorVideoByMillis(final String majorVideoPath) {
@@ -155,71 +222,75 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        startVideos(majorVideoPath, minorVideoPath,
+        playVideos(majorVideoPath, minorVideoPath,
                 getMajorVideoAheadOfMinorVideoByMillis(majorVideoPath));
         return true;
     }
 
-    private void startVideos(
+    private void playVideos(
             final String majorVideoPath,
             final String minorVideoPath,
             final long majorVideoAheadOfMinorVideoByMillis) {
-        majorVideoMediaPlayer.reset();
-        minorVideoMediaPlayer.reset();
-
-        this.majorVideoPath = majorVideoPath;
-        this.minorVideoPath = minorVideoPath;
 
         try {
-            majorVideoMediaPlayer.setDataSource(majorVideoPath);
-            majorVideoMediaPlayer.prepare();
-        } catch (IllegalArgumentException | IllegalStateException | IOException e) {
-            log.error("Failed to start major media player", e);
-        }
+            majorVideoMediaPlayer.reset();
+            minorVideoMediaPlayer.reset();
 
-        try {
-            minorVideoMediaPlayer.setDataSource(minorVideoPath);
-            minorVideoMediaPlayer.prepare();
-        } catch (IllegalArgumentException | IllegalStateException | IOException e) {
-            log.error("Failed to start minor media player", e);
-        }
+            this.majorVideoPath = majorVideoPath;
+            this.minorVideoPath = minorVideoPath;
 
-        majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                minorVideoMediaPlayer.stop();
-                touchReplayTextView.setVisibility(View.VISIBLE);
+            try {
+                majorVideoMediaPlayer.setDataSource(majorVideoPath);
+                majorVideoMediaPlayer.prepare();
+            } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+                log.error("Failed to start major media player", e);
             }
-        });
 
-        touchReplayTextView.setVisibility(View.INVISIBLE);
+            try {
+                minorVideoMediaPlayer.setDataSource(minorVideoPath);
+                minorVideoMediaPlayer.prepare();
+            } catch (IllegalArgumentException | IllegalStateException | IOException e) {
+                log.error("Failed to start minor media player", e);
+            }
 
-        log.info("Video Media Players are starting {}", majorVideoAheadOfMinorVideoByMillis);
+            majorVideoMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    minorVideoMediaPlayer.stop();
+                    playVideos(majorVideoPath, minorVideoPath, majorVideoAheadOfMinorVideoByMillis);
+                }
+            });
 
-        // Skip initial part of video
-        log.info("majorVideoAheadOfMinorVideoByMillis = {}", majorVideoAheadOfMinorVideoByMillis);
+            log.info("Video media players are starting {}", majorVideoAheadOfMinorVideoByMillis);
 
-        if (majorVideoAheadOfMinorVideoByMillis < 0) {
-            new Handler(Looper.myLooper()).postDelayed(
-                    new MediaPlayerStartRunnable(majorVideoMediaPlayer),
-                    -majorVideoAheadOfMinorVideoByMillis);
-            minorVideoMediaPlayer.start();
-        } else {
-            new Handler(Looper.myLooper()).postDelayed(
-                    new MediaPlayerStartRunnable(minorVideoMediaPlayer),
-                    majorVideoAheadOfMinorVideoByMillis);
-            majorVideoMediaPlayer.start();
+            // Skip initial part of video
+            log.info("majorVideoAheadOfMinorVideoByMillis = {}", majorVideoAheadOfMinorVideoByMillis);
+
+            if (majorVideoAheadOfMinorVideoByMillis < 0) {
+                new Handler(Looper.myLooper()).postDelayed(
+                        new MediaPlayerStartRunnable(majorVideoMediaPlayer),
+                        -majorVideoAheadOfMinorVideoByMillis);
+                minorVideoMediaPlayer.start();
+            } else {
+                new Handler(Looper.myLooper()).postDelayed(
+                        new MediaPlayerStartRunnable(minorVideoMediaPlayer),
+                        majorVideoAheadOfMinorVideoByMillis);
+                majorVideoMediaPlayer.start();
+            }
+
+            if (!publishedDurationMetrics) {
+                //publish time metrics
+                ChameleonApplication.getMetrics().sendTime(
+                        MetricNames.Category.VIDEO.getName(),
+                        MetricNames.Label.DURATION.getName(),
+                        majorVideoMediaPlayer.getDuration());
+                publishedDurationMetrics = true;
+                log.info("Duration to be published is {}", majorVideoMediaPlayer.getDuration());
+            }
+        } catch (Exception e) {
+            log.error("Failed to play major and minor videos..", e);
         }
 
-        if (!publishedDurationMetrics) {
-            //publish time metrics
-            ChameleonApplication.getMetrics().sendTime(
-                    MetricNames.Category.VIDEO.getName(),
-                    MetricNames.Label.DURATION.getName(),
-                    majorVideoMediaPlayer.getDuration());
-            publishedDurationMetrics = true;
-            log.info("Duration to be published is {}", majorVideoMediaPlayer.getDuration());
-        }
     }
 
     @Override
@@ -298,6 +369,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+
         if (holder == majorVideoHolder) {
             minorVideoSurfaceView.setZOrderOnTop(true);
             majorVideoMediaPlayer.setDisplay(majorVideoHolder);
@@ -312,7 +384,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         }
 
         if (majorVideoSurfaceReady && minorVideoSurfaceReady) {
-            startVideos(
+            playVideos(
                     localRecordingMetadata.getAbsoluteFilePath(),
                     remoteRecordingMetadata.getAbsoluteFilePath(),
                     getMajorVideoAheadOfMinorVideoByMillis(
@@ -341,9 +413,13 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         @Override
         public void run() {
-            long elapsed = System.currentTimeMillis() - startTime;
-            log.info("Actual elapsed time between Runnable creation and run() method = {}ms", elapsed);
-            mediaPlayer.start();
+            try {
+                long elapsed = System.currentTimeMillis() - startTime;
+                log.info("Actual elapsed time between Runnable creation and run() method = {}ms", elapsed);
+                mediaPlayer.start();
+            } catch (Exception e) {
+                log.error("Failed to start media player", e);
+            }
         }
     }
 }

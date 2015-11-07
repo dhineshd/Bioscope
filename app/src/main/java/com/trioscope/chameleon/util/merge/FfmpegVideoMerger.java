@@ -229,10 +229,20 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-b:v");
         params.add("5000k");
         params.add("-filter_complex");
-        params.add("[0] scale=1080:1920 [major]; " +
-                "[1] scale=412:732,drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
-                "[major][minor] overlay=54:main_h-overlay_h-54:eval=init [merged];" +
-                "[merged][2] overlay=main_w-overlay_w-54:main_h-overlay_h-54");
+        if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+            params.add("[0] scale=1080:1920 [major]; " +
+                    "[1] scale=412:732,drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
+                    "[major][minor] overlay=54:main_h-overlay_h-54:eval=init [merged];" +
+                    "[merged][2] overlay=main_w-overlay_w-108:main_h-overlay_h-54");
+        } else if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE) {
+            params.add(
+                    //"[0] pad=i:ih [left]; " +
+                    //"[1] scale=720:1280 [right]; " +
+                    "[0:v:0] pad=iw*2:ih[bg]; [bg][1:v:0]overlay=w [merged];" +
+                    //"[left][1] overlay=w [merged];" +
+                    "[merged][2] overlay=main_w-overlay_w-108:main_h-overlay_h-54");
+
+        }
 
         //OpenH264 doesnt support preset
         //params.add("-preset");
