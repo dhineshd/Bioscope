@@ -67,9 +67,14 @@ public class CameraFrameUtil {
                 frameData, outputBuffer, scalingBuffer, rotationBuffer,
                 frameWidth, frameHeight, targetWidth, targetHeight,
                 isHorizontallyFlipped, orientationDegrees);
-        // Swapping height and width since rotation will be 90 or 270 resulting in transpose.
-        YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, targetHeight, targetWidth, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetHeight, targetWidth),
+        int width = targetWidth, height = targetHeight;
+        if (orientationDegrees == 90 || orientationDegrees == 270) {
+            // Swapping height and width since rotation by 90 or 270 will result in transpose.
+            width = targetHeight;
+            height = targetWidth;
+        }
+        YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, width, height, null);
+        yuvimage.compressToJpeg(new Rect(0, 0, width, height),
                 quality, stream);
         return stream.toByteArray();
     }

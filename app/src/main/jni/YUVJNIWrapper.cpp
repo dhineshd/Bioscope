@@ -160,11 +160,12 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
     unsigned char* rotation_u = rotation_y + newYsize;
     unsigned char* rotation_v = rotation_u + (newYsize / 4);
 
+    int width = newW, height = newH;
     RotationMode rotationMode;
     switch (orientationDegrees) {
-        case 90: rotationMode = kRotate90; break;
+        case 90: rotationMode = kRotate90; width = newH; height = newW; break;
         case 180: rotationMode = kRotate180; break;
-        case 270: rotationMode = kRotate270; break;
+        case 270: rotationMode = kRotate270; width = newH; height = newW; break;
         default: rotationMode = kRotate0;
     }
 
@@ -172,9 +173,9 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
             scaling_y, newW,
             scaling_u, newW / 2,
             scaling_v, newW / 2,
-            rotation_y, newH,
-            rotation_u, newH / 2,
-            rotation_v, newH / 2,
+            rotation_y, width,
+            rotation_u, width / 2,
+            rotation_v, width / 2,
             newW, newH,
             rotationMode);
 
@@ -182,12 +183,12 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
     unsigned char* dst_uv = dst_y + newYsize;
 
     I420ToNV21(
-        (uint8*) rotation_y, newH,
-        (uint8*) rotation_u, newH / 2,
-        (uint8*) rotation_v, newH / 2,
-        (uint8*) dst_y, newH,
-        (uint8*) dst_uv, newH,
-        newH, newW);
+        (uint8*) rotation_y, width,
+        (uint8*) rotation_u, width / 2,
+        (uint8*) rotation_v, width / 2,
+        (uint8*) dst_y, width,
+        (uint8*) dst_uv, width,
+        width, height);
 }
 
 }
