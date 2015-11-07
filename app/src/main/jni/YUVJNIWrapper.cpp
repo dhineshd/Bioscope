@@ -130,7 +130,8 @@ JNIEXPORT jbyteArray Java_com_trioscope_chameleon_util_ColorConversionUtil_scale
 }
 
 JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-		JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv21Buf, jobject tempBuf, int oldW, int oldH, int newW, int newH) {
+		JNIEnv* env, jobject thiz, jobject i420Buf, jobject nv21Buf, jobject tempBuf,
+        int oldW, int oldH, int newW, int newH, bool isHorizontallyFlipped) {
     int newLen = newW * newH * 3 / 2;
 
     int oldYsize = oldW * oldH;
@@ -148,7 +149,7 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
 		src_y, oldW,
 		src_u, oldW / 2,
         src_v, oldW / 2,
-        oldW, oldH,
+        oldW, isHorizontallyFlipped ? -oldH : oldH,
         temp_y, newW,
         temp_u, newW / 2,
         temp_v, newW / 2,

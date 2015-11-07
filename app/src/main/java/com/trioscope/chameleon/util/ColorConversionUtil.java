@@ -27,6 +27,7 @@ public class ColorConversionUtil {
 
     public static native void scaleAndConvertI420ByteBufferToNV21ByteBuffer(
             ByteBuffer input, ByteBuffer output, ByteBuffer tempBuf,
-            int oldWidth, int oldHeight, int newWidth, int newHeight);
+            int oldWidth, int oldHeight, int newWidth, int newHeight,
+            boolean isHorizontallyFlipped);
 
 }

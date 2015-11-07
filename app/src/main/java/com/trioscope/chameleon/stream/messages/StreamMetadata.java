@@ -16,7 +16,5 @@ public class StreamMetadata {
     public static final int CURRENT_VERSION = 1;
 
     private int version = CURRENT_VERSION;
-    // mirror image
-    private boolean horizontallyFlipped;
     private int orientationDegrees;
 }

@@ -95,15 +95,8 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                         byteArray = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
                                 inputByteBuffer, outputByteBuffer, tempByteBuffer,
                                 stream, cameraWidth, cameraHeight, streamPreviewWidth,
-                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
-                    }
-                } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.YV12) {
-                    if (data.getBytes() != null) {
-                        inputByteBuffer.put(data.getBytes());
-                        byteArray = CameraFrameUtil.convertYV12ByteBufferToJPEGByteArray(
-                                inputByteBuffer, outputByteBuffer, tempByteBuffer,
-                                stream, cameraWidth, cameraHeight, streamPreviewWidth,
-                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
+                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY,
+                                frameInfo.isHorizontallyFlipped());
                     }
                 } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
                     byteArray = CameraFrameUtil.convertNV21ToJPEGByteArray(data.getBytes(),
@@ -117,7 +110,6 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                 if (byteArray != null) {
                     log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                     StreamMetadata streamMetadata = StreamMetadata.builder()
-                            .horizontallyFlipped(frameInfo.isHorizontallyFlipped())
                             .orientationDegrees(frameInfo.getOrientationDegrees())
                             .build();
                     PrintWriter pw = new PrintWriter(destOutputStream);
