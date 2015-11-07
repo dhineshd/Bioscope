@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.stream.messages;
+package com.trioscope.chameleon.types;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -9,10 +9,6 @@ import lombok.Getter;
 @Builder
 @Getter
 public class PeerMessage {
-    // Version will be used for handling backward incompatible
-    // changes to message format
-    public static final int CURRENT_VERSION = 1;
-
     public enum Type {
         START_SESSION,
         SEND_STREAM,
@@ -26,7 +22,6 @@ public class PeerMessage {
         RETAKE_SESSION
     }
 
-    private int version = CURRENT_VERSION;
     private Type type;
     private String senderUserName;
     private String contents;

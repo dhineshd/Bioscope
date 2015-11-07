@@ -71,6 +71,7 @@ dependencies {
     apply plugin: 'com.google.gms.google-services'
 
     // BouncyCastle alternative to generate certificates
+    compile 'com.madgag.spongycastle:pkix:1.53.0.0'
     compile 'com.madgag.spongycastle:prov:1.53.0.0'
 
 }

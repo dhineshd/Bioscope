@@ -1,4 +1,4 @@
-package com.trioscope.chameleon.stream.messages;
+package com.trioscope.chameleon.types;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -13,7 +13,7 @@ public class SendRecordedVideoResponse {
     // changes to message format
     public static final int CURRENT_VERSION = 1;
 
-    private int version = CURRENT_VERSION;
+    private int version;
     private long fileSizeBytes = -1;
     private long recordingStartTimeMillis = -1;
 }

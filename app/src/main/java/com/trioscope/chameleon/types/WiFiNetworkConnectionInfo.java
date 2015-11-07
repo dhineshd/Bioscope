@@ -22,7 +22,14 @@ import lombok.extern.slf4j.Slf4j;
 @Builder
 @Slf4j
 public class WiFiNetworkConnectionInfo {
+    // Version will be used for handling backward incompatible
+    // changes to message format
+    public static final int CURRENT_VERSION = 1;
+    public static final int X509_CERTIFICATE_TYPE = 1;
+
     private static Gson gson = new Gson();
+
+    private int version;
     @NonNull
     private String SSID;
     @NonNull
@@ -33,6 +40,8 @@ public class WiFiNetworkConnectionInfo {
     private Integer serverPort;
     @NonNull
     private String userName;
+    @NonNull
+    private int certificateType;
     @NonNull
     private byte[] certificate;
 
@@ -53,6 +62,7 @@ public class WiFiNetworkConnectionInfo {
     public static byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
         String str = gson.toJson(connectionInfo);
         log.info("Uncompressed data length = {}", str.length());
+        log.info("Uncompressed data = {}", str);
         byte[] output = new byte[ChameleonApplication.CERTIFICATE_BUFFER_SIZE];
         Deflater compresser = new Deflater();
         compresser.setLevel(Deflater.BEST_COMPRESSION);

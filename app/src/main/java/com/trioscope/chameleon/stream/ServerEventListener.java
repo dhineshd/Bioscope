@@ -1,6 +1,6 @@
 package com.trioscope.chameleon.stream;
 
-import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.types.PeerMessage;
 
 import java.net.Socket;
 
