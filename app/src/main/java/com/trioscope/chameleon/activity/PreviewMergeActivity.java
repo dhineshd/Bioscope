@@ -36,18 +36,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
         implements SurfaceHolder.Callback {
-    private final Gson gson = new Gson();
+    private static final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
     private SurfaceView majorVideoSurfaceView, minorVideoSurfaceView;
     private MediaPlayer majorVideoMediaPlayer, minorVideoMediaPlayer;
     private boolean majorVideoSurfaceReady, minorVideoSurfaceReady;
     private SurfaceHolder majorVideoHolder, minorVideoHolder;
 
-    private File outputFile;
     private TextView touchReplayTextView;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
-    private boolean isMergeRequested;
     boolean doubleBackToExitPressedOnce = false;
 
     @Override
@@ -96,7 +94,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                             remoteRecordingMetadata.getStartTimeMillis();
                 }
 
-                outputFile = ((ChameleonApplication) getApplication()).createVideoFile(false);
+                File outputFile = ((ChameleonApplication) getApplication()).createVideoFile(false);
 
                 VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
@@ -127,8 +125,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 Intent moveToLibrary = new Intent(PreviewMergeActivity.this, VideoLibraryGridActivity.class);
                 startActivity(moveToLibrary);
-
-                isMergeRequested = true;
             }
         });
 
@@ -254,23 +250,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             minorVideoMediaPlayer.setSurface(null);
             minorVideoMediaPlayer.release();
             minorVideoMediaPlayer = null;
-        }
-
-        // Cleanup videos if we are not merging them
-        if (!isMergeRequested) {
-
-            log.info("Performing cleanup of single videos since we are not merging them");
-
-            try {
-                if (localRecordingMetadata != null) {
-                    new File(localRecordingMetadata.getAbsoluteFilePath()).delete();
-                }
-                if (remoteRecordingMetadata != null) {
-                    new File(remoteRecordingMetadata.getAbsoluteFilePath()).delete();
-                }
-            } catch (Exception e) {
-                // Ignore failures
-            }
         }
     }
 
