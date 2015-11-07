@@ -46,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 3;
+    private static final int MAX_NUM_IMAGES = 2;
     private final Context context;
     private final CameraManager cameraManager;
     private CameraInfo cameraInfo;
@@ -83,7 +83,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         // Supposed to be universally supported by Camera2
         CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
 
-        getSupportedEncodings();
+        Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
@@ -346,10 +346,11 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                                                 firstRequestReceived = System.currentTimeMillis();
                                                 log.debug("Latency between calls is {} ms", firstRequestReceived - requestSentAt);
                                             }
-                                            log.debug("Capture completed - {}, capture delay = {} ms, frame duration = {} ms",
-                                                    result.get(CaptureResult.SENSOR_TIMESTAMP),
-                                                    System.currentTimeMillis() - captureStartTime,
-                                                    result.get(CaptureResult.SENSOR_FRAME_DURATION) / 1000000);
+                                            Long sensorTimestampNs = result.get(CaptureResult.SENSOR_TIMESTAMP);
+                                            Long sensorFrameDurationNs = result.get(CaptureResult.SENSOR_FRAME_DURATION);
+                                            log.debug("Capture completed time {} ns, capture delay = {} ms, frame duration = {} ns",
+                                                    sensorTimestampNs, System.currentTimeMillis() - captureStartTime,
+                                                    sensorFrameDurationNs);
                                         }
 
                                         @Override
@@ -474,6 +475,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 // Reuse buffer
                 ImageUtil.getDataFromImage(image, buffer, tempBuffer);
             }
+
             frameInfo.setTimestampNanos(image.getTimestamp());
 
             frameInfo.setOrientationDegrees(currentOrientationDegrees);
