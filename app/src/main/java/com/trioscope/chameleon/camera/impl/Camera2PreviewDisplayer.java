@@ -46,7 +46,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Camera2PreviewDisplayer implements PreviewDisplayer {
-    private static final int MAX_NUM_IMAGES = 2;
+    private static final int MAX_NUM_IMAGES = 1;
     private final Context context;
     private final CameraManager cameraManager;
     private CameraInfo cameraInfo;
