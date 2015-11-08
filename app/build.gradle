@@ -1,11 +1,14 @@
-import com.android.build.gradle.AppPlugin
-import org.aspectj.bridge.IMessage
-import org.aspectj.bridge.MessageHandler
-import org.aspectj.tools.ajc.Main
-
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            storeFile file('/home/phand/code/chameleon/keystore/privatekey.jks')
+            storePassword 'rohitdhineshphil'
+            keyAlias 'chameleon key store'
+            keyPassword 'rohitdhineshphil'
+        }
+    }
     compileSdkVersion 21
     buildToolsVersion "21.1.2"
     defaultConfig {
@@ -25,11 +28,13 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            debuggable false
+            signingConfig signingConfigs.config
         }
         debug {
+            debuggable true
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            debuggable true
         }
     }
     packagingOptions {
@@ -49,6 +54,7 @@ configurations {
 ext.aspectjVersion = '1.8.5'
 
 dependencies {
+    compile 'com.android.support:multidex:1.0.1'
     provided 'org.projectlombok:lombok:1.16.2'
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:22.2.0+'
@@ -56,53 +62,17 @@ dependencies {
     compile 'com.github.tony19:logback-android-classic:1.1.1-3'
     compile 'org.slf4j:slf4j-api:1.7.12'
     compile 'commons-io:commons-io:2.4'
-    ajc "org.aspectj:aspectjtools:${aspectjVersion}"
+    /*ajc "org.aspectj:aspectjtools:${aspectjVersion}"*/
     compile "org.aspectj:aspectjrt:${aspectjVersion}"
     compile 'org.apache.commons:commons-compress:1.10'
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.apache.commons:commons-lang3:3.4'
     compile 'org.apache.commons:commons-collections4:4.0'
     // To resolve dependency, ensure Google Play Services are installed as an extra through the Android SDK manager
-    compile ('com.google.android.gms:play-services-analytics:8.1.0') {
+    compile('com.google.android.gms:play-services-analytics:8.1.0') {
         exclude module: 'play-services-ads'
     }
     apply plugin: 'com.google.gms.google-services'
     // BouncyCastle alternative to generate certificates
     compile 'com.madgag.spongycastle:prov:1.53.0.0'
-}
-
-android.applicationVariants.all { variant ->
-    AppPlugin plugin = project.plugins.getPlugin(AppPlugin)
-    JavaCompile javaCompile = variant.javaCompile
-    javaCompile.doLast {
-        String[] args = ["-showWeaveInfo",
-                         "-1.5",
-                         "-inpath", javaCompile.destinationDir.toString(),
-                         "-aspectpath", javaCompile.classpath.asPath,
-                         "-d", javaCompile.destinationDir.toString(),
-                         "-classpath", javaCompile.classpath.asPath,
-                         "-bootclasspath", plugin.project.android.bootClasspath.join(
-                File.pathSeparator)]
-
-        logger.lifecycle("Running AJC compiler with args ${args}")
-        MessageHandler handler = new MessageHandler(true);
-        new Main().run(args, handler)
-
-        for (IMessage message : handler.getMessages(null, true)) {
-            switch (message.getKind()) {
-                case IMessage.ABORT:
-                case IMessage.ERROR:
-                case IMessage.FAIL:
-                    logger.error message.message
-                    break;
-                case IMessage.WARNING:
-                case IMessage.INFO:
-                    logger.lifecycle message.message
-                    break;
-                case IMessage.DEBUG:
-                    logger.lifecycle message.message
-                    break;
-            }
-        }
-    }
 }

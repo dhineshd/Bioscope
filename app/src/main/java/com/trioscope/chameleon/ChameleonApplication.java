@@ -1,6 +1,5 @@
 package com.trioscope.chameleon;
 
-import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -11,6 +10,8 @@ import android.hardware.camera2.CameraManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
+import android.support.multidex.MultiDex;
+import android.support.multidex.MultiDexApplication;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
@@ -49,7 +50,7 @@ import lombok.extern.slf4j.Slf4j;
  * Created by phand on 6/4/15.
  */
 @Slf4j
-public class ChameleonApplication extends Application {
+public class ChameleonApplication extends MultiDexApplication {
     // Stream image buffer size is set to be the same as minimum socket buffer size
     // which ensures that each image can be transferred in a single send eliminating
     // the need to maintain sequence numbers when sending data. So, we
@@ -84,7 +85,6 @@ public class ChameleonApplication extends Application {
     @Setter
     private EGLConfig eglConfig;
 
-    @Getter
     private PreviewDisplayer previewDisplayer;
 
     @Getter
@@ -112,6 +112,12 @@ public class ChameleonApplication extends Application {
     private Boolean isWifiEnabledInitially;
 
     private Executor offThreadExecutor = Executors.newSingleThreadExecutor();
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
+    }
 
     @Override
     public void onCreate() {
@@ -189,7 +195,7 @@ public class ChameleonApplication extends Application {
             try {
                 ThreadWithHandler handlerThread = new ThreadWithHandler();
                 String[] cameras = manager.getCameraIdList();
-                log.info("Camera ids are {}, going to open first in list", cameras);
+                log.info("Camera ids are {}, going to open first in list", (String[]) cameras);
                 manager.openCamera(cameras[0], new CameraDevice.StateCallback() {
                     @Override
                     public void onOpened(CameraDevice camera) {
