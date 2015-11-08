@@ -112,6 +112,9 @@ public class ConnectionEstablishedActivity
 
     private Executor asyncTaskThreadPool = Executors.newFixedThreadPool(4);
 
+    //Saves the starttime of when there is only streaming & no recording, this is used for metric-ing purpose.
+    private long preRecordingStartTime;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -134,6 +137,8 @@ public class ConnectionEstablishedActivity
         initializeRecordingTimer();
 
         initializeHeartbeatCheckTimer();
+
+        preRecordingStartTime = System.currentTimeMillis();
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
@@ -208,6 +213,9 @@ public class ConnectionEstablishedActivity
 
         final ImageButton recordButton = (ImageButton) findViewById(R.id.button_record_session);
         recordButton.setOnClickListener(new View.OnClickListener() {
+
+            private long startRecordingTime;
+
             @Override
             public void onClick(View view) {
 
@@ -217,6 +225,15 @@ public class ConnectionEstablishedActivity
                     // Director should send message to crew to stop recording
                     if (isDirector(peerInfo)) {
                         sendPeerMessage(PeerMessage.Type.STOP_RECORDING, true);
+
+                        long endRecordingTime = System.currentTimeMillis();
+
+                        ChameleonApplication.getMetrics().sendTime(
+                                MetricNames.Category.VIDEO.getName(),
+                                MetricNames.Label.RECORDING_DURATION.getName(),
+                                (endRecordingTime - startRecordingTime));
+
+                        log.info("Duration of recording is {} ms", (endRecordingTime - startRecordingTime));
                     }
 
                     stopRecording();
@@ -228,18 +245,30 @@ public class ConnectionEstablishedActivity
 
                     endSessionLayout.setVisibility(View.VISIBLE);
 
-
                 } else {
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
+
+                    //store start time for metrics
+                    startRecordingTime = System.currentTimeMillis();
 
                     // Director should send message to crew to start recording
                     if (isDirector(peerInfo)) {
                         sendPeerMessage(PeerMessage.Type.START_RECORDING, true);
+
+                        //emit metrics
+                        ChameleonApplication.getMetrics().sendTime(
+                                MetricNames.Category.VIDEO.getName(),
+                                MetricNames.Label.STREAM_ONLY_DURATION.getName(),
+                                (startRecordingTime - preRecordingStartTime));
+
+                        log.info("Duration of stream only session is {} ms", (startRecordingTime - preRecordingStartTime));
                     }
 
                     startRecording();
 
                     isRecording = true;
+
+
                 }
             }
         });
@@ -281,6 +310,8 @@ public class ConnectionEstablishedActivity
                 localRecordingMetadata = null;
 
                 sendPeerMessage(PeerMessage.Type.RETAKE_SESSION, false);
+
+                preRecordingStartTime = System.currentTimeMillis();
             }
         });
 
