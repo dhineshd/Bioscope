@@ -110,4 +110,9 @@ android.applicationVariants.all { variant ->
             }
         }
     }
+
+    // Distinguish debug and release versions with suffix
+    if (variant.buildType.name == 'debug') {
+        variant.mergedFlavor.versionName = android.defaultConfig.versionName + "-debug";
+    }
 }
