@@ -50,4 +50,10 @@ public class MetricsHelper {
                 .setCustomMetric(1, value)
                 .build());
     }
+
+    public void sendConnectionHeartBeatTimeoutMetric(int value) {
+        metricsTracker.send(new HitBuilders.ScreenViewBuilder()
+                .setCustomMetric(2, value)
+                .build());
+    }
 }

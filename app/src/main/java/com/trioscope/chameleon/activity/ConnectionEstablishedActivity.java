@@ -466,6 +466,10 @@ public class ConnectionEstablishedActivity
                         > MAX_HEARTBEAT_MESSAGE_INTERVAL_MS) {
                     terminateSession(peerInfo.getUserName() + " unreachable. Ending session..");
                     heartbeatCheckHandler.removeCallbacks(this);
+
+                    ChameleonApplication.getMetrics().sendConnectionHeartBeatTimeoutMetric(1);
+                    log.info("Published metric for connectioHeartBeatTimeout");
+
                 } else {
                     heartbeatCheckHandler.postDelayed(this, HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS);
                 }
