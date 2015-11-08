@@ -162,7 +162,7 @@ public class SSLUtil {
 
         PrivateKey signingKey = keyPair.getPrivate();
         try {
-            ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
+            ContentSigner contentSigner = new JcaContentSignerBuilder("SHA1WithRSAEncryption")
                     .setProvider("BC").build(signingKey);
             return new JcaX509CertificateConverter().setProvider("BC").getCertificate(certBuilder
                     .build(contentSigner));

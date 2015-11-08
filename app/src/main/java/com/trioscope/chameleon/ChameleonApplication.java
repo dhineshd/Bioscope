@@ -54,9 +54,8 @@ public class ChameleonApplication extends Application {
     // need to ensure that the compressed stream image size is less than this value.
     public static final int STREAM_IMAGE_BUFFER_SIZE_BYTES = 16 * 1024;
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
-    public static final int CERTIFICATE_BUFFER_SIZE = 2 * 1024;
-    public static final int DEFAULT_ASPECT_WIDTH_RATIO = 16;
-    public static final int DEFAULT_ASPECT_HEIGHT_RATIO = 9;
+    public static final int CERTIFICATE_BUFFER_SIZE = 3 * 1024;
+    public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
     public static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
 

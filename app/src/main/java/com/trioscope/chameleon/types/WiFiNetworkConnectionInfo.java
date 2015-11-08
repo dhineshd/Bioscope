@@ -40,7 +40,6 @@ public class WiFiNetworkConnectionInfo {
     private Integer serverPort;
     @NonNull
     private String userName;
-    @NonNull
     private int certificateType;
     @NonNull
     private byte[] certificate;
