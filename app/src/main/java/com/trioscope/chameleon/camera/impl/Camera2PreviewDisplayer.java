@@ -100,8 +100,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());
                 int widthRatio = suppportedSize.getWidth() / factor;
                 int heightRatio = suppportedSize.getHeight() / factor;
-                if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_WIDTH_RATIO
-                        && heightRatio == ChameleonApplication.DEFAULT_ASPECT_HEIGHT_RATIO) {
+                if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth()
+                        && heightRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight()) {
                     frameSize = suppportedSize;
                     break;
                 }

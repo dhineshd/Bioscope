@@ -31,7 +31,7 @@ import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.fragment.MultipleWifiHotspotAlertDialogFragment;
 import com.trioscope.chameleon.stream.ServerEventListener;
-import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.types.PeerMessage;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.security.SSLUtil;
@@ -474,12 +474,14 @@ public class SendConnectionInfoNFCActivity
 
                                     wiFiNetworkConnectionInfo =
                                             WiFiNetworkConnectionInfo.builder()
+                                                    .version(WiFiNetworkConnectionInfo.CURRENT_VERSION)
                                                     .SSID(group.getNetworkName())
                                                     .passPhrase(group.getPassphrase())
                                                     .serverIpAddress(getIpAddressForInterface(
                                                             group.getInterface()).getHostAddress())
                                                     .serverPort(ChameleonApplication.SERVER_PORT)
                                                     .userName(getUserName())
+                                                    .certificateType(WiFiNetworkConnectionInfo.X509_CERTIFICATE_TYPE)
                                                     .certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
                                                     .build();
 

@@ -13,28 +13,28 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <TextureView
-            android:id="@+id/textureview_major_video"
+        <SurfaceView
+            android:id="@+id/surfaceview_major_video"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center" />
 
-        <TextureView
-            android:id="@+id/textureview_minor_video"
-            android:layout_width="109dp"
-            android:layout_height="186dp"
-            android:layout_marginLeft="18dp"
-            android:layout_marginBottom="48dp"
-            android:layout_gravity="bottom" />
-
-        <ImageView
-            android:layout_width="112dp"
-            android:layout_height="189dp"
-            android:layout_marginLeft="18dp"
-            android:layout_marginBottom="48dp"
+        <RelativeLayout
+            android:layout_width="108dp"
+            android:layout_height="192dp"
             android:layout_gravity="bottom"
-            android:background="@drawable/border_image"
-            android:visibility="visible" />
+            android:layout_marginLeft="18dp"
+            android:layout_marginBottom="48dp"
+            android:padding="2dp"
+            android:background="@drawable/border_image">
+
+            <SurfaceView
+                android:id="@+id/surfaceview_minor_video"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerInParent="true"/>
+
+        </RelativeLayout>
 
         <com.trioscope.chameleon.views.PrimaryButton
             android:id="@+id/button_merge"

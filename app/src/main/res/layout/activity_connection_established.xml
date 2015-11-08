@@ -19,27 +19,22 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <FrameLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|left"
+        <RelativeLayout
+            android:layout_width="108dp"
+            android:layout_height="192dp"
+            android:layout_gravity="bottom"
             android:layout_marginBottom="48dp"
-            android:layout_marginLeft="18dp">
+            android:layout_marginLeft="18dp"
+            android:padding="2dp"
+            android:background="@drawable/border_image">
 
             <ImageView
                 android:id="@+id/imageView_stream_remote"
-                android:layout_width="109dp"
-                android:layout_height="186dp"
-                android:layout_gravity="center"
-                android:visibility="visible"/>
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerInParent="true"/>
 
-            <ImageView
-                android:layout_width="110dp"
-                android:layout_height="187dp"
-                android:layout_gravity="center"
-                android:background="@drawable/border_image"
-                android:visibility="visible" />
-        </FrameLayout>
+        </RelativeLayout>
 
         <ImageView
             android:layout_width="wrap_content"

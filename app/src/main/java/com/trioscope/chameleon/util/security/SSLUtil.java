@@ -3,8 +3,12 @@ package com.trioscope.chameleon.util.security;
 import com.trioscope.chameleon.aop.Timed;
 
 import org.apache.commons.lang3.time.DateUtils;
-import org.spongycastle.jce.X509Principal;
-import org.spongycastle.x509.X509V3CertificateGenerator;
+import org.spongycastle.asn1.x500.X500Name;
+import org.spongycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.spongycastle.cert.X509v3CertificateBuilder;
+import org.spongycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.spongycastle.operator.ContentSigner;
+import org.spongycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -14,18 +18,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
-import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -149,24 +150,23 @@ public class SSLUtil {
 
     @Timed
     public static X509Certificate generateCertificate(final KeyPair keyPair) {
-        X509V3CertificateGenerator cert = new X509V3CertificateGenerator();
-        cert.setSerialNumber(BigInteger.valueOf(1));   //or generate a random number
-        cert.setSubjectDN(new X509Principal("CN=localhost"));  //see examples to add O,OU etc
-        cert.setIssuerDN(new X509Principal("CN=localhost")); //same since it is self-signed
-        cert.setPublicKey(keyPair.getPublic());
         // Setting cert start date to 1 day ago and 1 day after current time to handle clock skew
         // when certificate is shared with other devices
-        cert.setNotBefore(DateUtils.addDays(new Date(), -1));
-        cert.setNotAfter(DateUtils.addDays(new Date(), 1));
-        cert.setSignatureAlgorithm("SHA1WithRSAEncryption");
+        X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+                new X500Name("CN=localhost"),
+                BigInteger.ONE,
+                DateUtils.addDays(new Date(), -1), // not before
+                DateUtils.addDays(new Date(), 1), // not after
+                new X500Name("CN=localhost"),
+                SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded()));
+
         PrivateKey signingKey = keyPair.getPrivate();
         try {
-            return cert.generate(signingKey, "BC");
-        } catch (NoSuchAlgorithmException |
-                NoSuchProviderException |
-                SignatureException |
-                InvalidKeyException |
-                CertificateException e) {
+            ContentSigner contentSigner = new JcaContentSignerBuilder("SHA1WithRSAEncryption")
+                    .setProvider("BC").build(signingKey);
+            return new JcaX509CertificateConverter().setProvider("BC").getCertificate(certBuilder
+                    .build(contentSigner));
+        } catch (Exception e) {
             log.error("Failed to generate certificate for given keypair", e);
         }
         return null;

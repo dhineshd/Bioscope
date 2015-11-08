@@ -31,8 +31,8 @@ import com.trioscope.chameleon.record.VideoRecorder;
 import com.trioscope.chameleon.stream.NetworkStreamer;
 import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
-import com.trioscope.chameleon.stream.messages.PeerMessage;
-import com.trioscope.chameleon.stream.messages.SendRecordedVideoResponse;
+import com.trioscope.chameleon.types.PeerMessage;
+import com.trioscope.chameleon.types.SendRecordedVideoResponse;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.network.IpUtil;
@@ -915,6 +915,7 @@ public class ConnectionEstablishedActivity
             try {
                 PrintWriter pw = new PrintWriter(clientSocket.getOutputStream());
                 SendRecordedVideoResponse response = SendRecordedVideoResponse.builder()
+                        .version(SendRecordedVideoResponse.CURRENT_VERSION)
                         .fileSizeBytes(fileSizeBytes)
                         .recordingStartTimeMillis(recordingMetadata.getStartTimeMillis())
                         .build();

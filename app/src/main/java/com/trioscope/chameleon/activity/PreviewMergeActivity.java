@@ -1,7 +1,6 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
-import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
@@ -9,11 +8,9 @@ import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.Surface;
-import android.view.TextureView;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -37,20 +34,18 @@ import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity {
-    private final Gson gson = new Gson();
+public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
+        implements SurfaceHolder.Callback {
+    private static final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
-    private TextureView majorVideoTextureView;
-    private TextureView minorVideoTextureView;
-    private MediaPlayer majorVideoMediaPlayer;
-    private MediaPlayer minorVideoMediaPlayer;
-    private boolean majorVideoSurfaceReady;
-    private boolean minorVideoSurfaceReady;
-    private File outputFile;
+    private SurfaceView majorVideoSurfaceView, minorVideoSurfaceView;
+    private MediaPlayer majorVideoMediaPlayer, minorVideoMediaPlayer;
+    private boolean majorVideoSurfaceReady, minorVideoSurfaceReady;
+    private SurfaceHolder majorVideoHolder, minorVideoHolder;
+
     private TextView touchReplayTextView;
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
-    private boolean isMergeRequested;
     boolean doubleBackToExitPressedOnce = false;
 
     @Override
@@ -70,86 +65,12 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer = new MediaPlayer();
         minorVideoMediaPlayer = new MediaPlayer();
 
-        majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
-
-        majorVideoTextureView.getViewTreeObserver().addOnGlobalLayoutListener(
-                new ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        majorVideoTextureView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                        int width = majorVideoTextureView.getMeasuredWidth();
-                        int height = majorVideoTextureView.getMeasuredHeight();
-                        ViewGroup.LayoutParams layoutParams = majorVideoTextureView.getLayoutParams();
-                        layoutParams.width = width;
-                        layoutParams.height = height;
-                        majorVideoTextureView.setLayoutParams(layoutParams);
-                    }
-                });
-
-        majorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-
-                majorVideoMediaPlayer.setSurface(new Surface(surface));
-                majorVideoSurfaceReady = true;
-                if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
-                    startVideos(
-                            localRecordingMetadata.getAbsoluteFilePath(),
-                            remoteRecordingMetadata.getAbsoluteFilePath(),
-                            getMajorVideoAheadOfMinorVideoByMillis(
-                                    localRecordingMetadata.getAbsoluteFilePath()));
-                }
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                return false;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-            }
-        });
-
-        minorVideoTextureView = (TextureView) findViewById(R.id.textureview_minor_video);
-
-        minorVideoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-
-                minorVideoMediaPlayer.setSurface(new Surface(surface));
-                minorVideoMediaPlayer.setVolume(0, 0);
-                minorVideoSurfaceReady = true;
-
-                if (minorVideoSurfaceReady && majorVideoSurfaceReady) {
-                    startVideos(
-                            localRecordingMetadata.getAbsoluteFilePath(),
-                            remoteRecordingMetadata.getAbsoluteFilePath(),
-                            getMajorVideoAheadOfMinorVideoByMillis(
-                                    localRecordingMetadata.getAbsoluteFilePath()));
-                }
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                return false;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
-            }
-        });
+        majorVideoSurfaceView = (SurfaceView) findViewById(R.id.surfaceview_major_video);
+        majorVideoHolder = majorVideoSurfaceView.getHolder();
+        majorVideoHolder.addCallback(this);
+        minorVideoSurfaceView = (SurfaceView) findViewById(R.id.surfaceview_minor_video);
+        minorVideoHolder = minorVideoSurfaceView.getHolder();
+        minorVideoHolder.addCallback(this);
 
         final Button startMergeButton = (Button) findViewById(R.id.button_merge);
         startMergeButton.setOnClickListener(new View.OnClickListener() {
@@ -173,7 +94,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                             remoteRecordingMetadata.getStartTimeMillis();
                 }
 
-                outputFile = ((ChameleonApplication) getApplication()).createVideoFile(false);
+                File outputFile = ((ChameleonApplication) getApplication()).createVideoFile(false);
 
                 VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
 
@@ -204,8 +125,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
                 Intent moveToLibrary = new Intent(PreviewMergeActivity.this, VideoLibraryGridActivity.class);
                 startActivity(moveToLibrary);
-
-                isMergeRequested = true;
             }
         });
 
@@ -236,7 +155,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        startVideos(majorVideoPath, minorVideoPath, getMajorVideoAheadOfMinorVideoByMillis(majorVideoPath));
+        startVideos(majorVideoPath, minorVideoPath,
+                getMajorVideoAheadOfMinorVideoByMillis(majorVideoPath));
         return true;
     }
 
@@ -280,10 +200,14 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         log.info("majorVideoAheadOfMinorVideoByMillis = {}", majorVideoAheadOfMinorVideoByMillis);
 
         if (majorVideoAheadOfMinorVideoByMillis < 0) {
-            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(majorVideoMediaPlayer), -majorVideoAheadOfMinorVideoByMillis);
+            new Handler(Looper.myLooper()).postDelayed(
+                    new MediaPlayerStartRunnable(majorVideoMediaPlayer),
+                    -majorVideoAheadOfMinorVideoByMillis);
             minorVideoMediaPlayer.start();
         } else {
-            new Handler(Looper.myLooper()).postDelayed(new MediaPlayerStartRunnable(minorVideoMediaPlayer), majorVideoAheadOfMinorVideoByMillis);
+            new Handler(Looper.myLooper()).postDelayed(
+                    new MediaPlayerStartRunnable(minorVideoMediaPlayer),
+                    majorVideoAheadOfMinorVideoByMillis);
             majorVideoMediaPlayer.start();
         }
 
@@ -328,33 +252,6 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             minorVideoMediaPlayer.release();
             minorVideoMediaPlayer = null;
         }
-
-        // Release surfaces
-        if (majorVideoTextureView != null &&
-                majorVideoTextureView.getSurfaceTexture() != null) {
-            majorVideoTextureView.getSurfaceTexture().release();
-        }
-        if (minorVideoTextureView != null &&
-                minorVideoTextureView.getSurfaceTexture() != null) {
-            minorVideoTextureView.getSurfaceTexture().release();
-        }
-
-        // Cleanup videos if we are not merging them
-        if (!isMergeRequested) {
-
-            log.info("Performing cleanup of single videos since we are not merging them");
-
-            try {
-                if (localRecordingMetadata != null) {
-                    new File(localRecordingMetadata.getAbsoluteFilePath()).delete();
-                }
-                if (remoteRecordingMetadata != null) {
-                    new File(remoteRecordingMetadata.getAbsoluteFilePath()).delete();
-                }
-            } catch (Exception e) {
-                // Ignore failures
-            }
-        }
     }
 
 
@@ -397,6 +294,40 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 doubleBackToExitPressedOnce = false;
             }
         }, 3000);
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        if (holder == majorVideoHolder) {
+            minorVideoSurfaceView.setZOrderOnTop(true);
+            majorVideoMediaPlayer.setDisplay(majorVideoHolder);
+            majorVideoSurfaceReady = true;
+        }
+
+        if (holder == minorVideoHolder) {
+            minorVideoSurfaceView.setZOrderOnTop(true);
+            minorVideoMediaPlayer.setDisplay(minorVideoHolder);
+            minorVideoMediaPlayer.setVolume(0f, 0f);
+            minorVideoSurfaceReady = true;
+        }
+
+        if (majorVideoSurfaceReady && minorVideoSurfaceReady) {
+            startVideos(
+                    localRecordingMetadata.getAbsoluteFilePath(),
+                    remoteRecordingMetadata.getAbsoluteFilePath(),
+                    getMajorVideoAheadOfMinorVideoByMillis(
+                            localRecordingMetadata.getAbsoluteFilePath()));
+        }
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+
     }
 
     private class MediaPlayerStartRunnable implements Runnable {

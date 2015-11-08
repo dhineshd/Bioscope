@@ -1,7 +1,7 @@
 package com.trioscope.chameleon.stream;
 
 import com.google.gson.Gson;
-import com.trioscope.chameleon.stream.messages.PeerMessage;
+import com.trioscope.chameleon.types.PeerMessage;
 
 import java.io.BufferedReader;
 import java.io.IOException;
