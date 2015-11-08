@@ -9,13 +9,11 @@ import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
-import com.trioscope.chameleon.stream.messages.StreamMetadata;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 
@@ -49,6 +47,10 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(
             cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
     private ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(
+            streamPreviewWidth * streamPreviewHeight * 3/2);
+    private ByteBuffer scalingByteBuffer = ByteBuffer.allocateDirect(
+            streamPreviewWidth * streamPreviewHeight * 3/2);
+    private ByteBuffer rotationByteBuffer = ByteBuffer.allocateDirect(
             streamPreviewWidth * streamPreviewHeight * 3/2);
 
     @Override
@@ -91,9 +93,10 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     if (data.getBytes() != null) {
                         inputByteBuffer.put(data.getBytes());
                         byteArray = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
-                                inputByteBuffer, outputByteBuffer, stream, cameraWidth,
-                                cameraHeight, streamPreviewWidth,
-                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY);
+                                inputByteBuffer, outputByteBuffer, scalingByteBuffer,
+                                rotationByteBuffer, stream, cameraWidth, cameraHeight, streamPreviewWidth,
+                                streamPreviewHeight, STREAMING_COMPRESSION_QUALITY,
+                                frameInfo.isHorizontallyFlipped(), frameInfo.getOrientationDegrees());
                     }
                 } else if (cameraInfos.getEncoding() == CameraInfo.ImageEncoding.NV21) {
                     byteArray = CameraFrameUtil.convertNV21ToJPEGByteArray(data.getBytes(),
@@ -105,14 +108,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
                     byteArray = stream.toByteArray();
                 }
                 if (byteArray != null) {
-                    log.info("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
-                    StreamMetadata streamMetadata = StreamMetadata.builder()
-                            .horizontallyFlipped(frameInfo.isHorizontallyFlipped())
-                            .orientationDegrees(frameInfo.getOrientationDegrees())
-                            .build();
-                    PrintWriter pw = new PrintWriter(destOutputStream);
-                    pw.println(gson.toJson(streamMetadata));
-                    pw.close();
+                    log.debug("Stream image type = {}, size = {} bytes", cameraInfos.getEncoding(), byteArray.length);
                     destOutputStream.write(byteArray, 0, byteArray.length);
                 }
                 previousFrameSendTimeMs = System.currentTimeMillis();

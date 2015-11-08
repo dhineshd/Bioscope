@@ -205,9 +205,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     private List<String> constructPIPArguments(
             final String majorVidPath,
-            final boolean shouldHorizontallyFlipMajorVideo,
             final String minorVidPath,
-            final boolean shouldHorizontallyFlipMinorVideo,
             final String outputPath,
             final MergeConfiguration configuration) {
         List<String> params = new LinkedList<>();
@@ -229,11 +227,10 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("-b:a");
         params.add("256k");
         params.add("-b:v");
-        params.add("10000k");
+        params.add("5000k");
         params.add("-filter_complex");
-        params.add("[0] " + (shouldHorizontallyFlipMajorVideo ? "hflip," : "") + "scale=1080:1920 [major]; " +
-                "[1] " + (shouldHorizontallyFlipMinorVideo ? "hflip," : "") + "scale=412:732, " +
-                "drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
+        params.add("[0] scale=1080:1920 [major]; " +
+                "[1] scale=412:732,drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
                 "[major][minor] overlay=54:main_h-overlay_h-54:eval=init [merged];" +
                 "[merged][2] overlay=main_w-overlay_w-54:main_h-overlay_h-54");
 
@@ -432,9 +429,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
                 List<String> cmdParams = constructPIPArguments(
                         majorVideo.getAbsolutePath(),
-                        majorVideoConfig.isHorizontallyFlipped(),
                         minorVideo.getAbsolutePath(),
-                        minorVideoConfig.isHorizontallyFlipped(),
                         outputFile.getAbsolutePath(),
                         mergeConfiguration);
                 cmdParams.add(0, cmdLocation); // Prepend the parameters with the command line location
@@ -498,7 +493,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                     context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationBuilder.setProgress(100, progressPerc, false);
             String remainingTime = getMinutesAndSeconds(timeRemainingMilli / 1000.0);
-            notificationBuilder.setContentText("Merge progress (" +
+            notificationBuilder.setContentText("Save progress (" +
                     String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 

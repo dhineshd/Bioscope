@@ -12,6 +12,4 @@ import lombok.Builder;
 @Builder
 public class VideoConfiguration {
     private final File file;
-    private final boolean horizontallyFlipped;
-
 }
