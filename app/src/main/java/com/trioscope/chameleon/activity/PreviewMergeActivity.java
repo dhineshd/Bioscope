@@ -303,6 +303,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                     MetricNames.Label.DURATION.getName(),
                     majorVideoMediaPlayer.getDuration());
             publishedDurationMetrics = true;
+            log.info("Duration to be published is {}", majorVideoMediaPlayer.getDuration());
         }
     }
 

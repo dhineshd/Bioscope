@@ -737,9 +737,12 @@ public class ConnectionEstablishedActivity
         private boolean remoteRecordingHorizontallyFlipped;
         private File remoteVideoFile;
 
+        private long startTime;
+
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+            startTime = System.currentTimeMillis();
             showProgressBar("Receiving\nvideo");
         }
 
@@ -849,6 +852,16 @@ public class ConnectionEstablishedActivity
         protected void onPostExecute(Void aVoid) {
             hideProgressBar();
 
+
+            long endTime = System.currentTimeMillis();
+
+            ChameleonApplication.getMetrics().sendTime(
+                    MetricNames.Category.VIDEO.getName(),
+                    MetricNames.Label.TIME_TO_TRANSFER_FILE.getName(),
+                    (endTime - startTime));
+
+            log.info("Time to transfer file is {} ms", (endTime - startTime));
+
             // Compute difference between two clock using multiple measurements
             log.debug("Number of clock difference measurements = {}", clockDifferenceMeasurementsMillis.size());
             long clockDifferenceMsSum = 0;
@@ -889,11 +902,8 @@ public class ConnectionEstablishedActivity
         @NonNull
         private final RecordingMetadata recordingMetadata;
 
-        private long startTime;
-
         @Override
         protected void onPreExecute() {
-            startTime = System.currentTimeMillis();
             super.onPreExecute();
             showProgressBar("Sending\nvideo");
         }
@@ -976,14 +986,6 @@ public class ConnectionEstablishedActivity
 
             openMainActivity();
 
-            long endTime = System.currentTimeMillis();
-
-            ChameleonApplication.getMetrics().sendTime(
-                    MetricNames.Category.VIDEO.getName(),
-                    MetricNames.Label.TIME_TO_TRANSFER_FILE.getName(),
-                    (endTime - startTime));
-
-            log.info("Time to transfer file is {} ms", (endTime - startTime));
 
         }
     }
