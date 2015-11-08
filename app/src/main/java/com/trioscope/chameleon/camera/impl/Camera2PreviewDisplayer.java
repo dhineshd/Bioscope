@@ -15,7 +15,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
-import android.os.Build;
 import android.util.Range;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -87,14 +86,9 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
-        frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+        frameSize = ChameleonApplication.getDefaultCameraPreviewSize();
 
-        // TODO : Fix frame processing latency for API 23 and remove this
-        if (Build.VERSION.SDK_INT == 23) {
-            frameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE_API_23;
-        }
-
-        if (!supportedSizes.contains(ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE)) {
+        if (!supportedSizes.contains(frameSize)) {
             // Find supported size with desired aspect ratio
             for (Size suppportedSize : supportedSizes) {
                 int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());

@@ -71,7 +71,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private volatile int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
 
-    private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
     private byte[] finalFrameData;
     private File outputFile;
     private RecordingMetadata recordingMetadata;
@@ -250,7 +250,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
                 adjustedFrameReceiveTimeMillis);
     }
 
-    private void intializeBuffers() {
+    private void initializeBuffers() {
         if (inputByteBuffer == null) {
             inputByteBuffer = ByteBuffer.allocateDirect(
                     cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2);
@@ -281,9 +281,10 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         // TODO : Find color format used by encoder and use that to determine if conversion is necessary
         if (frameData.getBytes() != null) {
             if (videoEncoder.getCodecInfo().getName().contains("OMX.qcom")) {
-                log.debug("Performing color conversion..");
+                log.debug("Performing color conversion.. w = {}, h = {}",
+                        cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
 
-                intializeBuffers();
+                initializeBuffers();
                 inputByteBuffer.put(frameData.getBytes());
                 ColorConversionUtil.convertI420ByteBufferToNV12ByteBuffer(
                         inputByteBuffer, outputByteBuffer,
@@ -292,9 +293,10 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
                 finalFrameData = outputByteBuffer.array();
             } else {
                 if (frameInfo.isHorizontallyFlipped()) {
-                    log.debug("Transforming horizontally flipped..");
+                    log.info("Transforming horizontally flipped.. w = {}, h = {}",
+                            cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
 
-                    intializeBuffers();
+                    initializeBuffers();
                     inputByteBuffer.put(frameData.getBytes());
                     ColorConversionUtil.transformI420ByteBuffer(
                             inputByteBuffer, outputByteBuffer,

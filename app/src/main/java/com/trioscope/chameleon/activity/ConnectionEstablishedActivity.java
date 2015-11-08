@@ -960,7 +960,7 @@ public class ConnectionEstablishedActivity
                         .contents(gson.toJson(response))
                         .sendTimeMillis(System.currentTimeMillis())
                         .build();
-                log.debug("Sending file size msg = {}", gson.toJson(responseMsg));
+                log.info("Sending file size msg = {}", gson.toJson(responseMsg));
                 pw.println(gson.toJson(responseMsg));
                 pw.close();
 

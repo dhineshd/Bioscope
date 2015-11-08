@@ -10,6 +10,7 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Build;
 import android.os.Environment;
 import android.view.SurfaceView;
 
@@ -56,8 +57,8 @@ public class ChameleonApplication extends Application {
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final int CERTIFICATE_BUFFER_SIZE = 3 * 1024;
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
-    public static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
-    public static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
+    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1920, 1080);
+    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
     public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";
@@ -420,5 +421,13 @@ public class ChameleonApplication extends Application {
                 // ignoring this since this can happen due to some race conditions
             }
         }
+    }
+
+    public static Size getDefaultCameraPreviewSize() {
+        // TODO : Fix frame processing latency for 1080p for API 23 and remove this
+        if (Build.VERSION.SDK_INT == 23) {
+            return DEFAULT_CAMERA_PREVIEW_SIZE_API_23;
+        }
+        return DEFAULT_CAMERA_PREVIEW_SIZE;
     }
 }

@@ -40,7 +40,7 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     private final ByteArrayOutputStream stream =
             new ByteArrayOutputStream(ChameleonApplication.STREAM_IMAGE_BUFFER_SIZE_BYTES);
     private final Gson gson = new Gson();
-    private Size cameraFrameSize = ChameleonApplication.DEFAULT_CAMERA_PREVIEW_SIZE;
+    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
     private int streamPreviewWidth = DEFAULT_STREAM_IMAGE_SIZE.getWidth();
     private int streamPreviewHeight = DEFAULT_STREAM_IMAGE_SIZE.getHeight();
     private int consecutiveFailureCount = 0;
