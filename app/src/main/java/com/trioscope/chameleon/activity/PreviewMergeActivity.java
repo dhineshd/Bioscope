@@ -173,15 +173,18 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
 
         if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
 
-            majorLayoutParams.height = 1280;
-            majorLayoutParams.width = 720;
-            majorLayoutParams.setMargins(0, 300, 0, 0);
+            Display display = getWindowManager().getDefaultDisplay();
+            Point size = new Point();
+            display.getSize(size);
+            majorLayoutParams.height = (size.x / 2) * ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() / ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
+            majorLayoutParams.width = size.x / 2;
+            majorLayoutParams.setMargins(0, 200, 0, 0);
             majorLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = 1280;
-            minorLayoutParams.width = 720;
-            minorLayoutParams.setMargins(0, 300, 0, 0);
+            minorLayoutParams.height = (size.x / 2) * ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() / ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
+            minorLayoutParams.width = size.x / 2;
+            minorLayoutParams.setMargins(0, 200, 0, 0);
             minorLayoutParams.gravity = Gravity.TOP | Gravity.RIGHT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
 
