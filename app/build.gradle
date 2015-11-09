@@ -13,8 +13,8 @@ android {
         applicationId "com.trioscope.chameleon"
         minSdkVersion 21
         targetSdkVersion 21
-        versionCode 11
-        versionName "11"
+        versionCode 12
+        versionName "12"
         // Enabling multidex support.
         multiDexEnabled true
     }
