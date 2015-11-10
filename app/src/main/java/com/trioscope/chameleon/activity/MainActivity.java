@@ -1,15 +1,12 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.DialogFragment;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.nfc.NdefMessage;
-import android.nfc.NfcAdapter;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.view.GestureDetector;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -20,21 +17,16 @@ import android.widget.Button;
 import android.widget.ImageButton;
 
 import com.trioscope.chameleon.R;
-import com.trioscope.chameleon.fragment.EnableNfcAndAndroidBeamDialogFragment;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
-
-import java.util.HashSet;
-import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
 import static android.view.View.OnClickListener;
 
 @Slf4j
-public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class MainActivity extends AppCompatActivity {
     private GestureDetectorCompat gestureDetector;
-    private Set<Intent> processedIntents = new HashSet<Intent>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +51,6 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
         log.info("Created main activity");
 
         final Button startSessionButton = (Button) findViewById(R.id.button_main_start_session);
-
         startSessionButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -68,10 +59,10 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                 boolean isOpenHEnabled = preferences.getBoolean(getString(R.string.pref_codec_key), true);
 
                 if (isOpenHEnabled) {
-                    Intent i = new Intent(MainActivity.this, SendConnectionInfoNFCActivity.class);
+                    Intent i = new Intent(MainActivity.this, SendConnectionInfoActivity.class);
                     startActivity(i);
                 } else {
-                    log.info("OpenH264 is disabled, not going to move to SendConnectionInfoNFCActivity");
+                    log.info("OpenH264 is disabled, not going to move to SendConnectionInfoActivity");
                     new AlertDialog.Builder(MainActivity.this)
                             .setIcon(android.R.drawable.ic_dialog_alert)
                             .setTitle(R.string.openh_disabled_warn_title)
@@ -80,6 +71,16 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
                             .setCancelable(false)
                             .show();
                 }
+            }
+        });
+
+        final Button joinSessionButton = (Button) findViewById(R.id.button_main_join_session);
+        joinSessionButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                log.info("Join session button pressed");
+                Intent i = new Intent(MainActivity.this, ReceiveConnectionInfoActivity.class);
+                startActivity(i);
             }
         });
 
@@ -138,51 +139,7 @@ public class MainActivity extends EnableForegroundDispatchForNFCMessageActivity 
     protected void onResume() {
         super.onResume();
 
-        log.info("Activity has resumed from background {}", PreferenceManager.getDefaultSharedPreferences(this).getAll());
-
-        if (doesDeviceSupportNFC()) {
-            if (!mNfcAdapter.isEnabled() || !mNfcAdapter.isNdefPushEnabled()) {
-                DialogFragment newFragment = EnableNfcAndAndroidBeamDialogFragment
-                        .newInstance(mNfcAdapter.isEnabled(), mNfcAdapter.isNdefPushEnabled());
-                newFragment.show(getFragmentManager(), "dialog");
-            }
-        }
-
-        // Check to see that the Activity started due to an Android Beam
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
-            processIntent(getIntent());
-        }
-    }
-
-    @Override
-    public void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        log.info("new intent received {}", intent);
-        // onResume gets called after this to handle the intent
-        setIntent(intent);
-    }
-
-    /**
-     * Parses the NDEF Message from the intent and prints to the TextView
-     */
-    void processIntent(Intent intent) {
-        if (processedIntents.contains(intent)) {
-            log.info("Ignoring already processed intent = {}", intent);
-            return;
-        }
-        log.info("Processing intent = {}", intent);
-        Parcelable[] rawMsgs = intent.getParcelableArrayExtra(
-                NfcAdapter.EXTRA_NDEF_MESSAGES);
-        // only one message sent during the beam
-        NdefMessage msg = (NdefMessage) rawMsgs[0];
-        // record 0 contains the MIME type, record 1 is the AAR, if present
-
-        //call ReceiveConnectionInfoActivity
-
-        Intent i = new Intent(this, ReceiveConnectionInfoNFCActivity.class);
-        i.putExtra(ConnectionEstablishedActivity.CONNECTION_INFO_AS_JSON_EXTRA,
-                msg.getRecords()[0].getPayload());
-        startActivity(i);
-        processedIntents.add(intent);
+        log.info("Activity has resumed from background {}",
+                PreferenceManager.getDefaultSharedPreferences(this).getAll());
     }
 }

@@ -11,7 +11,6 @@ import android.os.AsyncTask;
 import android.os.Build;
 
 import com.trioscope.chameleon.ChameleonApplication;
-import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -202,7 +201,6 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     }
 
     @Override
-    @Timed
     public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
         cameraFrameSize = cameraInfo.getCameraResolution();
         long frameReceiveTimeMillis = System.currentTimeMillis();

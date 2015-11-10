@@ -3,8 +3,6 @@ package com.trioscope.chameleon.util;
 import android.graphics.ImageFormat;
 import android.media.Image;
 
-import com.trioscope.chameleon.aop.Timed;
-
 import java.nio.ByteBuffer;
 
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ImageUtil {
-    @Timed
+
     public static byte[] getDataFromImage(final Image image, byte[] tempBuffer) {
         int format = image.getFormat();
         int width = image.getWidth();
@@ -32,11 +30,8 @@ public class ImageUtil {
         return data;
     }
 
-    @Timed
     public static void getDataFromImage(final Image image, final byte[] data, byte[] tempBuffer) {
         int format = image.getFormat();
-        int width = image.getWidth();
-        int height = image.getHeight();
         int pixelStride;
         // Read image data
         Image.Plane[] planes = image.getPlanes();
@@ -48,16 +43,6 @@ public class ImageUtil {
             buffer.get(data);
         } else if (format == ImageFormat.YUV_420_888) {
             int offset = 0;
-
-            // y-plane
-
-            // Special case: optimized read of all rows
-//            ByteBuffer buffer = planes[0].getBuffer();
-//            int length = buffer.remaining();
-//            buffer.get(data, offset, length);
-//            offset += length;
-
-            // u and v planes
 
             for (int i = 0; i < planes.length; i++) {
                 ByteBuffer buffer = planes[i].getBuffer();
@@ -85,7 +70,6 @@ public class ImageUtil {
         }
     }
 
-    @Timed
     private static int copyBuffer(final int length, final int pixelStride, final byte[] data,
                                   final byte[] tempBuffer, int offset) {
         int len = length / pixelStride;

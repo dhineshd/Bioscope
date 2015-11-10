@@ -1,6 +1,5 @@
 package com.trioscope.chameleon.activity;
 
-import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -12,6 +11,7 @@ import android.preference.PreferenceManager;
 import android.preference.SwitchPreference;
 import android.support.v7.app.AlertDialog;
 import android.widget.TextView;
+import android.support.v7.app.AppCompatActivity;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
@@ -22,8 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * Created by phand on 7/24/15.
  */
 @Slf4j
-public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageActivity {
-
+public class PreferencesActivity extends AppCompatActivity {
     private TextView versionNameTextView;
 
     @Override

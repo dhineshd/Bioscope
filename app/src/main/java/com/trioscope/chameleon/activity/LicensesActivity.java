@@ -1,8 +1,8 @@
 package com.trioscope.chameleon.activity;
 
 import android.content.Context;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-public class LicensesActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class LicensesActivity extends AppCompatActivity {
 
     private TextView licensesTextView;
 

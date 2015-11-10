@@ -1,6 +1,5 @@
 package com.trioscope.chameleon.listener;
 
-import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.types.CameraInfo;
 
@@ -15,7 +14,6 @@ public class CameraFrameBuffer {
     private volatile Set<CameraFrameAvailableListener> listeners =
             Collections.newSetFromMap(new ConcurrentHashMap<CameraFrameAvailableListener, Boolean>());
 
-    @Timed
     public void frameAvailable(final CameraInfo cameraInfo, final CameraFrameData frameData, final FrameInfo frameInfo) {
         for (CameraFrameAvailableListener listener : listeners) {
             listener.onFrameAvailable(cameraInfo, frameData, frameInfo);

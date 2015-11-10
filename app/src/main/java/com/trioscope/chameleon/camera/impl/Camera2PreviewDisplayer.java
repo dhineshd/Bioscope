@@ -21,7 +21,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.ChameleonApplication;
-import com.trioscope.chameleon.aop.Timed;
+import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
@@ -57,6 +57,8 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     private Size frameSize;
     private int curLensFacing = -1;
     private int currentOrientationDegrees;
+    @Setter
+    private CameraParams cameraParams;
 
 
     @Setter
@@ -128,10 +130,11 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     }
 
     @Override
-    public void startPreview() {
+    public void startPreview(final CameraParams cameraParams) {
+        this.cameraParams = cameraParams;
         log.debug("Starting camera preview");
         if (previewSurface != null)
-            startPreviewHelper();
+            startPreviewHelper(cameraParams);
         else
             shouldStartPreviewHelper = true;
     }
@@ -223,7 +226,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 }
 
                 log.debug("Restarting cameraPreview");
-                startPreview();
+                startPreview(cameraParams);
             }
         } catch (CameraAccessException e) {
             log.error("Unable to access camera information", e);
@@ -255,7 +258,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         return sizes;
     }
 
-    private void startPreviewHelper() {
+    private void startPreviewHelper(final CameraParams cameraParams) {
         try {
             updateCameraInfo();
             final CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
@@ -285,8 +288,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                         // When the session is ready, we start displaying the preview.
                         captureSession = session;
                         try {
-                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
-                                    CaptureRequest.CONTROL_AF_MODE_AUTO);
+                            int autoFocusMode = CaptureRequest.CONTROL_AF_MODE_AUTO;
+                            if (cameraParams != null) {
+                                autoFocusMode = cameraParams.getAutoFocusMode();
+                                log.info("Auto focus mode = {}", autoFocusMode);
+                            }
+                            requestBuilder.set(CaptureRequest.CONTROL_AF_MODE, autoFocusMode);
 
                             requestBuilder.set(CaptureRequest.CONTROL_AWB_MODE,
                                     CaptureRequest.CONTROL_AWB_MODE_AUTO);
@@ -422,7 +429,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                 Camera2PreviewDisplayer.this.previewSurface = holder.getSurface();
 
                 if (shouldStartPreviewHelper)
-                    startPreviewHelper();
+                    startPreviewHelper(cameraParams);
             }
 
             @Override
@@ -446,7 +453,6 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         byte[] tempBuffer;
 
         @Override
-        @Timed
         public void onImageAvailable(final ImageReader reader) {
             //TODO : Are we dropping images by not using acquireNextImage?
             Image image = reader.acquireLatestImage();

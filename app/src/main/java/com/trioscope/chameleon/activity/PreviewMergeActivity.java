@@ -7,6 +7,7 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.Menu;
@@ -41,7 +42,7 @@ import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
+public class PreviewMergeActivity extends AppCompatActivity
         implements TextureView.SurfaceTextureListener {
     private static final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;

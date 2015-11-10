@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.support.v4.view.GestureDetectorCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.text.format.DateUtils;
 import android.util.LruCache;
 import android.view.GestureDetector;
@@ -62,7 +63,7 @@ import lombok.extern.slf4j.Slf4j;
  * Created by phand on 9/23/15.
  */
 @Slf4j
-public class VideoLibraryGridActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class VideoLibraryGridActivity extends AppCompatActivity {
     // Newest files first comparator
     private static final Comparator<File> LAST_MODIFIED_COMPARATOR = new Comparator<File>() {
         @Override
