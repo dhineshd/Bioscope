@@ -10,6 +10,7 @@ import android.preference.PreferenceManager;
 import android.preference.SwitchPreference;
 import android.support.v7.app.AlertDialog;
 
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 
 import lombok.extern.slf4j.Slf4j;
@@ -87,7 +88,16 @@ public class PreferencesActivity extends Activity {
                                 }
                             }).show();
                 }
-            } else {
+            } else if (getString(R.string.pref_ga_display_features_key).equals(key)) {
+
+                final SwitchPreference connectionPref = (SwitchPreference) findPreference(key);
+                boolean isOn = connectionPref.isChecked();
+                log.info("User changed the pref_ga_display_features_key Setting, current value is {}", isOn);
+
+                ChameleonApplication.getMetrics().setShouldEnableAdvertisingIdCollection(isOn);
+            }
+
+            else {
                 log.info("Unknown preference change for key '{}'", key);
             }
 

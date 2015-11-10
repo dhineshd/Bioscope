@@ -21,6 +21,10 @@
         <SwitchPreference
             android:key="@string/pref_codec_key"
             android:title="OpenH264 Codec" />
+        <SwitchPreference
+            android:key="@string/pref_ga_display_features_key"
+            android:title="Use Google Analytics Display Features"
+            android:checked="true" />
     </PreferenceCategory>
 
 </PreferenceScreen>
