@@ -17,8 +17,8 @@
         android:padding="2dp"
         android:background="@drawable/border_image">
 
-        <SurfaceView
-            android:id="@+id/surfaceview_major_video"
+        <TextureView
+            android:id="@+id/textureview_major_video"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_centerInParent="true" />
@@ -35,43 +35,73 @@
         android:padding="2dp"
         android:background="@drawable/border_image">
 
-        <SurfaceView
-            android:id="@+id/surfaceview_minor_video"
+        <TextureView
+            android:id="@+id/textureview_minor_video"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_centerInParent="true"/>
 
     </RelativeLayout>
 
-    <com.trioscope.chameleon.views.PrimaryButton
-        android:id="@+id/button_merge"
-        android:background="@drawable/primary_button_small_background"
-        android:stateListAnimator="@anim/button_elevation_anim"
-        android:layout_width="78dp"
-        android:layout_height="78dp"
-        style="@style/primaryButtonSmallText"
-        android:layout_marginBottom="10dp"
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/linearLayout_buttons"
         android:layout_gravity="bottom|center"
-        android:text="Save" />
-
-    <ImageButton
-        android:id="@+id/button_swap_video_positions"
-        android:src="@drawable/reverse_icon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:layout_margin="5dp"
-        android:scaleType="fitCenter"
-        android:layout_gravity="bottom|right"
-        android:background="@null" />
+        android:weightSum="4">
 
-    <ImageButton
-        android:id="@+id/button_switch_preview_mode"
-        android:src="@drawable/side_by_side"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="5dp"
-        android:scaleType="fitCenter"
-        android:layout_gravity="bottom|left"
-        android:background="@null" />
+        <View
+            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_width="0dp"/>
+
+        <ImageButton
+            android:id="@+id/button_swap_video_positions"
+            android:src="@drawable/reverse_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|left"
+            android:layout_marginTop="5dp"
+            android:scaleType="fitCenter"
+            android:background="@null" />
+
+        <View
+            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_width="0dp"/>
+
+        <com.trioscope.chameleon.views.PrimaryButton
+            android:id="@+id/button_merge"
+            android:background="@drawable/primary_button_small_background"
+            android:stateListAnimator="@anim/button_elevation_anim"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            style="@style/primaryButtonSmallText"
+            android:text="Save" />
+
+        <View
+            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_width="0dp"/>
+
+        <ImageButton
+            android:id="@+id/button_switch_preview_mode"
+            android:src="@drawable/side_by_side"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|right"
+            android:layout_marginTop="5dp"
+            android:scaleType="fitCenter"
+            android:background="@null" />
+
+        <View
+            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:layout_width="0dp"/>
+
+    </LinearLayout>
 
     </FrameLayout>
