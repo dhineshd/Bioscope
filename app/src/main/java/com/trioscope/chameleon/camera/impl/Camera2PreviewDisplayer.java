@@ -299,11 +299,6 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                             requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
                                     Range.create(30, 30));
 
-                            // Set max brightness
-                            requestBuilder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION,
-                                    characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE).getUpper());
-
-
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
 
