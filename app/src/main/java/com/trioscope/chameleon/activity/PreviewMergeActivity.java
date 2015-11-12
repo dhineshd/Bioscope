@@ -236,6 +236,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE;
         }
 
+        updateZOrderOfLayouts(majorVideoLayout, minorVideoLayout, buttonsLayout);
     }
 
     private void swapVideoPositions(
@@ -248,10 +249,20 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoLayout.setLayoutParams(minorVideoLayout.getLayoutParams());
         minorVideoLayout.setLayoutParams(tempLayoutParams);
 
+        updateZOrderOfLayouts(majorVideoLayout, minorVideoLayout, buttonsLayout);
+    }
+
+    private void updateZOrderOfLayouts(
+            final View majorVideoLayout,
+            final View minorVideoLayout,
+            final View buttonsLayout) {
+
         if (majorVideoLayout.getLayoutParams().height < minorVideoLayout.getLayoutParams().height) {
             majorVideoLayout.bringToFront();
-        } else {
+        } else if (majorVideoLayout.getLayoutParams().height > minorVideoLayout.getLayoutParams().height) {
             minorVideoLayout.bringToFront();
+        } else {
+            // no change in view position in stack since both layouts are of equal height
         }
         // Buttons show always show on top of videos
         buttonsLayout.bringToFront();
