@@ -198,20 +198,21 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         Point size = new Point();
         display.getSize(size);
 
-        if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+        ViewGroup.LayoutParams buttonsLayoutParams = buttonsLayout.getLayoutParams();
 
-            majorLayoutParams.height = (size.x / 2) *
+        if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+            majorLayoutParams.width = size.x / 2;
+            majorLayoutParams.height = majorLayoutParams.width *
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() /
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
-            majorLayoutParams.width = size.x / 2;
             majorLayoutParams.setMargins(0, 200, 0, 0);
             majorLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = (size.x / 2) *
+            minorLayoutParams.width = size.x / 2;
+            minorLayoutParams.height = minorLayoutParams.width *
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() /
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
-            minorLayoutParams.width = size.x / 2;
             minorLayoutParams.setMargins(0, 200, 0, 0);
             minorLayoutParams.gravity = Gravity.TOP | Gravity.RIGHT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
@@ -220,15 +221,18 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE;
         } else {
 
-            majorLayoutParams.width = size.x;
-            majorLayoutParams.height = size.y;
-            majorLayoutParams.setMargins(0, 0, 0, 0);
-            majorLayoutParams.gravity = Gravity.NO_GRAVITY;
+            //log.info("Buttons layout height = {}", buttonsLayoutParams.height);
+            majorLayoutParams.height = size.y - buttonsLayoutParams.height - 300;
+            majorLayoutParams.width = majorLayoutParams.height *
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight() /
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth();
+            majorLayoutParams.setMargins(0, 50, 0, 250);
+            majorLayoutParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = 732;
-            minorLayoutParams.width = 412;
-            minorLayoutParams.setMargins(54, 0, 0, 300);
+            minorLayoutParams.height = (int) (majorLayoutParams.height / 2.5);
+            minorLayoutParams.width = (int) (majorLayoutParams.width / 2.5);
+            minorLayoutParams.setMargins(150, 0, 0, 275);
             minorLayoutParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
 
