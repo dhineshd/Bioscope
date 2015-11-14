@@ -12,19 +12,19 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_convertI420
 
     int Ysize = w * h;
 
-    unsigned char* src_y = (unsigned char*) env->GetDirectBufferAddress(i420Buf);
-    unsigned char* src_u = src_y + Ysize;
-    unsigned char* src_v = src_u + (Ysize / 4);
+    uint8* src_y = (uint8*) env->GetDirectBufferAddress(i420Buf);
+    uint8* src_u = src_y + Ysize;
+    uint8* src_v = src_u + (Ysize / 4);
 
-    unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(nv12Buf);
-    unsigned char* dst_uv = dst_y + Ysize;
+    uint8* dst_y = (uint8*) env->GetDirectBufferAddress(nv12Buf);
+    uint8* dst_uv = dst_y + Ysize;
 
     I420ToNV12(
-            (uint8*) src_y, w,
-            (uint8*) src_u, w / 2,
-            (uint8*) src_v, w / 2,
-            (uint8*) dst_y, w,
-            (uint8*) dst_uv, w,
+            src_y, w,
+            src_u, w / 2,
+            src_v, w / 2,
+            dst_y, w,
+            dst_uv, w,
             w, isHorizontallyFlipped? -h : h);
 }
 
@@ -33,19 +33,19 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_convertI420
 
     int Ysize = w * h;
 
-    unsigned char* src_y = (unsigned char*) env->GetDirectBufferAddress(i420Buf);
-    unsigned char* src_u = src_y + Ysize;
-    unsigned char* src_v = src_u + (Ysize / 4);
+    uint8* src_y = (uint8*) env->GetDirectBufferAddress(i420Buf);
+    uint8* src_u = src_y + Ysize;
+    uint8* src_v = src_u + (Ysize / 4);
 
-    unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(nv21Buf);
-    unsigned char* dst_uv = dst_y + Ysize;
+    uint8* dst_y = (uint8*) env->GetDirectBufferAddress(nv21Buf);
+    uint8* dst_uv = dst_y + Ysize;
 
     I420ToNV21(
-            (uint8*) src_y, w,
-            (uint8*) src_u, w / 2,
-            (uint8*) src_v, w / 2,
-            (uint8*) dst_y, w,
-            (uint8*) dst_uv, w,
+            src_y, w,
+            src_u, w / 2,
+            src_v, w / 2,
+            dst_y, w,
+            dst_uv, w,
             w, isHorizontallyFlipped? -h : h);
 }
 
@@ -55,21 +55,21 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_transformI4
 
     int Ysize = w * h;
 
-    unsigned char* src_y = (unsigned char*) env->GetDirectBufferAddress(i420InputBuf);
-    unsigned char* src_u = src_y + Ysize;
-    unsigned char* src_v = src_u + (Ysize / 4);
+    uint8* src_y = (uint8*) env->GetDirectBufferAddress(i420InputBuf);
+    uint8* src_u = src_y + Ysize;
+    uint8* src_v = src_u + (Ysize / 4);
 
-    unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(i420OutputBuf);
-    unsigned char* dst_u = dst_y + Ysize;
-    unsigned char* dst_v = dst_u + (Ysize / 4);
+    uint8* dst_y = (uint8*) env->GetDirectBufferAddress(i420OutputBuf);
+    uint8* dst_u = dst_y + Ysize;
+    uint8* dst_v = dst_u + (Ysize / 4);
 
     I420Copy(
-            (uint8*) src_y, w,
-            (uint8*) src_u, w / 2,
-            (uint8*) src_v, w / 2,
-            (uint8*) dst_y, w,
-            (uint8*) dst_u, w / 2,
-            (uint8*) dst_v, w / 2,
+            src_y, w,
+            src_u, w / 2,
+            src_v, w / 2,
+            dst_y, w,
+            dst_u, w / 2,
+            dst_v, w / 2,
             w, isHorizontallyFlipped? -h : h);
 }
 
@@ -81,13 +81,13 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
     int oldYsize = oldW * oldH;
     int newYsize = newW * newH;
 
-    unsigned char* src_y = (unsigned char*) env->GetDirectBufferAddress(i420Buf);
-    unsigned char* src_u = src_y + oldYsize;
-    unsigned char* src_v = src_u + (oldYsize / 4);
+    uint8* src_y = (uint8*) env->GetDirectBufferAddress(i420Buf);
+    uint8* src_u = src_y + oldYsize;
+    uint8* src_v = src_u + (oldYsize / 4);
 
-    unsigned char* scaling_y = (unsigned char*) env->GetDirectBufferAddress(scalingBuf);
-    unsigned char* scaling_u =scaling_y + newYsize;
-    unsigned char* scaling_v = scaling_u + (newYsize / 4);
+    uint8* scaling_y = (uint8*) env->GetDirectBufferAddress(scalingBuf);
+    uint8* scaling_u =scaling_y + newYsize;
+    uint8* scaling_v = scaling_u + (newYsize / 4);
 
     I420Scale(
 		src_y, oldW,
@@ -100,9 +100,9 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
         newW, newH,
         kFilterNone);
 
-    unsigned char* rotation_y = (unsigned char*) env->GetDirectBufferAddress(rotationBuf);
-    unsigned char* rotation_u = rotation_y + newYsize;
-    unsigned char* rotation_v = rotation_u + (newYsize / 4);
+    uint8* rotation_y = (uint8*) env->GetDirectBufferAddress(rotationBuf);
+    uint8* rotation_u = rotation_y + newYsize;
+    uint8* rotation_v = rotation_u + (newYsize / 4);
 
     int width = newW, height = newH;
     RotationMode rotationMode;
@@ -123,15 +123,15 @@ JNIEXPORT void Java_com_trioscope_chameleon_util_ColorConversionUtil_scaleAndCon
             newW, newH,
             rotationMode);
 
-    unsigned char* dst_y = (unsigned char*) env->GetDirectBufferAddress(nv21Buf);
-    unsigned char* dst_uv = dst_y + newYsize;
+    uint8* dst_y = (uint8*) env->GetDirectBufferAddress(nv21Buf);
+    uint8* dst_uv = dst_y + newYsize;
 
     I420ToNV21(
-        (uint8*) rotation_y, width,
-        (uint8*) rotation_u, width / 2,
-        (uint8*) rotation_v, width / 2,
-        (uint8*) dst_y, width,
-        (uint8*) dst_uv, width,
+        rotation_y, width,
+        rotation_u, width / 2,
+        rotation_v, width / 2,
+        dst_y, width,
+        dst_uv, width,
         width, height);
 }
 
