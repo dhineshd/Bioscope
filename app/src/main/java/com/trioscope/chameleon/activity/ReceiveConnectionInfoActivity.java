@@ -413,10 +413,15 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
 
             if (decodedText != null) {
 
-                connectionInfo = gson.fromJson(decodedText,
-                        WiFiNetworkConnectionInfo.class);
+                try {
+                    connectionInfo = gson.fromJson(decodedText,
+                            WiFiNetworkConnectionInfo.class);
+                } catch (Exception e) {
+                    log.warn("Received unknown QR code. Ignoring.. ", e);
+                    return;
+                }
 
-                log.info("Received decoded connection info : {}", connectionInfo);
+                log.info("Received connection info : {}", connectionInfo);
 
                 runOnUiThread(new Runnable() {
                     @Override
