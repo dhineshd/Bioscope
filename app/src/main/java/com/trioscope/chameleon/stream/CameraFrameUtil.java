@@ -34,22 +34,6 @@ public class CameraFrameUtil {
         return bmp;
     }
 
-    public static byte[] convertYUV420888ByteArrayToJPEGByteArray(
-            final byte[] frameData,
-            final ByteArrayOutputStream stream,
-            final int frameWidth,
-            final int frameHeight,
-            final int targetWidth,
-            final int targetHeight,
-            final int quality) {
-        byte[] nv21Bytes = ColorConversionUtil.scaleAndConvertI420ToNV21AndReturnByteArray(
-                frameData, frameWidth, frameHeight, targetWidth, targetHeight, false);
-        YuvImage yuvimage = new YuvImage(nv21Bytes, ImageFormat.NV21, targetWidth, targetHeight, null);
-        yuvimage.compressToJpeg(new Rect(0, 0, targetWidth, targetHeight),
-                quality, stream);
-        return stream.toByteArray();
-    }
-
     public static byte[] convertYUV420888ByteBufferToJPEGByteArray(
             final ByteBuffer frameData,
             final ByteBuffer outputBuffer,
@@ -63,16 +47,27 @@ public class CameraFrameUtil {
             final int quality,
             final boolean isHorizontallyFlipped,
             final int orientationDegrees) {
-        ColorConversionUtil.scaleAndConvertI420ByteBufferToNV21ByteBuffer(
-                frameData, outputBuffer, scalingBuffer, rotationBuffer,
-                frameWidth, frameHeight, targetWidth, targetHeight,
-                isHorizontallyFlipped, orientationDegrees);
+
         int width = targetWidth, height = targetHeight;
-        if (orientationDegrees == 90 || orientationDegrees == 270) {
-            // Swapping height and width since rotation by 90 or 270 will result in transpose.
-            width = targetHeight;
-            height = targetWidth;
+
+        // TODO : Rotation?
+        if (frameWidth == targetWidth && frameHeight == targetHeight) {
+            ColorConversionUtil.convertI420ByteBufferToNV21ByteBuffer(
+                    frameData, outputBuffer, frameWidth, frameHeight,
+                    isHorizontallyFlipped);
+        } else {
+            ColorConversionUtil.scaleAndConvertI420ByteBufferToNV21ByteBuffer(
+                    frameData, outputBuffer, scalingBuffer, rotationBuffer,
+                    frameWidth, frameHeight, targetWidth, targetHeight,
+                    isHorizontallyFlipped, orientationDegrees);
+
+            if (orientationDegrees == 90 || orientationDegrees == 270) {
+                // Swapping height and width since rotation by 90 or 270 will result in transpose.
+                width = targetHeight;
+                height = targetWidth;
+            }
         }
+
         YuvImage yuvimage = new YuvImage(outputBuffer.array(), ImageFormat.NV21, width, height, null);
         yuvimage.compressToJpeg(new Rect(0, 0, width, height),
                 quality, stream);

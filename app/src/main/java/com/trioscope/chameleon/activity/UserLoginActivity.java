@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -12,7 +13,7 @@ import android.widget.ImageButton;
 
 import com.trioscope.chameleon.R;
 
-public class UserLoginActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class UserLoginActivity extends AppCompatActivity {
 
     private static final String EMPTY_STRING = "";
     @Override

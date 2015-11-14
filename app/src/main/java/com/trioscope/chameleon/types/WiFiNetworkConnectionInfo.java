@@ -41,8 +41,9 @@ public class WiFiNetworkConnectionInfo {
     @NonNull
     private String userName;
     private int certificateType;
-    @NonNull
+    //@NonNull
     private byte[] certificate;
+    //private SecretKey symmetricKey;
 
     public static WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
         try {
@@ -61,7 +62,6 @@ public class WiFiNetworkConnectionInfo {
     public static byte[] serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
         String str = gson.toJson(connectionInfo);
         log.info("Uncompressed data length = {}", str.length());
-        log.info("Uncompressed data = {}", str);
         byte[] output = new byte[ChameleonApplication.CERTIFICATE_BUFFER_SIZE];
         Deflater compresser = new Deflater();
         compresser.setLevel(Deflater.BEST_COMPRESSION);

@@ -5,10 +5,12 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.hardware.camera2.CaptureRequest;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SurfaceView;
@@ -25,16 +27,17 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
+import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.record.MediaCodecRecorder;
 import com.trioscope.chameleon.record.VideoRecorder;
 import com.trioscope.chameleon.stream.NetworkStreamer;
 import com.trioscope.chameleon.stream.PreviewStreamer;
 import com.trioscope.chameleon.stream.ServerEventListener;
-import com.trioscope.chameleon.types.PeerMessage;
-import com.trioscope.chameleon.types.SendRecordedVideoResponse;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.PeerMessage;
 import com.trioscope.chameleon.types.RecordingMetadata;
+import com.trioscope.chameleon.types.SendRecordedVideoResponse;
 import com.trioscope.chameleon.util.network.IpUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
@@ -68,7 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ConnectionEstablishedActivity
-        extends EnableForegroundDispatchForNFCMessageActivity
+        extends AppCompatActivity
         implements ServerEventListener {
     public static final String LOCAL_RECORDING_METADATA_KEY = "LOCAL_RECORDING_METADATA";
     public static final String REMOTE_RECORDING_METADATA_KEY = "REMOTE_RECORDING_METADATA";
@@ -178,7 +181,9 @@ public class ConnectionEstablishedActivity
                 log.info("Preview displayer is ready to display a preview - " +
                         "adding one to the ConnectionEstablished activity");
                 addCameraPreviewSurface();
-                chameleonApplication.startPreview();
+                CameraParams cameraParams = CameraParams.builder()
+                        .autoFocusMode(CaptureRequest.CONTROL_AF_MODE_AUTO).build();
+                chameleonApplication.startPreview(cameraParams);
             }
         });
 

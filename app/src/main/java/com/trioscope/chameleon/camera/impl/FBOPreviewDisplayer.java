@@ -12,6 +12,7 @@ import android.view.WindowManager;
 
 import com.trioscope.chameleon.SurfaceTextureDisplay;
 import com.trioscope.chameleon.SystemOverlayGLSurface;
+import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraPreviewTextureListener;
@@ -75,7 +76,7 @@ public class FBOPreviewDisplayer implements PreviewDisplayer {
     }
 
     @Override
-    public void startPreview() {
+    public void startPreview(final CameraParams cameraParams) {
         try {
             log.info("Starting camera preview {}, {}", cameraPreviewFrameListener, globalEglContextInfo);
             cameraPreviewFrameListener.addFrameListener(new RenderRequestFrameListener(surfaceView));

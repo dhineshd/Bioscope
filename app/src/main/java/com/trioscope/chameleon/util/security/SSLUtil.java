@@ -33,11 +33,15 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,7 +51,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SSLUtil {
     private static final String CERT_ALIAS = "bioscope_server_cert";
-    private static final int KEY_SIZE_BITS = 1024; // Sufficient since keys dont last beyond a session
+    private static final int ASYMMETRIC_PRIVATE_KEY_SIZE_BITS = 1024; // Sufficient since keys dont last beyond a session
+    private static final int SYMMETRIC_SECRET_KEY_SIZE_BITS = 256; // Recommended
     public static final String SSL_PROTOCOL = "TLSv1.2";
 
     static {
@@ -103,9 +108,25 @@ public class SSLUtil {
             trustStore.setCertificateEntry(CERT_ALIAS, certificate);
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(
                     TrustManagerFactory.getDefaultAlgorithm());
+
+            // Create a trust manager that does not validate certificate chains
+            TrustManager[] trustAllCerts = new TrustManager[] {
+                    new X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+                        public void checkClientTrusted(
+                                java.security.cert.X509Certificate[] certs, String authType) {
+                        }
+                        public void checkServerTrusted(
+                                java.security.cert.X509Certificate[] certs, String authType) {
+                        }
+                    }
+            };
+
             tmf.init(trustStore);
             SSLContext ctx = SSLContext.getInstance(SSL_PROTOCOL);
-            ctx.init(null, tmf.getTrustManagers(), null);
+            ctx.init(null, trustAllCerts, null);
             sslSocketFactory = ctx.getSocketFactory();
         } catch (IOException |
                 NoSuchAlgorithmException |
@@ -176,10 +197,22 @@ public class SSLUtil {
     public static KeyPair createKeypair() {
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(KEY_SIZE_BITS);
+            generator.initialize(ASYMMETRIC_PRIVATE_KEY_SIZE_BITS);
             return generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
-            log.error("Failed to generate given keypair", e);
+            log.error("Failed to generate keypair", e);
+        }
+        return null;
+    }
+
+    @Timed
+    public static SecretKey createSymmetricKey() {
+        try {
+            KeyGenerator generator = KeyGenerator.getInstance("AES");
+            generator.init(SYMMETRIC_SECRET_KEY_SIZE_BITS);
+            return generator.generateKey();
+        } catch (NoSuchAlgorithmException e) {
+            log.error("Failed to generate symmetric key", e);
         }
         return null;
     }

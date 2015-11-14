@@ -10,15 +10,15 @@
         android:background="@color/bioscope_teal">
 
         <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:layout_alignParentRight="true"
             android:layout_centerHorizontal="true"
             android:layout_centerVertical="true"
-            android:layout_marginRight="18dp"
-            android:padding="3dp"
+            android:layout_marginRight="13dp"
+            android:padding="5dp"
             android:adjustViewBounds="true"
-            android:src="@drawable/settings_icon"
+            android:src="@drawable/settings_icon_4x"
             android:id="@+id/settings_button"
             />
 
@@ -28,11 +28,10 @@
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
-            android:layout_marginBottom="6dp"
             android:background="@null"
             android:padding="10dp"
             android:rotation="180"
-            android:src="@drawable/direct_uparrow" />
+            android:src="@drawable/up_arrow_4x" />
     </RelativeLayout>
 
     <GridView xmlns:android="http://schemas.android.com/apk/res/android"

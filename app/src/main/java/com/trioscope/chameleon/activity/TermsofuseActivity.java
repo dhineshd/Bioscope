@@ -2,6 +2,7 @@ package com.trioscope.chameleon.activity;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -14,7 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-public class TermsofuseActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class TermsofuseActivity extends AppCompatActivity {
 
     private TextView termsOfUseTextView;
 

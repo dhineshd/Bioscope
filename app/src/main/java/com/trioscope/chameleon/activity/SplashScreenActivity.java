@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.ActivityOptionsCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ImageView;
@@ -16,7 +17,7 @@ import com.trioscope.chameleon.util.merge.ProgressUpdatable;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SplashScreenActivity extends EnableForegroundDispatchForNFCMessageActivity {
+public class SplashScreenActivity extends AppCompatActivity {
 
     /**
      * Duration of wait

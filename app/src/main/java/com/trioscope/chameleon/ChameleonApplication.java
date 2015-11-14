@@ -16,6 +16,7 @@ import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
 import com.trioscope.chameleon.camera.CameraOpener;
+import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.camera.impl.Camera2PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -227,12 +228,12 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public void startPreview() {
+    public void startPreview(final CameraParams cameraParams) {
         if (!previewStarted) {
             previewDisplayer.addOnPreparedCallback(new Runnable() {
                 @Override
                 public void run() {
-                    previewDisplayer.startPreview();
+                    previewDisplayer.startPreview(cameraParams);
                 }
             });
             previewStarted = true;
@@ -272,8 +273,8 @@ public class ChameleonApplication extends Application {
     }
 
     /*
-        Convenience method for creationg a preview display through the PreviewDisplayer
-     */
+    Convenience method for creationg a preview display through the PreviewDisplayer
+ */
     public SurfaceView createPreviewDisplay() {
         log.info("Creating preview display and stopping preview first");
         //previewDisplayer.stopPreview();

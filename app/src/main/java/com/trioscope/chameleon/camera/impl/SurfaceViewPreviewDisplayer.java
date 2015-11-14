@@ -6,6 +6,7 @@ import android.hardware.Camera;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
@@ -29,6 +30,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
     private CameraInfo cameraInfo;
     private SurfaceHolder displaySurfaceHolder;
     private boolean shouldCallStartWhenAvailable = false;
+    private CameraParams cameraParams;
 
     public SurfaceViewPreviewDisplayer(Context context, Camera c, CameraInfo cameraInfo) {
         this.context = context;
@@ -37,7 +39,8 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
     }
 
     @Override
-    public void startPreview() {
+    public void startPreview(final CameraParams cameraParams) {
+        this.cameraParams = cameraParams;
         log.info("Starting preview with camera {} and displaySurfaceHolder {}", camera, displaySurfaceHolder);
         try {
             synchronized (this) {
@@ -106,7 +109,7 @@ public class SurfaceViewPreviewDisplayer implements PreviewDisplayer, Camera.Pre
                     displaySurfaceHolder = holder;
                     if (shouldCallStartWhenAvailable) {
                         log.info("Requested to start the preview before the surfaceview was available, starting preview now");
-                        startPreview();
+                        startPreview(cameraParams);
                     }
                 }
             }

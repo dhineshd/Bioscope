@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 
 import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
-import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.camera.impl.FrameInfo;
 import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
@@ -76,7 +75,6 @@ public class PreviewStreamer implements NetworkStreamer, CameraFrameAvailableLis
     }
 
     @Override
-    @Timed
     public void onFrameAvailable(final CameraInfo cameraInfos, final CameraFrameData data, final FrameInfo frameInfo) {
         int cameraWidth = cameraInfos.getCameraResolution().getWidth();
         int cameraHeight = cameraInfos.getCameraResolution().getHeight();

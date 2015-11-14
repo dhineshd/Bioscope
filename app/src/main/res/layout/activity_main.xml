@@ -1,7 +1,6 @@
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    xmlns:card_view="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -9,44 +8,48 @@
     android:paddingLeft="0px"
     android:paddingRight="0px"
     android:paddingTop="0px"
+    android:background="@color/bioscope_teal"
     tools:context=".MainActivity">
 
     <RelativeLayout
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/bioscope_teal"/>
+        android:layout_height="match_parent" />
 
-        <ImageView
-            android:id="@+id/direct_logo"
-            android:transitionName="logo"
-            android:src="@drawable/direct_logo"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="40dp"/>
+            android:orientation="vertical"
+            android:layout_centerInParent="true"
+            android:gravity="center">
 
-        <com.trioscope.chameleon.views.PrimaryButton
-            android:id="@+id/button_main_start_session"
-            android:background="@drawable/primary_button_large_background"
-            android:stateListAnimator="@anim/button_elevation_anim"
-            style="@style/primaryButtonLargeText"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="248dp"
-            android:text="Direct" />
+            <com.trioscope.chameleon.views.PrimaryButton
+                android:id="@+id/button_main_start_session"
+                android:background="@drawable/primary_button_large_background"
+                android:stateListAnimator="@anim/button_elevation_anim"
+                style="@style/primaryButtonLargeText"
+                android:text="Direct" />
+
+            <com.trioscope.chameleon.views.PrimaryButton
+                android:id="@+id/button_main_join_session"
+                android:background="@drawable/primary_button_large_background"
+                android:stateListAnimator="@anim/button_elevation_anim"
+                style="@style/primaryButtonLargeText"
+                android:layout_below="@+id/button_main_start_session"
+                android:layout_margin="50dp"
+                android:text="Join" />
+
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/button_main_library"
-            android:src="@drawable/direct_uparrow"
+            android:src="@drawable/up_arrow_4x"
             android:background="@null"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
-            android:paddingBottom="30dp"
-            />
+            android:paddingBottom="30dp" />
 
 </RelativeLayout>
 
