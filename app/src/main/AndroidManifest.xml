@@ -100,6 +100,17 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".activity.TermsofuseActivity"
+            android:label="@string/title_activity_termsofuse"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.LicensesActivity"
+            android:label="@string/title_activity_licenses"
+            android:screenOrientation="portrait" >
+        </activity>
+
         <meta-data
             android:name="android.nfc.disable_beam_default"
             android:value="true" />
@@ -132,16 +143,6 @@
             android:enabled="true"
             android:exported="false" />
 
-        <activity
-            android:name=".activity.TermsofuseActivity"
-            android:label="@string/title_activity_termsofuse"
-            android:screenOrientation="portrait" >
-        </activity>
-        <activity
-            android:name=".activity.LicensesActivity"
-            android:label="@string/title_activity_licenses"
-            android:screenOrientation="portrait" >
-        </activity>
     </application>
 
 </manifest>

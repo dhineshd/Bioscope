@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageActivity {
 
     private TextView versionNameTextView;
+    private SettingsFragment settingsFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +36,26 @@ public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageAc
         versionNameTextView = (TextView) findViewById(R.id.version_name_text_view);
         versionNameTextView.setText("v"+getVersionName());
 
-        SettingsFragment frag = new SettingsFragment();
+        settingsFragment = new SettingsFragment();
 
         // Display the fragment as the main content.
         getFragmentManager().beginTransaction()
-                .replace(R.id.settings_frag_contents, frag)
+                .replace(R.id.settings_frag_contents, settingsFragment)
                 .commit();
 
-        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(frag);
+
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(settingsFragment);
+    }
+
+    @Override
+    public void onPause() {
+        PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(settingsFragment);
+        super.onPause();
     }
 
     private String getVersionName() {
@@ -130,9 +143,6 @@ public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageAc
         }
 
 
-        @Override
-        public void onResume() {
-            super.onResume();
-        }
+
     }
 }
