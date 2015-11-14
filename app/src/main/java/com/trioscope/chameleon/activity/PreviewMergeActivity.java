@@ -2,6 +2,7 @@ package com.trioscope.chameleon.activity;
 
 import android.content.Intent;
 import android.graphics.Point;
+import android.graphics.SurfaceTexture;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,13 +12,15 @@ import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import android.view.Surface;
+import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -39,16 +42,14 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageActivity
-        implements SurfaceHolder.Callback {
+        implements TextureView.SurfaceTextureListener {
     private static final Gson gson = new Gson();
     private String majorVideoPath, minorVideoPath;
-    private SurfaceView majorVideoSurfaceView, minorVideoSurfaceView;
+    private TextureView majorVideoTextureView, minorVideoTextureView;
     private MediaPlayer majorVideoMediaPlayer, minorVideoMediaPlayer;
-    private boolean majorVideoSurfaceReady, minorVideoSurfaceReady;
-    private SurfaceHolder majorVideoHolder, minorVideoHolder;
     private RelativeLayout majorVideoLayout, minorVideoLayout;
+    private LinearLayout buttonsLayout;
     private ImageButton switchPreviewModeButton;
-
     private RecordingMetadata localRecordingMetadata, remoteRecordingMetadata;
     private boolean publishedDurationMetrics = false;
     boolean doubleBackToExitPressedOnce = false;
@@ -71,12 +72,11 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoMediaPlayer = new MediaPlayer();
         minorVideoMediaPlayer = new MediaPlayer();
 
-        majorVideoSurfaceView = (SurfaceView) findViewById(R.id.surfaceview_major_video);
-        majorVideoHolder = majorVideoSurfaceView.getHolder();
-        majorVideoHolder.addCallback(this);
-        minorVideoSurfaceView = (SurfaceView) findViewById(R.id.surfaceview_minor_video);
-        minorVideoHolder = minorVideoSurfaceView.getHolder();
-        minorVideoHolder.addCallback(this);
+
+        majorVideoTextureView = (TextureView) findViewById(R.id.textureview_major_video);
+        majorVideoTextureView.setSurfaceTextureListener(this);
+        minorVideoTextureView = (TextureView) findViewById(R.id.textureview_minor_video);
+        minorVideoTextureView.setSurfaceTextureListener(this);
 
         final Button startMergeButton = (Button) findViewById(R.id.button_merge);
         startMergeButton.setOnClickListener(new View.OnClickListener() {
@@ -85,9 +85,36 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 // Don't let user click again
                 startMergeButton.setEnabled(false);
 
-                // Decide which is major video depending on user's latest choice of preview playback
+                // Decide which is major video depending on user's latest choice of layout size
+                // and positions in preview playback
                 RecordingMetadata majorMetadata, minorMetadata;
                 long offsetMillis = 0;
+
+                FrameLayout.LayoutParams majorLayoutParams =
+                        (FrameLayout.LayoutParams) majorVideoLayout.getLayoutParams();
+                FrameLayout.LayoutParams minorLayoutParams =
+                        (FrameLayout.LayoutParams) minorVideoLayout.getLayoutParams();
+
+                if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+
+                    // Major layout is smaller than minor layout, So, swap major and minor
+                    // since video merger expects major video to be bigger than minor video.
+                    if (majorLayoutParams.height < minorLayoutParams.height) {
+                        String tempPath = majorVideoPath;
+                        majorVideoPath = minorVideoPath;
+                        minorVideoPath = tempPath;
+                    }
+                } else if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE) {
+                    // Major layout is on the right side, So, swap major and minor since
+                    // video merger expects major video on the left.
+
+                    if (majorLayoutParams.gravity == (Gravity.TOP | Gravity.RIGHT)) {
+                        String tempPath = majorVideoPath;
+                        majorVideoPath = minorVideoPath;
+                        minorVideoPath = tempPath;
+                    }
+                }
+
                 if (localRecordingMetadata.getAbsoluteFilePath().equalsIgnoreCase(majorVideoPath)) {
                     majorMetadata = localRecordingMetadata;
                     minorMetadata = remoteRecordingMetadata;
@@ -141,9 +168,8 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         swapVideoPositions.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                // swapping the video paths
-                playVideos(minorVideoPath, majorVideoPath,
-                        getMajorVideoAheadOfMinorVideoByMillis(minorVideoPath));
+
+                swapVideoPositions(majorVideoLayout, minorVideoLayout);
             }
         });
 
@@ -152,15 +178,16 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             @Override
             public void onClick(View view) {
 
-                majorVideoSurfaceReady = false;
-                minorVideoSurfaceReady = false;
-
                 switchPreviewLayoutMode(majorVideoLayout, minorVideoLayout);
             }
         });
 
         majorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_major_video);
         minorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_minor_video);
+        buttonsLayout = (LinearLayout) findViewById(R.id.linearLayout_buttons);
+
+        // Start by showing side-by-side
+        switchPreviewLayoutMode(majorVideoLayout, minorVideoLayout);
     }
 
     private void switchPreviewLayoutMode(
@@ -171,19 +198,25 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         FrameLayout.LayoutParams minorLayoutParams =
                 (FrameLayout.LayoutParams) minorVideoLayout.getLayoutParams();
 
-        if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
 
-            Display display = getWindowManager().getDefaultDisplay();
-            Point size = new Point();
-            display.getSize(size);
-            majorLayoutParams.height = (size.x / 2) * ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() / ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
+        ViewGroup.LayoutParams buttonsLayoutParams = buttonsLayout.getLayoutParams();
+
+        if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
             majorLayoutParams.width = size.x / 2;
+            majorLayoutParams.height = majorLayoutParams.width *
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() /
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
             majorLayoutParams.setMargins(0, 200, 0, 0);
             majorLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = (size.x / 2) * ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() / ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
             minorLayoutParams.width = size.x / 2;
+            minorLayoutParams.height = minorLayoutParams.width *
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth() /
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight();
             minorLayoutParams.setMargins(0, 200, 0, 0);
             minorLayoutParams.gravity = Gravity.TOP | Gravity.RIGHT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
@@ -191,24 +224,61 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             switchPreviewModeButton.setImageResource(R.drawable.picture_in_picture);
             mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE;
         } else {
-            Display display = getWindowManager().getDefaultDisplay();
-            Point size = new Point();
-            display.getSize(size);
-            majorLayoutParams.width = size.x;
-            majorLayoutParams.height = size.y;
-            majorLayoutParams.setMargins(0, 0, 0, 0);
-            majorLayoutParams.gravity = Gravity.NO_GRAVITY;
+
+            int majorTopMargin = 50;
+            int majorBottomMargin = buttonsLayoutParams.height + 50;
+            majorLayoutParams.height = size.y - majorTopMargin - majorBottomMargin;
+            majorLayoutParams.width = majorLayoutParams.height *
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight() /
+                    ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth();
+            majorLayoutParams.setMargins(0, majorTopMargin, 0, majorBottomMargin);
+            majorLayoutParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = 732;
-            minorLayoutParams.width = 412;
-            minorLayoutParams.setMargins(54, 0, 0, 300);
+            int majorLeftMargin = (size.x - majorLayoutParams.width) / 2;
+            int minorBottomMargin = majorBottomMargin + 50;
+            int minorLeftMargin = majorLeftMargin + 50;
+            double majorMinorScalingFactor = 2.5;
+            minorLayoutParams.height = (int) (majorLayoutParams.height / majorMinorScalingFactor);
+            minorLayoutParams.width = (int) (majorLayoutParams.width / majorMinorScalingFactor);
+            minorLayoutParams.setMargins(minorLeftMargin, 0, 0, minorBottomMargin);
             minorLayoutParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
 
             switchPreviewModeButton.setImageResource(R.drawable.side_by_side);
             mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE;
         }
+
+        updateZOrderOfLayouts(majorVideoLayout, minorVideoLayout, buttonsLayout);
+    }
+
+    private void swapVideoPositions(
+            final RelativeLayout majorVideoLayout,
+            final RelativeLayout minorVideoLayout) {
+
+        // Swap major and minor video layouts. Also, decide which of the two should be shown on top
+        // (relevant only for picture-in-picture).
+        ViewGroup.LayoutParams tempLayoutParams = majorVideoLayout.getLayoutParams();
+        majorVideoLayout.setLayoutParams(minorVideoLayout.getLayoutParams());
+        minorVideoLayout.setLayoutParams(tempLayoutParams);
+
+        updateZOrderOfLayouts(majorVideoLayout, minorVideoLayout, buttonsLayout);
+    }
+
+    private void updateZOrderOfLayouts(
+            final View majorVideoLayout,
+            final View minorVideoLayout,
+            final View buttonsLayout) {
+
+        if (majorVideoLayout.getLayoutParams().height < minorVideoLayout.getLayoutParams().height) {
+            majorVideoLayout.bringToFront();
+        } else if (majorVideoLayout.getLayoutParams().height > minorVideoLayout.getLayoutParams().height) {
+            minorVideoLayout.bringToFront();
+        } else {
+            // no change in view position in stack since both layouts are of equal height
+        }
+        // Buttons show always show on top of videos
+        buttonsLayout.bringToFront();
     }
 
     private long getMajorVideoAheadOfMinorVideoByMillis(final String majorVideoPath) {
@@ -252,6 +322,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             try {
                 minorVideoMediaPlayer.setDataSource(minorVideoPath);
                 minorVideoMediaPlayer.prepare();
+                minorVideoMediaPlayer.setVolume(0f, 0f);
             } catch (IllegalArgumentException | IllegalStateException | IOException e) {
                 log.error("Failed to start minor media player", e);
             }
@@ -371,22 +442,13 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {
+    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        log.info("Surface texture available w = {}, h = {}", width, height);
+        if (majorVideoTextureView.isAvailable() && minorVideoTextureView.isAvailable()) {
 
-        if (holder == majorVideoHolder) {
-            minorVideoSurfaceView.setZOrderOnTop(true);
-            majorVideoMediaPlayer.setDisplay(majorVideoHolder);
-            majorVideoSurfaceReady = true;
-        }
+            majorVideoMediaPlayer.setSurface(new Surface(majorVideoTextureView.getSurfaceTexture()));
+            minorVideoMediaPlayer.setSurface(new Surface(minorVideoTextureView.getSurfaceTexture()));
 
-        if (holder == minorVideoHolder) {
-            minorVideoSurfaceView.setZOrderOnTop(true);
-            minorVideoMediaPlayer.setDisplay(minorVideoHolder);
-            minorVideoMediaPlayer.setVolume(0f, 0f);
-            minorVideoSurfaceReady = true;
-        }
-
-        if (majorVideoSurfaceReady && minorVideoSurfaceReady) {
             playVideos(
                     localRecordingMetadata.getAbsoluteFilePath(),
                     remoteRecordingMetadata.getAbsoluteFilePath(),
@@ -396,12 +458,17 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
     }
 
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
 
     }
 
     @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+        return false;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
 
     }
 
