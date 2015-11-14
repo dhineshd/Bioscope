@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     android:summary="Preferences for the Bioscope App"
-    android:title="Preferences">
+    android:title="Preferences"
+    >
 
     <PreferenceCategory
         android:layout="@layout/preference_category"
@@ -26,6 +27,15 @@
             android:key="@string/pref_ga_display_features_key"
             android:title="Use Google Analytics Display Features"
             android:checked="true" />
+        <Preference android:title="Terms of use" >
+            <intent android:targetPackage="com.trioscope.chameleon"
+                android:targetClass="com.trioscope.chameleon.activity.TermsofuseActivity" />
+        </Preference>
+        <Preference android:title="Licenses" >
+            <intent android:targetPackage="com.trioscope.chameleon"
+                android:targetClass="com.trioscope.chameleon.activity.LicensesActivity"
+                />
+        </Preference>
     </PreferenceCategory>
 
 </PreferenceScreen>

@@ -68,8 +68,8 @@
         <activity
             android:name=".activity.PreferencesActivity"
             android:label="PreferencesActivity"
-            android:theme="@style/PreferencesTheme"
-            />
+            android:screenOrientation="portrait"
+            android:theme="@style/PreferencesTheme" />
         <activity
             android:name=".activity.PreviewMergeActivity"
             android:label="PreviewMergeActivity"
@@ -77,33 +77,28 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".activity.UserLoginActivity"
-            android:windowSoftInputMode="stateAlwaysVisible"
             android:label="@string/app_name"
             android:noHistory="true"
             android:screenOrientation="portrait"
-            >
+            android:windowSoftInputMode="stateAlwaysVisible" >
         </activity>
-
         <activity
             android:name=".activity.VideoLibraryGridActivity"
             android:label="@string/title_activity_video_library"
             android:noHistory="false"
-            android:screenOrientation="portrait"
-            >
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.SplashScreenActivity"
             android:label="@string/app_name"
             android:noHistory="true"
-            android:screenOrientation="portrait"
-            >
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
 
         <meta-data
             android:name="android.nfc.disable_beam_default"
@@ -132,13 +127,21 @@
             android:name="com.google.android.gms.analytics.globalConfigResource"
             android:resource="@xml/analytics_global_tracker" />
 
-        <service android:name="com.google.android.gms.analytics.AnalyticsService"
+        <service
+            android:name="com.google.android.gms.analytics.AnalyticsService"
             android:enabled="true"
-            android:exported="false"/>
+            android:exported="false" />
 
-
+        <activity
+            android:name=".activity.TermsofuseActivity"
+            android:label="@string/title_activity_termsofuse"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.LicensesActivity"
+            android:label="@string/title_activity_licenses"
+            android:screenOrientation="portrait" >
+        </activity>
     </application>
-
-
 
 </manifest>

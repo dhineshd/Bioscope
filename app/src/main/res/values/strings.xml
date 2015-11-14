@@ -41,6 +41,9 @@
     <string name="title_activity_video_library">VideoLibraryActivity</string>
     <string name="title_activity_splash_screen">SplashScreen</string>
     <string name="pref_ga_display_features_key">UseGADisplayFeatures</string>
+    <string name="title_activity_termsofservice">TermsofserviceActivity</string>
+    <string name="title_activity_termsofuse">TermsofuseActivity</string>
+    <string name="title_activity_licenses">LicensesActivity</string>
 
 
 

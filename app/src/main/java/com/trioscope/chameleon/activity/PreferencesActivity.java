@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
  * Created by phand on 7/24/15.
  */
 @Slf4j
-public class PreferencesActivity extends Activity {
+public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
