@@ -107,6 +107,7 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
                 } else if (mergeLayoutType == VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE) {
                     // Major layout is on the right side, So, swap major and minor since
                     // video merger expects major video on the left.
+
                     if (majorLayoutParams.gravity == (Gravity.TOP | Gravity.RIGHT)) {
                         String tempPath = majorVideoPath;
                         majorVideoPath = minorVideoPath;
@@ -184,6 +185,9 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
         majorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_major_video);
         minorVideoLayout = (RelativeLayout) findViewById(R.id.relativeLayout_minor_video);
         buttonsLayout = (LinearLayout) findViewById(R.id.linearLayout_buttons);
+
+        // Start by showing side-by-side
+        switchPreviewLayoutMode(majorVideoLayout, minorVideoLayout);
     }
 
     private void switchPreviewLayoutMode(
@@ -221,18 +225,23 @@ public class PreviewMergeActivity extends EnableForegroundDispatchForNFCMessageA
             mergeLayoutType = VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE;
         } else {
 
-            //log.info("Buttons layout height = {}", buttonsLayoutParams.height);
-            majorLayoutParams.height = size.y - buttonsLayoutParams.height - 300;
+            int majorTopMargin = 50;
+            int majorBottomMargin = buttonsLayoutParams.height + 50;
+            majorLayoutParams.height = size.y - majorTopMargin - majorBottomMargin;
             majorLayoutParams.width = majorLayoutParams.height *
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight() /
                     ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth();
-            majorLayoutParams.setMargins(0, 50, 0, 250);
-            majorLayoutParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+            majorLayoutParams.setMargins(0, majorTopMargin, 0, majorBottomMargin);
+            majorLayoutParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
             majorVideoLayout.setLayoutParams(majorLayoutParams);
 
-            minorLayoutParams.height = (int) (majorLayoutParams.height / 2.5);
-            minorLayoutParams.width = (int) (majorLayoutParams.width / 2.5);
-            minorLayoutParams.setMargins(150, 0, 0, 275);
+            int majorLeftMargin = (size.x - majorLayoutParams.width) / 2;
+            int minorBottomMargin = majorBottomMargin + 50;
+            int minorLeftMargin = majorLeftMargin + 50;
+            double majorMinorScalingFactor = 2.5;
+            minorLayoutParams.height = (int) (majorLayoutParams.height / majorMinorScalingFactor);
+            minorLayoutParams.width = (int) (majorLayoutParams.width / majorMinorScalingFactor);
+            minorLayoutParams.setMargins(minorLeftMargin, 0, 0, minorBottomMargin);
             minorLayoutParams.gravity = Gravity.BOTTOM | Gravity.LEFT;
             minorVideoLayout.setLayoutParams(minorLayoutParams);
 

@@ -45,7 +45,7 @@
 
     <LinearLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="80dp"
         android:id="@+id/linearLayout_buttons"
         android:layout_gravity="bottom|center"
         android:orientation="horizontal"
@@ -78,7 +78,7 @@
             android:stateListAnimator="@anim/button_elevation_anim"
             android:layout_width="70dp"
             android:layout_height="70dp"
-            android:layout_gravity="center"
+            android:layout_gravity="bottom|center"
             style="@style/primaryButtonSmallText"
             android:text="Save" />
 
