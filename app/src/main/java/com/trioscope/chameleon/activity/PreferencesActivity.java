@@ -3,12 +3,15 @@ package com.trioscope.chameleon.activity;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.SwitchPreference;
 import android.support.v7.app.AlertDialog;
+import android.widget.TextView;
 
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
@@ -20,18 +23,40 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageActivity {
+
+    private TextView versionNameTextView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         log.info("Creating preferences activity");
+        setContentView(R.layout.activity_preference_activity);
+
+        versionNameTextView = (TextView) findViewById(R.id.version_name_text_view);
+        versionNameTextView.setText("v"+getVersionName());
 
         SettingsFragment frag = new SettingsFragment();
+
         // Display the fragment as the main content.
         getFragmentManager().beginTransaction()
-                .replace(android.R.id.content, frag)
+                .replace(R.id.settings_frag_contents, frag)
                 .commit();
 
         PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(frag);
+    }
+
+    private String getVersionName() {
+
+        String versionName = "";
+        try {
+            PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            versionName =  pinfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            log.warn("Caught NameNotFoundException", e);
+        }
+
+        log.info("versionName is {}", versionName);
+        return versionName;
     }
 
     /**
@@ -108,7 +133,6 @@ public class PreferencesActivity extends EnableForegroundDispatchForNFCMessageAc
         @Override
         public void onResume() {
             super.onResume();
-
         }
     }
 }

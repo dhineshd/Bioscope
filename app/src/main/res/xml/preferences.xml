@@ -22,10 +22,11 @@
         <SwitchPreference
             android:key="@string/pref_codec_key"
             android:title="OpenH264 Codec"
+            android:defaultValue="true"
             android:checked="true" />
         <SwitchPreference
             android:key="@string/pref_ga_display_features_key"
-            android:title="Use Google Analytics Display Features"
+            android:title="Google Analytics Display Features"
             android:checked="true" />
         <Preference android:title="Terms of use" >
             <intent android:targetPackage="com.trioscope.chameleon"
@@ -33,8 +34,7 @@
         </Preference>
         <Preference android:title="Licenses" >
             <intent android:targetPackage="com.trioscope.chameleon"
-                android:targetClass="com.trioscope.chameleon.activity.LicensesActivity"
-                />
+                android:targetClass="com.trioscope.chameleon.activity.LicensesActivity" />
         </Preference>
     </PreferenceCategory>
 
