@@ -55,7 +55,7 @@
         android:layout_centerHorizontal="true"
         android:background="@null"
         android:layout_marginBottom="18dp"
-        android:src="@drawable/share_icon"
+        android:src="@drawable/share_icon_4x"
         />
 
     <ProgressBar

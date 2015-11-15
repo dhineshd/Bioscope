@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class PreferencesActivity extends AppCompatActivity {
-    private TextView versionNameTextView;
     private SettingsFragment settingsFragment;
     private ImageButton minimizeSettings;
 
@@ -35,16 +34,12 @@ public class PreferencesActivity extends AppCompatActivity {
         log.info("Creating preferences activity");
         setContentView(R.layout.activity_preference_activity);
 
-        versionNameTextView = (TextView) findViewById(R.id.version_name_text_view);
-        versionNameTextView.setText("v" + getVersionName());
-
 
         minimizeSettings = (ImageButton) findViewById(R.id.minimize_settings);
 
         minimizeSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                log.info("Minimizing settings");
                 finish();
             }
         });
@@ -71,20 +66,6 @@ public class PreferencesActivity extends AppCompatActivity {
         super.onPause();
     }
 
-    private String getVersionName() {
-
-        String versionName = "";
-        try {
-            PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-            versionName =  pinfo.versionName;
-        } catch (PackageManager.NameNotFoundException e) {
-            log.warn("Caught NameNotFoundException", e);
-        }
-
-        log.info("versionName is {}", versionName);
-        return versionName;
-    }
-
     /**
      * This fragment shows the preferences for the first header.
      */
@@ -102,10 +83,14 @@ public class PreferencesActivity extends AppCompatActivity {
             // Load the preferences from an XML resource
             addPreferencesFromResource(R.xml.preferences);
 
+            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getActivity());
             //Initialize the values
             Preference connectionPref = findPreference(getString(R.string.pref_user_name_key));
-            SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getActivity());
             connectionPref.setSummary(settings.getString(getString(R.string.pref_user_name_key), ""));
+
+            Preference versionNumberPref = findPreference(getString(R.string.pref_version_number_key));
+            versionNumberPref.setSummary(getVersionName());
+
         }
 
         @Override
@@ -153,6 +138,20 @@ public class PreferencesActivity extends AppCompatActivity {
             }
 
             log.info("Preferences changed for {}", key);
+        }
+
+        private String getVersionName() {
+
+            String versionName = "";
+            try {
+                PackageInfo pinfo = getActivity().getPackageManager().getPackageInfo(getActivity().getPackageName(), 0);
+                versionName =  pinfo.versionName;
+            } catch (PackageManager.NameNotFoundException e) {
+                log.warn("Caught NameNotFoundException", e);
+            }
+
+            log.info("versionName is {}", versionName);
+            return versionName;
         }
 
 
