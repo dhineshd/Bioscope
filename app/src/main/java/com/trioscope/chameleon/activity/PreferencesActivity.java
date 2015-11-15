@@ -10,6 +10,8 @@ import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.SwitchPreference;
 import android.support.v7.app.AlertDialog;
+import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.support.v7.app.AppCompatActivity;
 
@@ -25,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PreferencesActivity extends AppCompatActivity {
     private TextView versionNameTextView;
     private SettingsFragment settingsFragment;
+    private ImageButton minimizeSettings;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,7 +36,18 @@ public class PreferencesActivity extends AppCompatActivity {
         setContentView(R.layout.activity_preference_activity);
 
         versionNameTextView = (TextView) findViewById(R.id.version_name_text_view);
-        versionNameTextView.setText("v"+getVersionName());
+        versionNameTextView.setText("v" + getVersionName());
+
+
+        minimizeSettings = (ImageButton) findViewById(R.id.minimize_settings);
+
+        minimizeSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                log.info("Minimizing settings");
+                finish();
+            }
+        });
 
         settingsFragment = new SettingsFragment();
 

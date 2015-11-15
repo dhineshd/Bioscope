@@ -7,6 +7,17 @@
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:background="@color/bioscope_teal">
+
+        <ImageButton
+            android:id="@+id/minimize_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:background="@null"
+            android:padding="10dp"
+            android:rotation="270"
+            android:src="@drawable/up_arrow_4x" />
+
     </RelativeLayout>
 
     <LinearLayout
