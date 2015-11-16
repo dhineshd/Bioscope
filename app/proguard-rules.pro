@@ -15,3 +15,34 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+ #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+ #   public *;
+ #}
+
+# Keep the logging when built with proguard
+-keep class ch.qos.** { *; }
+-keep class org.slf4j.** { *; }
+-keepattributes *Annotation*
+
+# Dont warn us about the LoginAuthenticator and SMTPAppender missing dependencies as we dont use those features
+-dontwarn ch.qos.logback.core.net.*
+
+# Dont warn about 7zip, LZMA, xz since we dont use those compressions
+-dontwarn org.apache.commons.compress.archivers.sevenz.*
+-dontwarn org.apache.commons.compress.compressors.lzma.*
+-dontwarn org.apache.commons.compress.compressors.xz.*
+
+# Dont warn about missing javax.naming for SpongyCastle, this doesnt appear to be used
+-keep class org.spongycastle.**
+-dontwarn org.spongycastle.jce.provider.X509LDAPCertStoreSpi
+-dontwarn org.spongycastle.x509.util.LDAPStoreHelper
+-dontwarn org.spongycastle.cert.dane.fetcher.*
+
+#
+# Seems to be caused by an erroneous dependency from Google analytics
+# http://stackoverflow.com/questions/32974025/com-google-android-gms-internal-zzhu-cant-find-referenced-class-android-securi
+-dontwarn com.google.android.gms.internal.zzhu
+
+-keepattributes Signature
+-keepattributes InnerClasses,EnclosingMethod
