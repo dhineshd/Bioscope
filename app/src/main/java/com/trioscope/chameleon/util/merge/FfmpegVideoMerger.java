@@ -454,7 +454,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                 Map<String, String> env = builder.environment();
                 env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
 
-                lr = new LinearRegression();
+                lr = new LinearRegression(true);
                 Process p = builder.start();
 
                 String line;
@@ -502,10 +502,10 @@ public class FfmpegVideoMerger implements VideoMerger {
                 timeRemainingMilli = (double) TimeUnit.MINUTES.convert(2, TimeUnit.MILLISECONDS);
             else {
                 lr.addData(elapsed, progressPerc);
-                double slope = lr.getSlope();
-                double totalTimeToTakeMilli = 100.0 / slope;
+                double[] slopeAndIntercept = lr.getSlopeAndIntercept();
+                double totalTimeToTakeMilli = (100.0 - slopeAndIntercept[1]) / slopeAndIntercept[0];
                 timeRemainingMilli = Math.max(0.0, totalTimeToTakeMilli - elapsed);
-                log.info("Estimated slope is {} -> {}ms remaining", lr.getSlope(), timeRemainingMilli);
+                log.info("Estimated slopeAndIntercept is {} -> {}ms remaining", slopeAndIntercept, timeRemainingMilli);
             }
 
             NotificationManager notificationManager = (NotificationManager)
