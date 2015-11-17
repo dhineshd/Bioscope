@@ -46,3 +46,7 @@
 
 -keepattributes Signature
 -keepattributes InnerClasses,EnclosingMethod
+
+# Application classes that will be serialized/deserialized over Gson
+-keep class com.trioscope.chameleon.types.** { *; }
+
