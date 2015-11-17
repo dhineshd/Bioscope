@@ -22,6 +22,7 @@ import com.trioscope.chameleon.types.NotificationIds;
 import com.trioscope.chameleon.util.Asset;
 import com.trioscope.chameleon.util.DepackageUtil;
 import com.trioscope.chameleon.util.FileUtil;
+import com.trioscope.chameleon.util.LinearRegression;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -331,6 +332,7 @@ public class FfmpegVideoMerger implements VideoMerger {
         private VideoConfiguration minorVideoConfig, majorVideoConfig;
         private File outputFile;
         private MergeConfiguration mergeConfiguration;
+        private LinearRegression lr;
 
         public VideoMergeRunnable(VideoMergeTaskParams params) {
             start = System.currentTimeMillis();
@@ -452,6 +454,7 @@ public class FfmpegVideoMerger implements VideoMerger {
                 Map<String, String> env = builder.environment();
                 env.put("LD_LIBRARY_PATH", ldLibraryPath + ":$LD_LIBRARY_PATH");
 
+                lr = new LinearRegression();
                 Process p = builder.start();
 
                 String line;
@@ -493,11 +496,17 @@ public class FfmpegVideoMerger implements VideoMerger {
             int progressPerc = getPercent(progress, outOf);
             int remaining = 100 - progressPerc;
             long elapsed = System.currentTimeMillis() - start;
+
             Double timeRemainingMilli;
             if (remaining == 100)
                 timeRemainingMilli = (double) TimeUnit.MINUTES.convert(2, TimeUnit.MILLISECONDS);
-            else
-                timeRemainingMilli = (100 * elapsed) / (100.0 - remaining);
+            else {
+                lr.addData(elapsed, progressPerc);
+                double slope = lr.getSlope();
+                double totalTimeToTakeMilli = 100.0 / slope;
+                timeRemainingMilli = Math.max(0.0, totalTimeToTakeMilli - elapsed);
+                log.info("Estimated slope is {} -> {}ms remaining", lr.getSlope(), timeRemainingMilli);
+            }
 
             NotificationManager notificationManager = (NotificationManager)
                     context.getSystemService(Context.NOTIFICATION_SERVICE);
