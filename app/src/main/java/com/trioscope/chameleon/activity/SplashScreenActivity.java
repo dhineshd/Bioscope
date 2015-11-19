@@ -58,8 +58,9 @@ public class SplashScreenActivity extends AppCompatActivity {
 
                 ActivityOptionsCompat options = ActivityOptionsCompat
                         .makeSceneTransitionAnimation(SplashScreenActivity.this, logoImageView, "logo");
-                startActivity(mainIntent, options.toBundle());
+                startActivity(mainIntent);
                 finish();
+                overridePendingTransition(R.anim.slide_in_bottom, R.anim.slide_out_top);
             }
         }, waitTimeMillis);
     }

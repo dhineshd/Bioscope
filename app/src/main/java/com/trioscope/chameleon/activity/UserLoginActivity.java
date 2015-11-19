@@ -16,6 +16,7 @@ import com.trioscope.chameleon.R;
 public class UserLoginActivity extends AppCompatActivity {
 
     private static final String EMPTY_STRING = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,7 +41,7 @@ public class UserLoginActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {
 
-                if(s.length() > 0) {
+                if (s.length() > 0) {
                     continueButton.setVisibility(View.VISIBLE);
                 } else {
                     continueButton.setVisibility(View.INVISIBLE);
@@ -51,8 +52,7 @@ public class UserLoginActivity extends AppCompatActivity {
         continueButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
-                if(!EMPTY_STRING.equals(editUserNameText.getText().toString())) {
+                if (!EMPTY_STRING.equals(editUserNameText.getText().toString())) {
                     SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(UserLoginActivity.this);
                     SharedPreferences.Editor editor = settings.edit();
                     editor.putString(getString(R.string.pref_user_name_key), editUserNameText.getText().toString());
@@ -60,18 +60,19 @@ public class UserLoginActivity extends AppCompatActivity {
 
                     startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
                     finish();// close this activity; so we can never navigate back here
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
                 }
             }
         });
 
-        if(!EMPTY_STRING.equals(getUserName())) {
+        if (!EMPTY_STRING.equals(getUserName())) {
             startActivity(new Intent(UserLoginActivity.this, MainActivity.class));
             finish();// close this activity; so we can never navigate back here
         }
     }
 
-     private String getUserName() {
-         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(UserLoginActivity.this);
-         return settings.getString(getString(R.string.pref_user_name_key), EMPTY_STRING);
-     }
+    private String getUserName() {
+        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(UserLoginActivity.this);
+        return settings.getString(getString(R.string.pref_user_name_key), EMPTY_STRING);
+    }
 }
