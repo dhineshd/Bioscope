@@ -201,7 +201,7 @@ public class ConnectionEstablishedActivity
 
         log.info("PeerInfo = {}", peerInfo);
 
-        if(isDirector(peerInfo)) {
+        if (isDirector(peerInfo)) {
             peerUserNameTextView.setText("Connected to " + peerInfo.getUserName());
         } else {
             peerUserNameTextView.setText("Directed by " + peerInfo.getUserName());
@@ -389,7 +389,7 @@ public class ConnectionEstablishedActivity
                 switchCamerasButton.setVisibility(View.INVISIBLE);
 
                 //Do this for crew
-                if(!isDirector(peerInfo)) {
+                if (!isDirector(peerInfo)) {
                     showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
 
                     new Handler().postDelayed(new Runnable() {
@@ -402,7 +402,6 @@ public class ConnectionEstablishedActivity
                 }
             }
         });
-
 
 
         // Start recorder
@@ -691,7 +690,7 @@ public class ConnectionEstablishedActivity
 
                 if (!isDirector(peerInfo)) {
 
-                    showCrewNotificationProgressBar("Retake!\nConnecting\nto\n"+ peerInfo.getUserName());
+                    showCrewNotificationProgressBar("Retake!\nConnecting\nto\n" + peerInfo.getUserName());
 
                     new Handler().postDelayed(new Runnable() {
 
@@ -926,6 +925,7 @@ public class ConnectionEstablishedActivity
             intent.putExtra(ConnectionEstablishedActivity.REMOTE_RECORDING_METADATA_KEY, gson.toJson(remoteRecordingMetadata));
             startActivity(intent);
             finish();
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
         }
 
     }
@@ -1026,7 +1026,7 @@ public class ConnectionEstablishedActivity
         }
     }
 
-    private void openMainActivity(){
+    private void openMainActivity() {
         //Re-use MainActivity instance if already present. If not, create new instance.
         Intent openMainActivity = new Intent(getApplicationContext(), MainActivity.class);
         openMainActivity.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);

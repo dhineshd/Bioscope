@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 if (isOpenHEnabled) {
                     Intent i = new Intent(MainActivity.this, SendConnectionInfoActivity.class);
                     startActivity(i);
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
                 } else {
                     log.info("OpenH264 is disabled, not going to move to SendConnectionInfoActivity");
                     new AlertDialog.Builder(MainActivity.this)
@@ -81,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
                 log.info("Join session button pressed");
                 Intent i = new Intent(MainActivity.this, ReceiveConnectionInfoActivity.class);
                 startActivity(i);
+                overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
             }
         });
 
