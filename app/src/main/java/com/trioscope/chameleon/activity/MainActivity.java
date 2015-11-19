@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
     private void showLibraryActivity() {
         Intent i = new Intent(MainActivity.this, VideoLibraryGridActivity.class);
         startActivity(i);
-        overridePendingTransition(R.anim.abc_slide_in_bottom, R.anim.abc_slide_out_top);
+        overridePendingTransition(R.anim.slide_in_bottom, R.anim.slide_out_top);
     }
 
     @Override

@@ -93,8 +93,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                 log.info("Detected gesture");
                 if (GestureUtils.isSwipeDown(e1, e2, velocityX, velocityY)) {
                     log.info("Gesture is swipe down");
-                    finish();
-                    overridePendingTransition(R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom);
+                    minimizeGallery();
                     return true;
                 }
                 return super.onFling(e1, e2, velocityX, velocityY);
@@ -116,8 +115,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 log.info("Minimizing gallery, showing MainActivity");
-                finish();
-                overridePendingTransition(R.anim.abc_slide_in_top, R.anim.abc_slide_out_bottom);
+                minimizeGallery();
             }
         });
 
@@ -191,6 +189,11 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         videoInfoCache = new LruCache<>(1000);
     }
 
+    private void minimizeGallery() {
+        finish();
+        overridePendingTransition(R.anim.slide_in_top, R.anim.slide_out_bottom);
+    }
+
     private class CacheVideoInfoTask extends AsyncTask<Void, Void, Void> {
 
         @Override
@@ -217,7 +220,9 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
 
             return null;
         }
-    };
+    }
+
+    ;
 
     @Builder
     @Getter
