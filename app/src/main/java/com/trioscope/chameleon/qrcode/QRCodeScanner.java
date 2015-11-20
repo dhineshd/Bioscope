@@ -2,8 +2,6 @@ package com.trioscope.chameleon.qrcode;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Handler;
-import android.os.Message;
 
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.ChecksumException;
@@ -26,6 +24,8 @@ import com.trioscope.chameleon.types.Size;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +45,6 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
     @NonNull
     private volatile QRCodeScanEventListener qrCodeScanEventListener;
     private volatile long previousFrameScanTimeMs = 0;
-    private volatile DecodeQRCodeThreadHandler decodeThreadHandler = new DecodeQRCodeThreadHandler();
 
     // TODO Initialize buffer after size is known
     private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
@@ -55,6 +54,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
     private ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(cameraFrameBytes);
     private int[] bitmapPixels = new int[cameraFrameSize.getWidth() * cameraFrameSize.getHeight()];
     private QRCodeReader qrCodeReader = new QRCodeReader();
+    private Executor decodeThreadPool = Executors.newSingleThreadExecutor();
 
     public void start() {
         cameraFrameBuffer.addListener(this);
@@ -79,13 +79,22 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
                 if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
                     if (data.getBytes() != null) {
                         inputByteBuffer.put(data.getBytes());
-                        byte[] imageBytes = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
+                        final byte[] imageBytes = CameraFrameUtil.convertYUV420888ByteBufferToJPEGByteArray(
                                 inputByteBuffer, outputByteBuffer, null,
                                 null, stream, cameraWidth, cameraHeight, cameraWidth,
                                 cameraHeight, IMAGE_COMPRESSION_QUALITY,
                                 frameInfo.isHorizontallyFlipped(), frameInfo.getOrientationDegrees());
-                    decodeThreadHandler.sendMessage(decodeThreadHandler.obtainMessage(
-                            DecodeQRCodeThreadHandler.DECODE_QR_CODE, imageBytes));
+
+                        decodeThreadPool.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                String decodedText = decodeQRCode(imageBytes);
+                                if (decodedText != null) {
+                                    log.info("QR code detected = {}", decodedText);
+                                    qrCodeScanEventListener.onTextDecoded(decodedText);
+                                }
+                            }
+                        });
                     }
                 }
             } catch (Exception e) {
@@ -117,21 +126,5 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
     private String decodeBitmap(final BinaryBitmap binaryBitmap)
             throws FormatException, ChecksumException, NotFoundException {
         return qrCodeReader.decode(binaryBitmap).getText();
-    }
-
-    private class DecodeQRCodeThreadHandler extends Handler {
-        public static final int DECODE_QR_CODE = 1;
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == DECODE_QR_CODE) {
-                String decodedText = decodeQRCode((byte[]) msg.obj);
-                if (decodedText != null) {
-                    log.info("QR code detected = {}", decodedText);
-                    qrCodeScanEventListener.onTextDecoded(decodedText);
-                }
-            } else {
-                super.handleMessage(msg);
-            }
-        }
     }
 }
