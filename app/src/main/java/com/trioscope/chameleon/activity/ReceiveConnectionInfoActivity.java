@@ -63,6 +63,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     private RelativeLayout relativeLayoutFocusOverlay;
     private ImageView progressBarInterior;
     private volatile WiFiNetworkConnectionInfo connectionInfo;
+    private long latestUserInteractionTimeMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -162,10 +163,21 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     }
 
     @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        latestUserInteractionTimeMillis = System.currentTimeMillis();
+        log.info("User is interacting with the app");
+    }
+
+    @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        log.info("User is leaving. Finishing activity..");
-        finish();
+        log.info("User leave hint triggered");
+        if (Math.abs(System.currentTimeMillis() - latestUserInteractionTimeMillis) < 100) {
+            log.info("User leave hint triggered and interacted with app recently. " +
+                    "Assuming that user pressed home button.Finishing activity");
+            finish();
+        }
     }
 
     @Override
