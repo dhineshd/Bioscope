@@ -229,6 +229,11 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("256k");
         params.add("-b:v");
         params.add("5000k");
+
+        // To fix a/v sync issues
+        params.add("-async");
+        params.add("1");
+
         params.add("-filter_complex");
         if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
 
