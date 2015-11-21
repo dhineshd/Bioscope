@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class QRCodeScanner implements CameraFrameAvailableListener{
-    private static final int SCANNING_FRAMES_PER_SEC = 2;
+    private static final int SCANNING_FRAMES_PER_SEC = 3;
     private static final int IMAGE_COMPRESSION_QUALITY = 100; // 0 worst - 100 best
 
     @NonNull
@@ -112,6 +112,12 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
     private String decodeQRCode(final byte[] imageBytes) {
         try {
             Bitmap bmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            int centerHeight = bmp.getHeight() / 2;
+            int centerWidth = bmp.getWidth() / 2;
+            int squareSide = 600; // pixels
+            // Grab the center square area from bitmap for decoding
+            bmp = Bitmap.createBitmap(bmp, centerWidth - squareSide / 2,
+                    centerHeight - squareSide / 2, squareSide, squareSide);
             bmp.getPixels(bitmapPixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight());
             LuminanceSource source = new RGBLuminanceSource(bmp.getWidth(), bmp.getHeight(), bitmapPixels);
             BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
