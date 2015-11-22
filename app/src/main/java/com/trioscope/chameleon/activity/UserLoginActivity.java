@@ -7,11 +7,16 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
 import com.trioscope.chameleon.R;
+
+import lombok.extern.slf4j.Slf4j;
 
 public class UserLoginActivity extends AppCompatActivity {
 
@@ -46,6 +51,16 @@ public class UserLoginActivity extends AppCompatActivity {
                 } else {
                     continueButton.setVisibility(View.INVISIBLE);
                 }
+            }
+        });
+
+        editUserNameText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    continueButton.callOnClick();
+                }
+                return false;
             }
         });
 
