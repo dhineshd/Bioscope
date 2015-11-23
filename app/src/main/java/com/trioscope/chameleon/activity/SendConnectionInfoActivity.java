@@ -171,7 +171,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
         log.info("User leave hint triggered");
-        if (Math.abs(System.currentTimeMillis() - latestUserInteractionTimeMillis) < 100) {
+        if (ChameleonApplication.isUserLeavingOnLeaveHintTriggered(latestUserInteractionTimeMillis)) {
             log.info("User leave hint triggered and interacted with app recently. " +
                     "Assuming that user pressed home button.Finishing activity");
             finish();
