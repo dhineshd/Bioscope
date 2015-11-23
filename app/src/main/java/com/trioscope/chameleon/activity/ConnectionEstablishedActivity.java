@@ -244,13 +244,6 @@ public class ConnectionEstablishedActivity
 
                     stopRecording();
 
-                    isRecording = false;
-
-                    // Give the user the option to retake the video or continue to merge
-                    sessionActionsLayout.setVisibility(View.INVISIBLE);
-
-                    endSessionLayout.setVisibility(View.VISIBLE);
-
                 } else {
                     recordButton.setImageResource(R.drawable.stop_recording_button_enabled);
 
@@ -271,10 +264,6 @@ public class ConnectionEstablishedActivity
                     }
 
                     startRecording();
-
-                    isRecording = true;
-
-
                 }
             }
         });
@@ -387,53 +376,71 @@ public class ConnectionEstablishedActivity
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                switchCamerasButton.setVisibility(View.INVISIBLE);
 
-                //Do this for crew
-                if (!isDirector(peerInfo)) {
-                    showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
+                // Start recorder
+                if (recorder.startRecording()) {
 
-                    new Handler().postDelayed(new Runnable() {
+                    switchCamerasButton.setVisibility(View.INVISIBLE);
 
-                        @Override
-                        public void run() {
-                            hideCrewNotificationProgressBar();
-                        }
-                    }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
+                    //Do this for crew
+                    if (!isDirector(peerInfo)) {
+                        showCrewNotificationProgressBar("Lights,\nCamera,\nAction!");
+
+                        new Handler().postDelayed(new Runnable() {
+
+                            @Override
+                            public void run() {
+                                hideCrewNotificationProgressBar();
+                            }
+                        }, 1200);// This value needs to be the same as indeterminateDuration defined in xml for this progress bar
+                    }
+
+                    log.debug("Video recording started");
+                    recordingStartTime = System.currentTimeMillis();
+                    timerHandler.postDelayed(timerRunnable, 500);
+
+                    isRecording = true;
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                            "Failed to start recording", Toast.LENGTH_LONG).show();
                 }
             }
         });
 
-
-        // Start recorder
-        recorder.startRecording();
-        log.debug("Video recording started");
-        recordingStartTime = System.currentTimeMillis();
-        timerHandler.postDelayed(timerRunnable, 500);
     }
 
     private void stopRecording() {
 
-        //Stop recorder
-        log.debug("Stop recording event received!!");
-        localRecordingMetadata = recorder.stopRecording();
-        log.debug("Video recording stopped");
-        timerHandler.removeCallbacks(timerRunnable);
-
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+
+                //Stop recorder
+                log.debug("Stop recording event received!!");
+                localRecordingMetadata = recorder.stopRecording();
+                log.debug("Video recording stopped");
+                timerHandler.removeCallbacks(timerRunnable);
+
                 recordingTimerTextView.setVisibility(View.INVISIBLE);
 
                 // Show button to switch cameras
                 switchCamerasButton.setVisibility(View.VISIBLE);
 
-                if (!isDirector(peerInfo)) {
+                if (isDirector(peerInfo)) {
 
+                    // Give the user the option to retake the video or continue to merge
+                    sessionActionsLayout.setVisibility(View.INVISIBLE);
+
+                    endSessionLayout.setVisibility(View.VISIBLE);
+
+                } else {
                     showCrewNotificationProgressBar("Cut!\nWaiting for\n" + peerInfo.getUserName() + "...");
                 }
+
+                isRecording = false;
             }
         });
+
     }
 
     private void initializeRecordingTimer() {
@@ -1027,10 +1034,6 @@ public class ConnectionEstablishedActivity
             hideProgressBar();
 
             Toast.makeText(getApplicationContext(), "Session completed!", Toast.LENGTH_LONG).show();
-
-            // Delete video since we have already sent it
-            File videoFile = new File(recordingMetadata.getAbsoluteFilePath());
-            videoFile.delete();
 
             openMainActivity();
 

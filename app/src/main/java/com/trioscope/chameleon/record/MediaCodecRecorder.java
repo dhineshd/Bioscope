@@ -105,14 +105,13 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
 
             isRecording = true;
 
-            return true;
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to start recording!", e);
             mediaMuxer = null;
             cameraFrameBuffer.removeListener(this);
+            isRecording = false;
         }
-        return false;
+        return isRecording;
     }
 
     @Override
