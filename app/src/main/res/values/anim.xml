@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <integer name="default_animation_time" >1000</integer>
-    <integer name="default_animation_time_120" >1200</integer> <!-- 120% the default animation time -->
+    <integer name="default_animation_time" >400</integer>
+    <integer name="default_animation_time_120" >480</integer> <!-- 120% the default animation time -->
 </resources>
