@@ -436,12 +436,8 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                     log.info("Serialized encrypted info : length = {}, contents = '{}'",
                                             serializedEncryptedValue.length(), serializedEncryptedValue);
 
-                                    EncryptedValue ev = gson.fromJson(serializedEncryptedValue, EncryptedValue.class);
-                                    String decrypted = encryptionUtil.decrypt(ev);
-                                    log.info("And then decrypted: {}", decrypted);
-
                                     Bitmap qrCodeImage = QRCodeUtil.generateQRCode(
-                                            serializedWifiConnectionInfo, 150, 150);
+                                            serializedEncryptedValue, 150, 150);
                                     qrCodeImageView.setImageBitmap(qrCodeImage);
                                     qrCodeImageView.setVisibility(View.VISIBLE);
                                 }
