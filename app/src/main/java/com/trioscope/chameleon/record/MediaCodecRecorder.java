@@ -69,6 +69,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private volatile int audioTrackIndex = -1;
     private volatile int videoTrackIndex = -1;
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
+    private volatile boolean videoEncoderSetupCompleted;
 
     private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
     private byte[] finalFrameData;
@@ -84,16 +85,19 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         videoTrackIndex = -1;
         audioTrackIndex = -1;
         processedCameraFrameCount = 0;
-
-        // Start listening for camera frames
-        // Note : This should happen before video encoder setup
-        // so that we setup video encoder with correct frame size
-        cameraFrameBuffer.addListener(this);
-
-        setupVideoEncoder();
+        videoEncoderSetupCompleted = false;
 
         //Setup MediaMuxer to save MediaCodec output to given file
         try {
+            // Start listening for camera frames
+            // Note : This should happen before video encoder setup
+            // so that we setup video encoder with correct frame size
+            cameraFrameBuffer.addListener(this);
+
+            setupVideoEncoder();
+
+            videoEncoderSetupCompleted = true;
+
             recordingMetadata = null;
             outputFile = chameleonApplication.createVideoFile(true);
             mediaMuxer = new MediaMuxer(
@@ -101,15 +105,13 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
                     MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 
             // Start audio recording task
-            startAudioRecordingTask();
+            audioRecordTask = startAudioRecordingTask();
 
             isRecording = true;
 
         } catch (Exception e) {
             log.error("Failed to start recording!", e);
-            mediaMuxer = null;
-            cameraFrameBuffer.removeListener(this);
-            isRecording = false;
+            stopRecording();
         }
         return isRecording;
     }
@@ -153,35 +155,31 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         return isRecording;
     }
 
-    private void setupVideoEncoder() {
+    private void setupVideoEncoder() throws IOException {
 
         // Setup video encoder
-        try {
-            videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
-            log.debug("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, videoEncoder.getCodecInfo().getName());
-            for (int colorFormat : videoEncoder.getCodecInfo().getCapabilitiesForType(MIME_TYPE_VIDEO).colorFormats) {
-                log.debug("Supported color format = {}", colorFormat);
-            }
-            MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO,
-                    cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
-            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
-            mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
-            mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-
-            // Special case for API 21 and Exynos encoder
-            if (videoEncoder.getCodecInfo().getName().contains("OMX.Exynos") &&
-                    Build.VERSION.SDK_INT == 21) {
-                mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                        MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar);
-            } else {
-                mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
-            }
-            log.debug("MediaFormat = {}", mediaFormat);
-            videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-            videoEncoder.start();
-        } catch (IOException e) {
-            log.error("Failed to create video encoder", e);
+        videoEncoder = MediaCodec.createEncoderByType(MIME_TYPE_VIDEO);
+        log.debug("Chosen encoder for {} : {}", MIME_TYPE_VIDEO, videoEncoder.getCodecInfo().getName());
+        for (int colorFormat : videoEncoder.getCodecInfo().getCapabilitiesForType(MIME_TYPE_VIDEO).colorFormats) {
+            log.debug("Supported color format = {}", colorFormat);
         }
+        MediaFormat mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE_VIDEO,
+                cameraFrameSize.getWidth(), cameraFrameSize.getHeight());
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BIT_RATE);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FRAME_RATE);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+
+        // Special case for API 21 and Exynos encoder
+        if (videoEncoder.getCodecInfo().getName().contains("OMX.Exynos") &&
+                Build.VERSION.SDK_INT == 21) {
+            mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                    MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar);
+        } else {
+            mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, VIDEO_COLOR_FORMAT);
+        }
+        log.debug("MediaFormat = {}", mediaFormat);
+        videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        videoEncoder.start();
     }
 
     private MediaCodec createAudioEncoder() {
@@ -215,7 +213,9 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
         if (cameraInfo.getEncoding() == CameraInfo.ImageEncoding.YUV_420_888) {
             try {
                 long adjustedFrameReceiveTimeMillis = frameReceiveTimeMillis - frameReceiveDelayMillis;
-                processFrame(data, frameInfo, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
+                if (videoEncoderSetupCompleted) {
+                    processFrame(data, frameInfo, framePresentationTimeMicros, adjustedFrameReceiveTimeMillis);
+                }
             } catch (Exception e) {
                 log.error("Failed to record frame", e);
             }
@@ -420,10 +420,10 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
 
     }
 
-    private void startAudioRecordingTask() {
+    private AsyncTask startAudioRecordingTask() {
 
         // Process audio in a separate thread
-        audioRecordTask = new AsyncTask<Void, Void, Void>(){
+        return new AsyncTask<Void, Void, Void>(){
 
             @Override
             protected Void doInBackground(Void... voids) {
