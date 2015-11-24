@@ -28,6 +28,8 @@ import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.PeerMessage;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.QRCodeUtil;
+import com.trioscope.chameleon.util.security.AESEncryptionUtil;
+import com.trioscope.chameleon.util.security.EncryptedValue;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
 import org.apache.http.conn.util.InetAddressUtils;
@@ -427,6 +429,17 @@ public class SendConnectionInfoActivity extends AppCompatActivity
 //                                            new String(serializedConnectionInfo, StandardCharsets.UTF_8);
                                     log.info("Serialized info : length = {}, contents = '{}'",
                                             serializedWifiConnectionInfo.length(), serializedWifiConnectionInfo);
+
+                                    AESEncryptionUtil encryptionUtil = new AESEncryptionUtil(getString(R.string.global_aes_key));
+                                    EncryptedValue encrypted = encryptionUtil.encrypt(serializedWifiConnectionInfo);
+                                    String serializedEncryptedValue = gson.toJson(encrypted);
+                                    log.info("Serialized encrypted info : length = {}, contents = '{}'",
+                                            serializedEncryptedValue.length(), serializedEncryptedValue);
+
+                                    EncryptedValue ev = gson.fromJson(serializedEncryptedValue, EncryptedValue.class);
+                                    String decrypted = encryptionUtil.decrypt(ev);
+                                    log.info("And then decrypted: {}", decrypted);
+
                                     Bitmap qrCodeImage = QRCodeUtil.generateQRCode(
                                             serializedWifiConnectionInfo, 150, 150);
                                     qrCodeImageView.setImageBitmap(qrCodeImage);

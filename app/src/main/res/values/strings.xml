@@ -45,4 +45,6 @@
     <string name="title_activity_termsofuse">TermsofuseActivity</string>
     <string name="title_activity_licenses">LicensesActivity</string>
     <string name="pref_version_number_key">VersionNumber</string>
+
+    <string name="global_aes_key">udj48651owk84171</string>
 </resources>
