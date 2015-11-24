@@ -65,6 +65,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     private X509Certificate serverCertificate;
     private SecretKey symmetricKey;
     private byte[] serializedConnectionInfo;
+    private long latestUserInteractionTimeMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,10 +161,21 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     }
 
     @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        latestUserInteractionTimeMillis = System.currentTimeMillis();
+        log.info("User is interacting with the app");
+    }
+
+    @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        log.info("User is leaving. Finishing activity");
-        finish();
+        log.info("User leave hint triggered");
+        if (ChameleonApplication.isUserLeavingOnLeaveHintTriggered(latestUserInteractionTimeMillis)) {
+            log.info("User leave hint triggered and interacted with app recently. " +
+                    "Assuming that user pressed home button.Finishing activity");
+            finish();
+        }
     }
 
     private void cleanup() {

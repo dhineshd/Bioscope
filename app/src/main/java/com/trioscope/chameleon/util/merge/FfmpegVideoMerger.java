@@ -209,19 +209,40 @@ public class FfmpegVideoMerger implements VideoMerger {
             final String minorVidPath,
             final String outputPath,
             final MergeConfiguration configuration) {
+        long majorOffset = 0;
+        long minorOffset = 0;
+        if (configuration.getVideoStartOffsetMilli() != null) {
+            if (configuration.getVideoStartOffsetMilli() < 0) {
+                minorOffset = Math.abs(configuration.getVideoStartOffsetMilli());
+            } else {
+                majorOffset = configuration.getVideoStartOffsetMilli();
+            }
+        }
         List<String> params = new LinkedList<>();
         params.add("-y"); // Overwrite any output already existing
+
+        if (majorOffset > 0) {
+            params.add("-ss");
+            params.add(String.format("%.3f", majorOffset / 1000.0));
+        }
+
         params.add("-i");
         params.add(majorVidPath);
-        if (configuration.getVideoStartOffsetMilli() != null) {
-            params.add("-itsoffset");
-            params.add(String.format("%.3f", configuration.getVideoStartOffsetMilli() / 1000.0));
+
+        if (minorOffset > 0) {
+            params.add("-ss");
+            params.add(String.format("%.3f", minorOffset / 1000.0));
         }
+
         params.add("-i");
         params.add(minorVidPath);
 
         params.add("-i");
         params.add(getWatermarkLogoAbsolutePath());
+
+        // Crop first two seconds of output to avoid showing black frame
+        params.add("-ss");
+        params.add("2");
 
         params.add("-c:v");
         params.add("libopenh264");
@@ -229,12 +250,17 @@ public class FfmpegVideoMerger implements VideoMerger {
         params.add("256k");
         params.add("-b:v");
         params.add("5000k");
+
+        // To fix a/v sync issues
+        params.add("-async");
+        params.add("1");
+
         params.add("-filter_complex");
         if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE) {
 
             params.add("[0] scale=1080:1920,drawbox=c=white:t=8 [major]; " +
-                    "[1] scale=412:732,drawbox=c=white:t=8, trim=start_frame=2 [minor]; " +
-                    "[major][minor] overlay=54:main_h-overlay_h-54:eval=init [merged];" +
+                    "[1] scale=412:732,drawbox=c=white:t=8 [minor]; " +
+                    "[major][minor] overlay=54:main_h-overlay_h-54 [merged];" +
                     "[merged][2] overlay=main_w-overlay_w-108:main_h-overlay_h-54");
         } else if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE) {
 

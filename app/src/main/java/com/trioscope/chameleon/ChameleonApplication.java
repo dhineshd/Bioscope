@@ -60,6 +60,7 @@ public class ChameleonApplication extends Application {
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
     private static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1280, 720);
     private static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
+    private static final long MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS = 50;
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
     public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";
@@ -430,5 +431,10 @@ public class ChameleonApplication extends Application {
             return DEFAULT_CAMERA_PREVIEW_SIZE_API_23;
         }
         return DEFAULT_CAMERA_PREVIEW_SIZE;
+    }
+
+    public static boolean isUserLeavingOnLeaveHintTriggered(final long latestUserInteractionTimeMillis) {
+        return (Math.abs(System.currentTimeMillis() - latestUserInteractionTimeMillis) <
+                MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS);
     }
 }
