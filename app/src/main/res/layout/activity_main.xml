@@ -14,51 +14,68 @@
     <RelativeLayout
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-        <LinearLayout
+        android:layout_height="match_parent" >
+        <ImageView
+            android:id="@+id/direct_logo"
+            android:transitionName="logo"
+            android:src="@drawable/direct_logo"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="30dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:layout_centerInParent="true"
             android:gravity="center">
 
+
+
             <com.trioscope.chameleon.views.PrimaryButton
                 android:id="@+id/button_main_start_session"
-                android:background="@drawable/primary_button_large_background"
+                android:background="@drawable/primary_button_medium_background"
                 android:stateListAnimator="@anim/button_elevation_anim"
                 style="@style/primaryButtonLargeText"
                 android:layout_margin="20dp"
                 android:text="Direct" />
 
-            <TextView
+            <com.trioscope.chameleon.views.TextButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 style="@style/textButtonSecondary"
+                android:background="@null"
                 android:text="or"
+                android:enabled="false"
                 />
 
             <com.trioscope.chameleon.views.PrimaryButton
                 android:id="@+id/button_main_join_session"
-                android:background="@drawable/primary_button_large_background"
+                android:background="@drawable/primary_button_medium_background"
                 android:stateListAnimator="@anim/button_elevation_anim"
                 style="@style/primaryButtonLargeText"
                 android:layout_below="@+id/button_main_start_session"
                 android:layout_margin="20dp"
                 android:text="Join" />
 
+
+
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/button_main_library"
-            android:src="@drawable/up_arrow_4x"
-            android:background="@null"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_centerHorizontal="true"
-            android:paddingBottom="30dp" />
+    <ImageButton
+        android:id="@+id/button_main_library"
+        android:src="@drawable/up_arrow_4x"
+        android:background="@null"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:paddingBottom="30dp" />
+    </RelativeLayout>
 
 </RelativeLayout>
 
