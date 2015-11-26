@@ -15,16 +15,6 @@
         android:id="@+id/relativeLayout_main_preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent" >
-        <ImageView
-            android:id="@+id/direct_logo"
-            android:transitionName="logo"
-            android:src="@drawable/direct_logo"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="30dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -32,8 +22,6 @@
             android:orientation="vertical"
             android:layout_centerInParent="true"
             android:gravity="center">
-
-
 
             <com.trioscope.chameleon.views.PrimaryButton
                 android:id="@+id/button_main_start_session"
