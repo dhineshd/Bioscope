@@ -40,17 +40,38 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <com.trioscope.chameleon.views.BioscopeLargeTextView
+            android:id="@+id/receive_conn_instructions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Scan code to connect"
+            style="@style/primaryButtonLargeText"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="100dp"
+            />
+
         <ProgressBar
             android:id="@+id/receive_conn_info_prog_bar"
+            android:layout_below="@+id/receive_conn_instructions"
             android:layout_width="150dp"
             android:layout_height="150dp"
             android:visibility="invisible"
-            android:layout_marginTop="248dp"
+            android:layout_marginTop="90dp"
             android:layout_centerInParent="true"
             android:indeterminate="true"
             android:indeterminateDrawable="@drawable/circular_progress_bar"
             android:indeterminateDuration="1000"
             android:rotation="270"/>
+
+        <com.trioscope.chameleon.views.ProgressBarTextView
+            android:id="@+id/textView_receiver_connection_status"
+            android:layout_below="@+id/receive_conn_instructions"
+            style="@style/progressBarText"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginTop="95dp"
+            android:layout_centerInParent="true"
+            android:visibility="invisible" />
 
         <com.trioscope.chameleon.views.TextButton
             android:layout_width="wrap_content"
@@ -65,13 +86,6 @@
 
     </RelativeLayout>
 
-    <com.trioscope.chameleon.views.ProgressBarTextView
-        android:id="@+id/textView_receiver_connection_status"
-        style="@style/progressBarText"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:layout_gravity="center"
-        android:gravity="center"
-        android:visibility="invisible" />
+
 
 </FrameLayout>
