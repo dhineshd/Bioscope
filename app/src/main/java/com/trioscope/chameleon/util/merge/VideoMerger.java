@@ -14,11 +14,11 @@ public interface VideoMerger {
     int MERGE_LAYOUT_TYPE_SIDE_BY_SIDE = 1;
     int MERGE_LAYOUT_TYPE_PICTURE_IN_PICTURE = 2;
 
+    void addProgressUpdateable(String fileName, ProgressUpdatable progressUpdatable);
+
     void mergeVideos(
             VideoConfiguration videoConfig1, VideoConfiguration videoConfig2,
             File outputDestination, MergeConfiguration configuration);
 
     Collection<File> getTemporaryFiles();
-
-    void setProgressUpdatable(ProgressUpdatable progressUpdatable);
 }

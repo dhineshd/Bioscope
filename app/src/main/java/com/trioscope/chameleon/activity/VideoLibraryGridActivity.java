@@ -48,9 +48,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -81,6 +84,11 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
     private Typeface appFontTypefaceBold;
     private List<File> libraryFiles = new ArrayList<>();
     private CacheVideoInfoTask cacheVideoInfoTask;
+    private Map<String, Integer> fileNameToPercentMerged = new ConcurrentHashMap<>();
+
+    public void updatePercentMerged(String filename, int percent) {
+        fileNameToPercentMerged.put(filename, percent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -141,6 +149,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                 log.info("File {} is being merged, but the output file hasnt yet been created. " +
                         "We want to include it anyways", file);
                 libraryFiles.add(0, file);
+                updatePercentMerged(file.getName(), 0);
             }
         }
 
@@ -262,8 +271,9 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
 
     private class LibraryGridAdapter extends ArrayAdapter<File> {
         @Setter
-        private volatile int percentageMerged = 0;
         private VideoMerger videoMerger = ((ChameleonApplication) getApplication()).getVideoMerger();
+
+
 
         public LibraryGridAdapter(Context context, List<File> objects) {
             super(context, 0, objects);
@@ -302,9 +312,12 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                 // Check if this video is being merged
                 if (mergingFilenames.contains(videoFile.getName())) {
                     setProgressVisible(viewHolder, true);
-                    videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
-                    viewHolder.progressBar.setProgress(percentageMerged);
-                    viewHolder.progressBarText.setText(percentageMerged + "%");
+                    //videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
+                    videoMerger.addProgressUpdateable(videoFile.getName(), new UpdateVideoMerge(videoFile));
+
+                    int percentMerged = fileNameToPercentMerged.get(videoFile.getName()) == null? 0 : fileNameToPercentMerged.get(videoFile.getName());
+                    viewHolder.progressBar.setProgress(percentMerged);
+                    viewHolder.progressBarText.setText(percentMerged + "%");
                     viewHolder.progressBarText.setTypeface(appFontTypefaceBold);
 
                 } else {
@@ -387,8 +400,14 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         VideoInfo videoInfo = videoInfoCache.get(videoFile.getName());
         if (videoInfo == null) {
             // Loading video in gallery for first time, retrieve and cache info.
+
+            String videographer = getVideographer(videoFile, dbHelper);
+            String title = "";
+            if(!videographer.isEmpty()) {
+                title = "with " + videographer;
+            }
             videoInfo = VideoInfo.builder()
-                    .title("with " + getVideographer(videoFile, dbHelper))
+                    .title(title)
                     .duration(milliToMinutes(Double.valueOf(getVideoDuration(videoFile))))
                     .lastModified(videoFile.lastModified())
                     .build();
@@ -407,7 +426,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
 
     @Timed
     private String getVideographer(final File videoFile, final BioscopeDBHelper dbHelper) {
-        String videoWith = "Unknown";
+        String videoWith = "";
         //Load the other videographers from db
         List<String> videographers = dbHelper.getVideoInfo(videoFile.getName(), VideoInfoType.VIDEOGRAPHER);
         if (!videographers.isEmpty()) {
@@ -476,7 +495,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                             View view = videoGrid.getChildAt(i - start);
                             // Calling getView will refresh the view
                             LibraryGridAdapter adapter = (LibraryGridAdapter) videoGrid.getAdapter();
-                            adapter.setPercentageMerged(percent);
+                            updatePercentMerged(file.getName(), percent);
                             adapter.getView(i, view, videoGrid);
                             break;
                         }
@@ -490,6 +509,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
             log.info("Video is complete!");
             updateVideoGridWithPercentage(100);
             mergingFilenames.remove(file.getName());
+            fileNameToPercentMerged.remove(file.getName());
         }
 
         @Override
