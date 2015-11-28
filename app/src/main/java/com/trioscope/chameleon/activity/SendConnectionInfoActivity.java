@@ -66,6 +66,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     private SecretKey symmetricKey;
     private byte[] serializedConnectionInfo;
     private long latestUserInteractionTimeMillis;
+    private TextView sendConnectionInfoInstructionTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,6 +104,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
         progressBar = (ProgressBar) findViewById(R.id.send_conn_info_prog_bar);
         progressBarInteriorImageView = (ImageView) findViewById(R.id.send_conn_info_prog_bar_interior);
         qrCodeImageView = (ImageView) findViewById(R.id.imageview_qr_code);
+        sendConnectionInfoInstructionTextView = (TextView) findViewById(R.id.send_conn_instructions);
 
         cancelButton = (Button) findViewById(R.id.button_cancel_send_connection_info);
         cancelButton.setOnClickListener(new View.OnClickListener() {
@@ -347,6 +349,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                 public void run() {
                                     progressBar.setVisibility(View.INVISIBLE);
                                     connectionStatusTextView.setText("Oops!\nPlease try\nagain");
+
                                 }
                             });
                         }
@@ -418,6 +421,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                 protected void onPostExecute(Void aVoid) {
                                     super.onPostExecute(aVoid);
                                     progressBar.setVisibility(View.INVISIBLE);
+                                    sendConnectionInfoInstructionTextView.setVisibility(View.VISIBLE);
                                     //progressBarInteriorImageView.setVisibility(View.VISIBLE);
                                     //connectionStatusTextView.setVisibility(View.VISIBLE);
                                     //connectionStatusTextView.setText("Beam\nto\nconnect");

@@ -12,6 +12,18 @@
     android:background="@color/bioscope_teal"
     tools:context="com.trioscope.chameleon.activity.SendConnectionInfoActivity">
 
+    <com.trioscope.chameleon.views.BioscopeLargeTextView
+        android:id="@+id/send_conn_instructions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Have a friend scan this code to connect"
+        style="@style/primaryButtonLargeText"
+        android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:layout_marginTop="100dp"
+        android:visibility="invisible"
+        />
+
     <ImageView
         android:id="@+id/send_conn_info_prog_bar_interior"
         android:layout_width="wrap_content"
