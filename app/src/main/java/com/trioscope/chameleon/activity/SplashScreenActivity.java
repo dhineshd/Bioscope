@@ -34,7 +34,7 @@ public class SplashScreenActivity extends AppCompatActivity {
         if (!merger.hasRequiredComponents()) {
             // We need to do an initial download of codecs
             TextView text = (TextView) findViewById(R.id.splash_status_text);
-            text.setText("Downloading additional codecs for mp4 encoding...");
+            text.setText("Loading...");
             merger.prepare(new DownloadProgressUpdatable());
         } else {
              /* New Handler to start the Menu-Activity
