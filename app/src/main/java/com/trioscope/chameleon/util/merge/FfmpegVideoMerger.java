@@ -444,6 +444,7 @@ public class FfmpegVideoMerger implements VideoMerger {
 
             if(filenameToProgressUpdateableMap.get(outputFile.getName()) != null) {
                 filenameToProgressUpdateableMap.get(outputFile.getName()).onCompleted();
+                filenameToProgressUpdateableMap.remove(outputFile.getName());
             }
         }
 
