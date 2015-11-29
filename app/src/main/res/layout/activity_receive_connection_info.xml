@@ -28,13 +28,7 @@
         android:background="@drawable/border_image_green">
     </RelativeLayout>
 
-    <ImageView
-        android:id="@+id/receive_conn_info_prog_bar_interior"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:visibility="invisible"
-        android:src="@drawable/progress_bar_interior"/>
+
 
     <RelativeLayout
         android:layout_width="match_parent"
@@ -49,6 +43,17 @@
             android:layout_centerHorizontal="true"
             android:layout_marginTop="100dp"
             />
+
+        <ImageView
+            android:id="@+id/receive_conn_info_prog_bar_interior"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/receive_conn_instructions"
+            android:layout_centerInParent="true"
+            android:layout_marginTop="95dp"
+            android:layout_gravity="center"
+            android:visibility="invisible"
+            android:src="@drawable/progress_bar_interior"/>
 
         <ProgressBar
             android:id="@+id/receive_conn_info_prog_bar"

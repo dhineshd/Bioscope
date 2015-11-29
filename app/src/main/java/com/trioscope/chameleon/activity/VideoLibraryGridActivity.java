@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.format.DateUtils;
@@ -44,6 +45,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.File;
 import java.io.FileFilter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -51,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -77,7 +80,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
 
     private GestureDetectorCompat gestureDetector;
     private Executor backgroundThumbnailExecutor = Executors.newSingleThreadExecutor();
-    private Set<String> mergingFilenames = new HashSet<>();
+    private Map<String, Boolean> mergingFilenamesMap = new ConcurrentHashMap<>();// presence of filename in this map means video is currently merging
     private LruCache<String, VideoInfo> videoInfoCache;
     private LruCache<String, Bitmap> thumbnailCache;
     private Typeface appFontTypefaceRegular;
@@ -142,8 +145,13 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         log.info("Num files in library = {}", libraryFiles.size());
 
         BioscopeDBHelper db = new BioscopeDBHelper(this);
-        mergingFilenames = new HashSet<>(db.getVideosWithType(VideoInfoType.BEING_MERGED, "true"));
-        for (String fileName : mergingFilenames) {
+        List<String> mergingFilenames = db.getVideosWithType(VideoInfoType.BEING_MERGED, "true");
+        if(mergingFilenames != null && !mergingFilenames.isEmpty()) {
+            for(String name : mergingFilenames) {
+                mergingFilenamesMap.put(name, Boolean.TRUE);
+            }
+        }
+        for (String fileName : mergingFilenamesMap.keySet()) {
             File file = FileUtil.getMergedOutputFile(fileName);
             if (!libraryFiles.contains(file)) {
                 log.info("File {} is being merged, but the output file hasnt yet been created. " +
@@ -167,7 +175,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 File item = libraryFiles.get(position);
                 // Don't allow user to click videos being merged
-                if (!mergingFilenames.contains(item.getName())) {
+                if (!mergingFilenamesMap.containsKey(item.getName())) {
                     Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
                     intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
                     startActivity(intentToPlayVideo);
@@ -310,16 +318,13 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                 }
 
                 // Check if this video is being merged
-                if (mergingFilenames.contains(videoFile.getName())) {
-                    setProgressVisible(viewHolder, true);
-                    //videoMerger.setProgressUpdatable(new UpdateVideoMerge(videoFile));
+                if (mergingFilenamesMap.containsKey(videoFile.getName())) {
                     videoMerger.addProgressUpdateable(videoFile.getName(), new UpdateVideoMerge(videoFile));
-
                     int percentMerged = fileNameToPercentMerged.get(videoFile.getName()) == null? 0 : fileNameToPercentMerged.get(videoFile.getName());
                     viewHolder.progressBar.setProgress(percentMerged);
                     viewHolder.progressBarText.setText(percentMerged + "%");
                     viewHolder.progressBarText.setTypeface(appFontTypefaceBold);
-
+                    setProgressVisible(viewHolder, true);
                 } else {
                     setProgressVisible(viewHolder, false);
                     updateUIElements(videoFile, getVideoInfo(videoFile, helper), viewHolder);
@@ -464,7 +469,6 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
     private class UpdateVideoMerge implements ProgressUpdatable {
         private final Handler handler;
         private final File file;
-        int lastPercent = 0;
 
         private UpdateVideoMerge(File file) {
             this.file = file;
@@ -475,8 +479,9 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         public void onProgress(final double progress, final double outOf) {
             log.info("Progress is now {}/{}", progress, outOf);
             int percent = getPercent(progress, outOf);
+            int lastPercent = fileNameToPercentMerged.get(file.getName()) == null ? 0 : fileNameToPercentMerged.get(file.getName());
+            log.info("percent is {}, lastPercent is {}.", percent, lastPercent);
             if (percent > lastPercent) {
-                lastPercent = percent;
                 updateVideoGridWithPercentage(percent);
             }
         }
@@ -489,6 +494,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                 public void run() {
                     GridView videoGrid = (GridView) findViewById(R.id.video_grid_view);
                     int start = videoGrid.getFirstVisiblePosition();
+                    log.info("firstvisiblie {}; lastvisible {}", start, videoGrid.getLastVisiblePosition());
                     for (int i = start, j = videoGrid.getLastVisiblePosition(); i <= j; i++) {
                         if (file.equals(videoGrid.getItemAtPosition(i))) {
                             // The file in question is on the screen as position i
@@ -507,9 +513,10 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         @Override
         public void onCompleted() {
             log.info("Video is complete!");
-            updateVideoGridWithPercentage(100);
-            mergingFilenames.remove(file.getName());
+            mergingFilenamesMap.remove(file.getName());
             fileNameToPercentMerged.remove(file.getName());
+            updateVideoGridWithPercentage(100);
+
         }
 
         @Override

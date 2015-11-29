@@ -44,7 +44,18 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
             "ALTER TABLE " + VIDEO_INFO_TABLE_NAME + " RENAME TO " + OLD_VIDEO_INFO_TABLE_NAME + ";";
 
     private static final String COPY_DATA_FROM_OLD_TO_VIDEO_INFO_TABLE =
-            "INSERT INTO " + VIDEO_INFO_TABLE_NAME + " SELECT * FROM " + OLD_VIDEO_INFO_TABLE_NAME + ";";
+            "INSERT INTO " + VIDEO_INFO_TABLE_NAME + " (" +
+                    BaseColumns._ID + ", " +
+                    INFO_TYPE_COL + ", " +
+                    FILE_NAME_COL + ", " +
+                    INFO_VALUE_COL +
+                    ") " +
+                    " SELECT " +
+                    BaseColumns._ID + ", " +
+                    INFO_TYPE_COL + ", " +
+                    FILE_NAME_COL + ", " +
+                    INFO_VALUE_COL +
+                    " FROM " + OLD_VIDEO_INFO_TABLE_NAME + ";";
 
     private static final String DROP_OLD_VIDEO_INFO_TABLE =
             "DROP TABLE IF EXISTS " + OLD_VIDEO_INFO_TABLE_NAME;
@@ -54,6 +65,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
             "CREATE TABLE " + THUMBS_TABLE_NAME + " (" + BaseColumns._ID + " INTEGER PRIMARY KEY, " +
                     FILE_NAME_COL + " TEXT, " +
                     THUMBS_COL + " BLOB);";
+
     private final Context context;
 
     public BioscopeDBHelper(Context context) {

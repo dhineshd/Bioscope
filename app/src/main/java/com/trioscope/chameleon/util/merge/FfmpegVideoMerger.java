@@ -546,6 +546,7 @@ public class FfmpegVideoMerger implements VideoMerger {
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 
             if(filenameToProgressUpdateableMap.get(outputFile.getName()) != null) {
+                log.info("VideoUpdateMerge object is {}", filenameToProgressUpdateableMap.get(outputFile.getName()));
                 filenameToProgressUpdateableMap.get(outputFile.getName()).onProgress(progress, outOf);
             }
         }
