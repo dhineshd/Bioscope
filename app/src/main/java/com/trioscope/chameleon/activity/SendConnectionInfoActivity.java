@@ -392,9 +392,11 @@ public class SendConnectionInfoActivity extends AppCompatActivity
 
                             // Retrieve connection info in background
                             new AsyncTask<Void, Void, Void>() {
+                                private AESEncryptionUtil encryptionUtil = new AESEncryptionUtil(getString(R.string.global_aes_key));
 
                                 @Override
                                 protected Void doInBackground(Void... params) {
+                                    String initialAESKey = encryptionUtil.generateKey();
 
                                     wiFiNetworkConnectionInfo =
                                             WiFiNetworkConnectionInfo.builder()
@@ -406,6 +408,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                                     .serverPort(ChameleonApplication.SERVER_PORT)
                                                     .userName(getUserName())
                                                     .certificateType(WiFiNetworkConnectionInfo.X509_CERTIFICATE_TYPE)
+                                                    .initialAESKey(initialAESKey)
                                                     //.certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
                                                     //.symmetricKey(symmetricKey)
                                                     .build();
@@ -430,7 +433,6 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                     log.info("Serialized info : length = {}, contents = '{}'",
                                             serializedWifiConnectionInfo.length(), serializedWifiConnectionInfo);
 
-                                    AESEncryptionUtil encryptionUtil = new AESEncryptionUtil(getString(R.string.global_aes_key));
                                     EncryptedValue encrypted = encryptionUtil.encrypt(serializedWifiConnectionInfo);
                                     String serializedEncryptedValue = gson.toJson(encrypted);
                                     log.info("Serialized encrypted info : length = {}, contents = '{}'",

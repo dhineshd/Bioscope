@@ -4,6 +4,8 @@ import android.util.Base64;
 
 import com.trioscope.chameleon.aop.Timed;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -98,5 +100,11 @@ public class AESEncryptionUtil implements EncryptionUtil {
         }
 
         return null;
+    }
+
+    @Override
+    public String generateKey() {
+        int keyLength = 12;
+        return RandomStringUtils.randomAlphanumeric(keyLength);
     }
 }

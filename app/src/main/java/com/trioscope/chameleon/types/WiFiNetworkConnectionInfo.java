@@ -45,6 +45,9 @@ public class WiFiNetworkConnectionInfo {
     private byte[] certificate;
     //private SecretKey symmetricKey;
 
+    @NonNull
+    private String initialAESKey;
+
     public static WiFiNetworkConnectionInfo deserializeConnectionInfo(final byte[] bytes) {
         try {
             Inflater decompresser = new Inflater();

@@ -146,8 +146,7 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        X509Certificate trustedCertificate = SSLUtil.deserializeByteArrayToCertificate(
-                intent.getByteArrayExtra(PEER_CERTIFICATE_KEY));
+        X509Certificate trustedCertificate = SSLUtil.deserializeByteArrayToCertificate(intent.getByteArrayExtra(PEER_CERTIFICATE_KEY));
 
         sslSocketFactory = SSLUtil.createSSLSocketFactory(trustedCertificate);
 

@@ -8,4 +8,6 @@ public interface EncryptionUtil {
     public EncryptedValue encrypt(String unencrypted);
 
     public String decrypt(EncryptedValue encrypted);
+
+    public String generateKey();
 }
