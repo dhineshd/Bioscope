@@ -64,7 +64,6 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     private ImageView qrCodeImageView;
     private X509Certificate serverCertificate;
     private SecretKey symmetricKey;
-    private byte[] serializedConnectionInfo;
     private long latestUserInteractionTimeMillis;
 
     @Override
@@ -273,8 +272,6 @@ public class SendConnectionInfoActivity extends AppCompatActivity
     }
 
     private void createWifiHotspot() {
-
-
         log.info("Creating Wifi hotspot. Thread = {}", Thread.currentThread());
 
         //Initialize wifiManager and wifiChannel
@@ -404,12 +401,14 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                                     .serverPort(ChameleonApplication.SERVER_PORT)
                                                     .userName(getUserName())
                                                     .certificateType(WiFiNetworkConnectionInfo.X509_CERTIFICATE_TYPE)
-                                                    //.certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
-                                                    //.symmetricKey(symmetricKey)
+                                                    .certificatePublicKey(chameleonApplication.getConnectionServerKeyPair().getPublic())
+                                                            //.certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
+                                                            //.symmetricKey(symmetricKey)
                                                     .build();
 
-                                    serializedConnectionInfo = WiFiNetworkConnectionInfo.
-                                            serializeConnectionInfo(wiFiNetworkConnectionInfo);
+                                    String serialized = wiFiNetworkConnectionInfo.getSerializedPublicKey();
+                                    log.info("Serialized: {}", serialized);
+                                    log.info("Deserialized: {}", wiFiNetworkConnectionInfo.fromSerializedPublicKey(serialized));
 
                                     return null;
                                 }
@@ -422,9 +421,8 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                     //connectionStatusTextView.setVisibility(View.VISIBLE);
                                     //connectionStatusTextView.setText("Beam\nto\nconnect");
 
-                                    String serializedWifiConnectionInfo = gson.toJson(wiFiNetworkConnectionInfo);
-//                                    String serializedWifiConnectionInfo =
-//                                            new String(serializedConnectionInfo, StandardCharsets.UTF_8);
+                                    String serializedWifiConnectionInfo = WiFiNetworkConnectionInfo.serializeConnectionInfo(wiFiNetworkConnectionInfo);
+
                                     log.info("Serialized info : length = {}, contents = '{}'",
                                             serializedWifiConnectionInfo.length(), serializedWifiConnectionInfo);
                                     Bitmap qrCodeImage = QRCodeUtil.generateQRCode(

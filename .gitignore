@@ -19,3 +19,4 @@ chameleon.iml
 .idea/
 app/src/main/gen/
 *.apk
+*.hprof

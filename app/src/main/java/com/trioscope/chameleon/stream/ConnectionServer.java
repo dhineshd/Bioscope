@@ -49,7 +49,7 @@ public class ConnectionServer {
                         }
                     }
                 } catch (IOException e) {
-                    // Calling serverSocket.close to terminate the thread wil throw exception
+                    // Calling serverSocket.close to terminate the thread will throw exception
                     // which is expected. Ignore that.
                     if (serverSocket.isClosed()){
                         log.warn("ConnectionServer terminated as expected due to server socket being closed", e);

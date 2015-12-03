@@ -18,15 +18,19 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -94,11 +98,12 @@ public class SSLUtil {
 
     /**
      * Create SSLSocket factory that can be used to create SSLSockets.
+     *
      * @param certificate
      * @return SSLSocketFactory
      */
     @Timed
-    public static SSLSocketFactory createSSLSocketFactory(final X509Certificate certificate) {
+    public static SSLSocketFactory createSSLSocketFactory(final X509Certificate certificate, final PublicKey trustedPublicKey) {
         SSLSocketFactory sslSocketFactory = null;
         try {
             // Load the keyStore that includes self-signed cert as a "trusted" entry.
@@ -110,16 +115,40 @@ public class SSLUtil {
                     TrustManagerFactory.getDefaultAlgorithm());
 
             // Create a trust manager that does not validate certificate chains
-            TrustManager[] trustAllCerts = new TrustManager[] {
+            TrustManager[] trustAllCerts = new TrustManager[]{
                     new X509TrustManager() {
                         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            log.info("Getting accepted issuers");
                             return new X509Certificate[0];
                         }
+
                         public void checkClientTrusted(
                                 java.security.cert.X509Certificate[] certs, String authType) {
+                            log.info("Checking if client is trusted {}, {}", certs, authType);
                         }
-                        public void checkServerTrusted(
-                                java.security.cert.X509Certificate[] certs, String authType) {
+
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) throws CertificateException {
+                            boolean trusted = false;
+                            log.info("Checking if server is trusted {}, {}", certs, authType);
+
+                            if (trustedPublicKey == null) {
+                                log.warn("Trusting all certificates since we weren't given a public key");
+                                return;
+                            }
+
+                            for (int i = 0; i < certs.length; i++) {
+                                try {
+                                    certs[i].verify(trustedPublicKey);
+                                    log.info("Verified certificate {} of {}", i + 1, certs.length);
+                                    trusted = true;
+                                    break;
+                                } catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException | NoSuchProviderException | CertificateException e) {
+                                    log.warn("{}th Certificate {} not trusted", i + 1, certs[i]);
+                                }
+                            }
+
+                            if (!trusted)
+                                throw new CertificateException();
                         }
                     }
             };
@@ -185,8 +214,11 @@ public class SSLUtil {
         try {
             ContentSigner contentSigner = new JcaContentSignerBuilder("SHA1WithRSAEncryption")
                     .setProvider("BC").build(signingKey);
-            return new JcaX509CertificateConverter().setProvider("BC").getCertificate(certBuilder
+            X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certBuilder
                     .build(contentSigner));
+
+            log.info("Built certificate {}", cert);
+            return cert;
         } catch (Exception e) {
             log.error("Failed to generate certificate for given keypair", e);
         }

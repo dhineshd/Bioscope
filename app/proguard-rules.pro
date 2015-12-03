@@ -49,4 +49,15 @@
 
 # Application classes that will be serialized/deserialized over Gson
 -keep class com.trioscope.chameleon.types.** { *; }
-
+-keepnames class org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey
+-keepclassmembers class org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey {
+    private BigInteger modulus;
+    private BigInteger publicExponent;
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    !static !transient <fields>;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}

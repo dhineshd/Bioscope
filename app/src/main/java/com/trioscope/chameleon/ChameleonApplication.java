@@ -35,6 +35,7 @@ import com.trioscope.chameleon.util.security.SSLUtil;
 
 import java.io.File;
 import java.security.KeyPair;
+import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -110,6 +111,9 @@ public class ChameleonApplication extends Application {
 
     private Executor offThreadExecutor = Executors.newSingleThreadExecutor();
 
+    @Getter
+    private KeyPair connectionServerKeyPair;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -135,24 +139,30 @@ public class ChameleonApplication extends Application {
         startup();
     }
 
-    public X509Certificate stopAndStartConnectionServer() {
+    public X509Certificate stopAndStartConnectionServer(PublicKey trustedPublicKey) {
+        log.info("Stopping and starting connection server");
+
         // Setup connection server to receive connections from client
         if (connectionServer != null) {
             connectionServer.stop();
             connectionServer = null;
         }
         // Generate new keypair and certificate
-        KeyPair keyPair = SSLUtil.createKeypair();
-        X509Certificate certificate = SSLUtil.generateCertificate(keyPair);
+        connectionServerKeyPair = SSLUtil.createKeypair();
+        X509Certificate certificate = SSLUtil.generateCertificate(connectionServerKeyPair);
 
-        log.info("public key = {}", keyPair.getPublic());
+        log.info("public key = {}; class {}", connectionServerKeyPair.getPublic(), connectionServerKeyPair.getPublic().getClass());
 
         connectionServer = new ConnectionServer(
                 ChameleonApplication.SERVER_PORT,
                 serverEventListenerManager,
-                SSLUtil.createSSLServerSocketFactory(keyPair.getPrivate(), certificate));
+                SSLUtil.createSSLServerSocketFactory(connectionServerKeyPair.getPrivate(), certificate));
         connectionServer.start();
         return certificate;
+    }
+
+    public X509Certificate stopAndStartConnectionServer() {
+        return stopAndStartConnectionServer(null);
     }
 
     public void stopConnectionServer() {
@@ -343,7 +353,7 @@ public class ChameleonApplication extends Application {
      */
     public File createVideoFile(final boolean isTempLocation) {
 
-        File mediaStorageDir = isTempLocation? FileUtil.getTempDirectory()
+        File mediaStorageDir = isTempLocation ? FileUtil.getTempDirectory()
                 : FileUtil.getOutputMediaDirectory();
 
         if (!isExternalStorageWritable()) {
@@ -437,4 +447,5 @@ public class ChameleonApplication extends Application {
         return (Math.abs(System.currentTimeMillis() - latestUserInteractionTimeMillis) <
                 MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS);
     }
+
 }

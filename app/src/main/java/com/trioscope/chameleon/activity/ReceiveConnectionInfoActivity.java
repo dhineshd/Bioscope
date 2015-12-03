@@ -25,6 +25,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.camera.CameraParams;
@@ -74,9 +75,9 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
 
         // Tear down Wifi hotspot since we are going to join
         // the peer's hotspot.
-        ((ChameleonApplication)getApplication()).tearDownWifiHotspot();
+        ((ChameleonApplication) getApplication()).tearDownWifiHotspot();
         // Stop server since we will start that after connecting with director
-        ((ChameleonApplication)getApplication()).stopConnectionServer();
+        ((ChameleonApplication) getApplication()).stopConnectionServer();
 
         log.debug("ReceiveConnectionInfoActivity {}", this);
 
@@ -210,14 +211,14 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     public void enableWifiAndEstablishConnection(final WiFiNetworkConnectionInfo connectionInfo) {
 
         log.info("Enable wifi and establish connection invoked..");
-        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
 
             @Override
             protected Void doInBackground(Void... voids) {
                 // Turn on Wifi device (if not already on)
                 final WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
-                if (wifiManager.isWifiEnabled()){
+                if (wifiManager.isWifiEnabled()) {
                     log.info("Wifi already enabled..");
                     establishConnection(connectionInfo);
 
@@ -270,7 +271,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
                 final String currentSSID = WifiUtil.getCurrentSSID(context);
                 log.info("Current SSID = {}", currentSSID);
 
-                if(currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
+                if (currentSSID != null && currentSSID.equals(connectionInfo.getSSID())) {
                     unregisterReceiver(this);
                     retrieveIpAddressAndEstablishConnection(connectionInfo);
                 }
@@ -302,7 +303,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
 
     private void connectToWifiNetwork(final WiFiNetworkConnectionInfo connectionInfo) {
 
-        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>(){
+        final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
 
             @Override
             protected Void doInBackground(Void... params) {
@@ -354,6 +355,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             final WiFiNetworkConnectionInfo connectionInfo) {
         final AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
             String ipAddress = null;
+
             @Override
             protected Void doInBackground(Void... params) {
                 do {
@@ -400,6 +402,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
                     gson.toJson(peerInfo));
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY,
                     connectionInfo.getCertificate());
+            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_PUBLIC_KEY_KEY, connectionInfo.getSerializedPublicKey());
             startActivity(connectionEstablishedIntent);
 
             //publish time to establish connection from crew side
@@ -426,8 +429,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             if (decodedText != null) {
 
                 try {
-                    connectionInfo = gson.fromJson(decodedText,
-                            WiFiNetworkConnectionInfo.class);
+                    connectionInfo = WiFiNetworkConnectionInfo.deserializeConnectionInfo(decodedText);
                 } catch (Exception e) {
                     log.warn("Received unknown QR code. Ignoring.. ", e);
                     return;
