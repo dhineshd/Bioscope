@@ -49,7 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 @Builder
 @Slf4j
 public class WiFiNetworkConnectionInfo {
-    private static final boolean SHOULD_COMPRESS = false;
+    private static final boolean SHOULD_COMPRESS = true;
 
     // Version will be used for handling backward incompatible
     // changes to message format
@@ -67,6 +67,10 @@ public class WiFiNetworkConnectionInfo {
 
     @NonNull
     private String passPhrase;
+
+    // Password used for StartSession to ensure director that the client read the QR code.
+    @NonNull
+    private String initPass;
 
     @NonNull
     private String serverIpAddress;

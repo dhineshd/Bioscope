@@ -447,5 +447,4 @@ public class ChameleonApplication extends Application {
         return (Math.abs(System.currentTimeMillis() - latestUserInteractionTimeMillis) <
                 MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS);
     }
-
 }

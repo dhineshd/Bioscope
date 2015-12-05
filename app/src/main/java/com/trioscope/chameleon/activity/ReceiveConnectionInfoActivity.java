@@ -403,6 +403,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY,
                     connectionInfo.getCertificate());
             connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_PUBLIC_KEY_KEY, connectionInfo.getSerializedPublicKey());
+            connectionEstablishedIntent.putExtra(ConnectionEstablishedActivity.PEER_INITIAL_PASSWORD_KEY, connectionInfo.getInitPass());
             startActivity(connectionEstablishedIntent);
 
             //publish time to establish connection from crew side

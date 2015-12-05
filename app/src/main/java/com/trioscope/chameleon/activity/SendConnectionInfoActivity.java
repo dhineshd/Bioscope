@@ -26,16 +26,20 @@ import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.stream.ServerEventListener;
 import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.PeerMessage;
+import com.trioscope.chameleon.types.StartSessionMessageContents;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.QRCodeUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.util.InetAddressUtils;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.KeyPair;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -205,6 +209,19 @@ public class SendConnectionInfoActivity extends AppCompatActivity
 
         if (PeerMessage.Type.START_SESSION.equals(messageFromClient.getType())) {
             log.info("Starting connection established activity!");
+
+            String contents = messageFromClient.getContents();
+            StartSessionMessageContents startSessionContents = gson.fromJson(contents, StartSessionMessageContents.class);
+
+            // First check the password sent over the wire
+            String expectedPassword = wiFiNetworkConnectionInfo.getInitPass();
+            if (expectedPassword.equals(startSessionContents.getPassword())) {
+                log.info("Expected password matches the given password, proceeding");
+            } else {
+                log.info("Expected password does not match - {} given", startSessionContents.getPassword());
+                return;
+            }
+
             final Intent intent = new Intent(SendConnectionInfoActivity.this,
                     ConnectionEstablishedActivity.class);
             PeerInfo peerInfo = PeerInfo.builder()
@@ -214,9 +231,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                     .userName(messageFromClient.getSenderUserName())
                     .build();
             intent.putExtra(ConnectionEstablishedActivity.PEER_INFO, gson.toJson(peerInfo));
-            String contents = messageFromClient.getContents();
-            byte[] bytes = gson.fromJson(contents, byte[].class);
-            intent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY, bytes);
+            intent.putExtra(ConnectionEstablishedActivity.PEER_CERTIFICATE_KEY, startSessionContents.getBytes());
 
             runOnUiThread(new Runnable() {
                 @Override
@@ -402,8 +417,7 @@ public class SendConnectionInfoActivity extends AppCompatActivity
                                                     .userName(getUserName())
                                                     .certificateType(WiFiNetworkConnectionInfo.X509_CERTIFICATE_TYPE)
                                                     .certificatePublicKey(chameleonApplication.getConnectionServerKeyPair().getPublic())
-                                                            //.certificate(SSLUtil.serializeCertificateToByteArray(serverCertificate))
-                                                            //.symmetricKey(symmetricKey)
+                                                    .initPass(RandomStringUtils.randomAlphanumeric(SSLUtil.INITIAL_PASSWORD_LENGTH))
                                                     .build();
 
                                     String serialized = wiFiNetworkConnectionInfo.getSerializedPublicKey();

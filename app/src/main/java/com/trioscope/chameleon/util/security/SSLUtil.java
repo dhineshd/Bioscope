@@ -56,7 +56,9 @@ import lombok.extern.slf4j.Slf4j;
 public class SSLUtil {
     private static final String CERT_ALIAS = "bioscope_server_cert";
     private static final int ASYMMETRIC_PRIVATE_KEY_SIZE_BITS = 1024; // Sufficient since keys dont last beyond a session
+    private static final int ASYMMETRIC_PRIVATE_KEY_SIZE_BITS_GOOD_ENOUGH = 512; // http://security.stackexchange.com/questions/4518/how-to-estimate-the-time-needed-to-crack-rsa-encryption
     private static final int SYMMETRIC_SECRET_KEY_SIZE_BITS = 256; // Recommended
+    public static final int INITIAL_PASSWORD_LENGTH = 5;
     public static final String SSL_PROTOCOL = "TLSv1.2";
 
     static {

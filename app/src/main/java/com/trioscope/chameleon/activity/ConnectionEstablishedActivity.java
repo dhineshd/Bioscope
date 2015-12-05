@@ -38,6 +38,7 @@ import com.trioscope.chameleon.types.PeerInfo;
 import com.trioscope.chameleon.types.PeerMessage;
 import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.types.SendRecordedVideoResponse;
+import com.trioscope.chameleon.types.StartSessionMessageContents;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.network.IpUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
@@ -83,6 +84,7 @@ public class ConnectionEstablishedActivity
     public static final String PEER_INFO = "PEER_INFO";
     public static final String PEER_CERTIFICATE_KEY = "PEER_CERTIFICATE";
     public static final String PEER_CERTIFICATE_PUBLIC_KEY_KEY = "PEER_CERTIFICATE_PUBLIC_KEY";
+    public static final String PEER_INITIAL_PASSWORD_KEY = "PEER_INITIAL_PASSWORD";
     private static final long MAX_HEARTBEAT_MESSAGE_INTERVAL_MS = 10000;
     private static final long HEARTBEAT_MESSAGE_CHECK_INTERVAL_MS = 5000;
     private static final long HEARTBEAT_MESSAGE_CHECK_INITIAL_DELAY_MS = 15000;
@@ -151,10 +153,11 @@ public class ConnectionEstablishedActivity
 
         chameleonApplication = (ChameleonApplication) getApplication();
 
-        X509Certificate trustedCertificate = SSLUtil.deserializeByteArrayToCertificate(
-                intent.getByteArrayExtra(PEER_CERTIFICATE_KEY));
+        X509Certificate trustedCertificate = SSLUtil.deserializeByteArrayToCertificate(intent.getByteArrayExtra(PEER_CERTIFICATE_KEY));
 
         final PublicKey trustedPublicKey = WiFiNetworkConnectionInfo.fromSerializedPublicKey(intent.getStringExtra(PEER_CERTIFICATE_PUBLIC_KEY_KEY));
+
+        final String initialPassword = intent.getStringExtra(PEER_INITIAL_PASSWORD_KEY);
 
         log.info("TrustedPublicKey = {}", trustedPublicKey);
 
@@ -173,11 +176,14 @@ public class ConnectionEstablishedActivity
                 protected void onPostExecute(X509Certificate certificate) {
                     super.onPostExecute(certificate);
 
+                    StartSessionMessageContents contents = StartSessionMessageContents.builder()
+                            .bytes(SSLUtil.serializeCertificateToByteArray(certificate))
+                            .password(initialPassword)
+                            .build();
                     // Crew member needs to send its certificate to peer so it can be used
                     // as trusted certificate to enable director to connect to crew
-                    log.info("Sending START_SESSION message");
-                    sendPeerMessage(PeerMessage.Type.START_SESSION,
-                            gson.toJson(SSLUtil.serializeCertificateToByteArray(certificate)));
+                    log.info("Sending START_SESSION message {}", contents);
+                    sendPeerMessage(PeerMessage.Type.START_SESSION, gson.toJson(contents));
                 }
             }.executeOnExecutor(asyncTaskThreadPool);
         } else {
