@@ -306,6 +306,10 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
                             requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
                                     Range.create(30, 30));
 
+                            // Enable video stabilization
+                            requestBuilder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                                    CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON);
+
                             // Finally, we start displaying the camera preview.
                             CaptureRequest previewRequest = requestBuilder.build();
 

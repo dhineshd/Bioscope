@@ -32,11 +32,13 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -77,13 +79,17 @@ public class FfmpegVideoMerger implements VideoMerger {
     private DepackageUtil depackageUtil;
     private boolean prepared = false;
 
-    @Setter
-    private ProgressUpdatable progressUpdatable;
+    private Map<String, ProgressUpdatable> filenameToProgressUpdateableMap = new ConcurrentHashMap<>();
 
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private Future<?> currentRunningTask;
     private Notification.Builder notificationBuilder;
     private Set<File> tempFiles = new HashSet<>();
+
+    @Override
+    public void addProgressUpdateable(String fileName, ProgressUpdatable progressUpdatable) {
+        filenameToProgressUpdateableMap.put(fileName, progressUpdatable);
+    }
 
     public FfmpegVideoMerger(Context context) {
         setContext(context);
@@ -119,7 +125,6 @@ public class FfmpegVideoMerger implements VideoMerger {
         prepared = true;
     }
 
-
     @Override
     public void mergeVideos(
             final VideoConfiguration majorVideoConfig,
@@ -130,10 +135,6 @@ public class FfmpegVideoMerger implements VideoMerger {
         if (!prepared)
             prepare();
 
-        if (currentRunningTask != null && !currentRunningTask.isDone()) {
-            log.warn("Not yet done merging previous running task. We only support one runnable right now");
-            return;
-        }
 
         VideoMergeTaskParams params = new VideoMergeTaskParams();
         params.setConfiguration(configuration);
@@ -441,8 +442,10 @@ public class FfmpegVideoMerger implements VideoMerger {
             db.deleteVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED);
             db.close();
 
-            if (progressUpdatable != null)
-                progressUpdatable.onCompleted();
+            if(filenameToProgressUpdateableMap.get(outputFile.getName()) != null) {
+                filenameToProgressUpdateableMap.get(outputFile.getName()).onCompleted();
+                filenameToProgressUpdateableMap.remove(outputFile.getName());
+            }
         }
 
         private void merge() {
@@ -542,8 +545,10 @@ public class FfmpegVideoMerger implements VideoMerger {
                     String.format("%d%%", progressPerc) + ", " + remainingTime + " remaining)");
             notificationManager.notify(MERGING_NOTIFICATION_ID, notificationBuilder.build());
 
-            if (progressUpdatable != null)
-                progressUpdatable.onProgress(progress, outOf);
+            if(filenameToProgressUpdateableMap.get(outputFile.getName()) != null) {
+                log.info("VideoUpdateMerge object is {}", filenameToProgressUpdateableMap.get(outputFile.getName()));
+                filenameToProgressUpdateableMap.get(outputFile.getName()).onProgress(progress, outOf);
+            }
         }
 
     }

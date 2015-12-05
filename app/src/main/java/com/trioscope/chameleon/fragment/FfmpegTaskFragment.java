@@ -66,8 +66,8 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
     public void onAttach(Activity activity) {
         super.onAttach(activity);
         log.info("Activity is attached to ffmpeg task");
-        if (videoMerger != null)
-            videoMerger.setProgressUpdatable(this);
+//        if (videoMerger != null)
+//            videoMerger.setProgressUpdatable(this);
         currentContext = activity;
     }
 
@@ -100,7 +100,7 @@ public class FfmpegTaskFragment extends Fragment implements ProgressUpdatable {
         log.info("Minor video videographer: {}, major video videographer: {}", minorVideoMetadata.getVideographer(), majorVideoMetadata.getVideographer());
 
         videoMerger.setContext(currentContext);
-        videoMerger.setProgressUpdatable(this);
+//        videoMerger.setProgressUpdatable(this);
         videoMerger.prepare();
 
         MergeConfiguration.MergeConfigurationBuilder config = MergeConfiguration.builder();

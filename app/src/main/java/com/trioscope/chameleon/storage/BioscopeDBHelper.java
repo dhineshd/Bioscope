@@ -22,25 +22,50 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class BioscopeDBHelper extends SQLiteOpenHelper {
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
     private static final String DATABASE_NAME = "BIOSCOPE_DB";
 
     private static final String VIDEO_INFO_TABLE_NAME = "video_info";
+    private static final String OLD_VIDEO_INFO_TABLE_NAME = "old_video_info";
     private static final String INFO_TYPE_COL = "INFO_TYPE";
     private static final String FILE_NAME_COL = "FILE_NAME";
     private static final String INFO_VALUE_COL = "INFO_VALUE_COL";
     private static final String THUMBS_COL = "THUMBS_DATA";
+    private static final String CREATION_DATE_COL = "CREATION_DATE";
+
     private static final String VIDEO_INFO_CREATE =
             "CREATE TABLE " + VIDEO_INFO_TABLE_NAME + " (" + BaseColumns._ID + " INTEGER PRIMARY KEY, " +
                     INFO_TYPE_COL + " INT, " +
                     FILE_NAME_COL + " TEXT, " +
-                    INFO_VALUE_COL + " TEXT);";
+                    INFO_VALUE_COL + " TEXT," +
+                    CREATION_DATE_COL + " TIMESTAMP DEFAULT CURRENT_TIMESTAMP);";
+
+    private static final String VIDEO_INFO_ALTER_TABLE_RENAME_TO_OLD =
+            "ALTER TABLE " + VIDEO_INFO_TABLE_NAME + " RENAME TO " + OLD_VIDEO_INFO_TABLE_NAME + ";";
+
+    private static final String COPY_DATA_FROM_OLD_TO_VIDEO_INFO_TABLE =
+            "INSERT INTO " + VIDEO_INFO_TABLE_NAME + " (" +
+                    BaseColumns._ID + ", " +
+                    INFO_TYPE_COL + ", " +
+                    FILE_NAME_COL + ", " +
+                    INFO_VALUE_COL +
+                    ") " +
+                    " SELECT " +
+                    BaseColumns._ID + ", " +
+                    INFO_TYPE_COL + ", " +
+                    FILE_NAME_COL + ", " +
+                    INFO_VALUE_COL +
+                    " FROM " + OLD_VIDEO_INFO_TABLE_NAME + ";";
+
+    private static final String DROP_OLD_VIDEO_INFO_TABLE =
+            "DROP TABLE IF EXISTS " + OLD_VIDEO_INFO_TABLE_NAME;
 
     private static final String THUMBS_TABLE_NAME = "video_thumbs";
     private static final String THUMBS_TABLE_CREATE =
             "CREATE TABLE " + THUMBS_TABLE_NAME + " (" + BaseColumns._ID + " INTEGER PRIMARY KEY, " +
                     FILE_NAME_COL + " TEXT, " +
                     THUMBS_COL + " BLOB);";
+
     private final Context context;
 
     public BioscopeDBHelper(Context context) {
@@ -62,6 +87,24 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
         log.info("Upgrading DB from {} to {}", oldVersion, newVersion);
         if (newVersion == 2) {
             db.execSQL(THUMBS_TABLE_CREATE);
+        }
+        if(newVersion == 3) {
+            log.info("Running upgrade for version 3");
+
+            //Step 0 drop old table if one already exists
+            db.execSQL(DROP_OLD_VIDEO_INFO_TABLE);
+
+            //Step 1 rename table
+            db.execSQL(VIDEO_INFO_ALTER_TABLE_RENAME_TO_OLD);
+
+            //Step 2 create new table
+            db.execSQL(VIDEO_INFO_CREATE);
+
+            //Step 3 copy data from old table to new
+            db.execSQL(COPY_DATA_FROM_OLD_TO_VIDEO_INFO_TABLE);
+
+            //Step 4 drop old table
+            db.execSQL(DROP_OLD_VIDEO_INFO_TABLE);
         }
     }
 
@@ -173,7 +216,7 @@ public class BioscopeDBHelper extends SQLiteOpenHelper {
 
     public List<String> getVideosWithType(VideoInfoType type, String value) {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.query(VIDEO_INFO_TABLE_NAME, new String[]{FILE_NAME_COL}, INFO_VALUE_COL + "=? AND " + INFO_TYPE_COL + "=?", new String[]{value, String.valueOf(type.getTypeValue())}, null, null, null, null);
+        Cursor cursor = db.query(VIDEO_INFO_TABLE_NAME, new String[]{FILE_NAME_COL}, INFO_VALUE_COL + "=? AND " + INFO_TYPE_COL + "=?", new String[]{value, String.valueOf(type.getTypeValue())}, null, null, CREATION_DATE_COL, null);
         List<String> result = new ArrayList<>();
         if (cursor.moveToFirst()) {
             while (!cursor.isAfterLast()) {

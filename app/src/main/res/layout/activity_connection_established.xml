@@ -142,19 +142,19 @@
 
         <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="30dp"
+            android:layout_height="35dp"
             android:layout_marginTop="10dp"
             android:background="#40808080">
 
             <ImageButton
                 android:id="@+id/button_disconnect"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="35dp"
+                android:layout_height="35dp"
                 android:layout_centerVertical="true"
                 android:src="@drawable/disconnect_icon"
                 android:background="@null"
                 android:layout_alignParentLeft="true"
-                android:paddingLeft="20dp"
+                android:paddingLeft="10dp"
                 />
 
             <TextView
@@ -172,8 +172,8 @@
 
             <ImageButton
                 android:id="@+id/button_switch_cameras"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="35dp"
+                android:layout_height="35dp"
                 android:layout_centerVertical="true"
                 android:src="@drawable/video_icon"
                 android:background="@null"
