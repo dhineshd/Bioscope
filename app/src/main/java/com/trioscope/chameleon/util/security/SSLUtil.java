@@ -19,6 +19,7 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyManagementException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -35,6 +36,8 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
 import java.util.Date;
 
 import javax.crypto.KeyGenerator;
@@ -235,6 +238,21 @@ public class SSLUtil {
             return generator.generateKeyPair();
         } catch (NoSuchAlgorithmException e) {
             log.error("Failed to generate keypair", e);
+        }
+        return null;
+    }
+
+    @Timed
+    public static PublicKey createPublicKey(BigInteger modulus, BigInteger exponent) {
+        try {
+            RSAPublicKeySpec spec = new RSAPublicKeySpec(modulus, exponent);
+            KeyFactory factory = KeyFactory.getInstance("RSA");
+            PublicKey pub = factory.generatePublic(spec);
+            return pub;
+        } catch (NoSuchAlgorithmException e) {
+            log.error("Failed to generate public key", e);
+        } catch (InvalidKeySpecException e) {
+            log.error("Failed to generate public key", e);
         }
         return null;
     }

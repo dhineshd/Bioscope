@@ -15,6 +15,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.Expose;
 import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.util.security.SSLUtil;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,6 +31,7 @@ import java.io.StreamCorruptedException;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -49,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 @Builder
 @Slf4j
 public class WiFiNetworkConnectionInfo {
-    private static final boolean SHOULD_COMPRESS = true;
+    private static final boolean SHOULD_COMPRESS = false;
 
     // Version will be used for handling backward incompatible
     // changes to message format
@@ -168,14 +170,36 @@ public class WiFiNetworkConnectionInfo {
     }
 
     private static class PublicKeySerializer implements JsonSerializer<PublicKey>, JsonDeserializer<PublicKey> {
+        private Gson gson = new GsonBuilder().create();
+        private static final String MODULUS_KEY = "m";
+        private static final String EXPONENT_KEY = "e";
+
         @Override
         public JsonElement serialize(PublicKey src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(WiFiNetworkConnectionInfo.getSerializedPublicKey(src));
+            if (src instanceof RSAPublicKey) {
+                JsonObject obj = new JsonObject();
+
+                String encodedModulus = Base64.encodeToString(((RSAPublicKey) src).getModulus().toByteArray(), Base64.DEFAULT);
+                obj.addProperty(EXPONENT_KEY, ((RSAPublicKey) src).getPublicExponent());
+                obj.addProperty(MODULUS_KEY, encodedModulus);
+
+                return obj;
+            } else {
+                return null;
+            }
+
+            //return new JsonPrimitive(WiFiNetworkConnectionInfo.getSerializedPublicKey(src));
         }
 
         @Override
         public PublicKey deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return WiFiNetworkConnectionInfo.fromSerializedPublicKey(json.getAsJsonPrimitive().getAsString());
+            JsonObject obj = json.getAsJsonObject();
+            BigInteger exponent = obj.get(EXPONENT_KEY).getAsBigInteger();
+            String encodedModulus = obj.get(MODULUS_KEY).getAsString();
+            BigInteger modulus = new BigInteger(Base64.decode(encodedModulus, Base64.DEFAULT));
+
+            return SSLUtil.createPublicKey(modulus, exponent);
+            //return WiFiNetworkConnectionInfo.fromSerializedPublicKey(json.getAsJsonPrimitive().getAsString());
         }
     }
 
