@@ -21,9 +21,8 @@
             android:src="@drawable/up_arrow_4x" />
     </RelativeLayout>
 
-    <TextView
-        android:id="@+id/terms_of_use_text_view"
-        android:text="@string/hello_world"
+    <WebView
+        android:id="@+id/terms_of_use_web_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="@dimen/activity_horizontal_margin"

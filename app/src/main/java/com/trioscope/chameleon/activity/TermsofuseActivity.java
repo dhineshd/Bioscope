@@ -7,6 +7,7 @@ import android.text.method.ScrollingMovementMethod;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.WebView;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TermsofuseActivity extends AppCompatActivity {
 
-    private TextView termsOfUseTextView;
+    private WebView termsOfUseWebView;
 
     private ImageButton minimizeButton;
 
@@ -31,7 +32,7 @@ public class TermsofuseActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_termsofuse);
 
-        termsOfUseTextView = (TextView) findViewById(R.id.terms_of_use_text_view);
+        termsOfUseWebView = (WebView) findViewById(R.id.terms_of_use_web_view);
 
         minimizeButton = (ImageButton) findViewById(R.id.minimize_terms_of_use);
 
@@ -42,10 +43,7 @@ public class TermsofuseActivity extends AppCompatActivity {
             }
         });
 
-        String data = readTextFile(this, R.raw.terms_of_use);
-        termsOfUseTextView.setMovementMethod(new ScrollingMovementMethod());
-        termsOfUseTextView.setText(data);
-
+        termsOfUseWebView.loadUrl("http://www.wearebioscope.com/terms-of-use");
     }
 
 
