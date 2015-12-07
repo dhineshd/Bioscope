@@ -1,3 +1,0 @@
-LICENSES
---------
-Here are some licenses that the app uses
