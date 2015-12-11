@@ -3,7 +3,7 @@
     android:layout_height="match_parent"
     android:background="#ffffff"
     android:orientation="vertical"
-    tools:context="com.trioscope.chameleon.activity.TermsofuseActivity">
+    tools:context="com.trioscope.chameleon.activity.AboutActivity">
 
     <RelativeLayout
         android:layout_width="match_parent"
