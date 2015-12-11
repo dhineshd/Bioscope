@@ -32,6 +32,10 @@
             <intent android:targetPackage="com.trioscope.chameleon"
                 android:targetClass="com.trioscope.chameleon.activity.TermsofuseActivity" />
         </Preference>
+        <Preference android:title="About" >
+            <intent android:targetPackage="com.trioscope.chameleon"
+                android:targetClass="com.trioscope.chameleon.activity.AboutActivity" />
+        </Preference>
         <Preference
             android:defaultValue=""
             android:key="@string/pref_version_number_key"

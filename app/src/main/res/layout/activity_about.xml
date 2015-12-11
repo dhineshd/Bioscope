@@ -1,0 +1,27 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#ffffff"
+    android:orientation="vertical"
+    tools:context="com.trioscope.chameleon.activity.TermsofuseActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@color/bioscope_teal">
+
+        <ImageButton
+            android:id="@+id/minimize_about"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:background="@null"
+            android:padding="10dp"
+            android:rotation="270"
+            android:src="@drawable/up_arrow_4x" />
+    </RelativeLayout>
+
+    <TextView android:text="This software uses libraries from the FFmpeg project under the LGPLv2.1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+</LinearLayout>

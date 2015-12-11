@@ -91,6 +91,11 @@
             android:label="@string/title_activity_termsofuse"
             android:screenOrientation="portrait" >
         </activity>
+        <activity
+            android:name=".activity.AboutActivity"
+            android:label="@string/title_activity_about"
+            android:screenOrientation="portrait" >
+        </activity>
 
         <!-- Add the following meta-data for devices running Google Play service. -->
         <meta-data
@@ -119,6 +124,7 @@
             android:name="com.google.android.gms.analytics.AnalyticsService"
             android:enabled="true"
             android:exported="false" />
+
 
     </application>
 
