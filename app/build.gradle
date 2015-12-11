@@ -13,8 +13,8 @@ android {
         applicationId "com.trioscope.chameleon"
         minSdkVersion 21
         targetSdkVersion 21
-        versionCode 17
-        versionName "17"
+        versionCode 18
+        versionName "18"
     }
     sourceSets.main {
         jni.srcDirs = []
