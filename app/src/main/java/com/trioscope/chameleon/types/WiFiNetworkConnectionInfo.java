@@ -9,32 +9,20 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import com.google.gson.annotations.Expose;
-import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.util.ObfuscationUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.spongycastle.crypto.params.RSAKeyParameters;
-import org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.StreamCorruptedException;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Arrays;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -51,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 @Builder
 @Slf4j
 public class WiFiNetworkConnectionInfo {
-    private static final boolean SHOULD_COMPRESS = false;
+    private static final boolean SHOULD_OBFUSCATE = true;
 
     // Version will be used for handling backward incompatible
     // changes to message format
@@ -90,40 +78,21 @@ public class WiFiNetworkConnectionInfo {
     @NonNull
     private PublicKey certificatePublicKey;
 
-    public static WiFiNetworkConnectionInfo deserializeConnectionInfo(final String base64Str) {
-        String jsonStr = base64Str;
-        if (SHOULD_COMPRESS) {
-            try {
-                byte[] bytes = Base64.decode(base64Str, Base64.DEFAULT);
-                Inflater decompresser = new Inflater();
-                decompresser.setInput(bytes);
-                byte[] result = new byte[ChameleonApplication.CERTIFICATE_BUFFER_SIZE];
-                int resultLength = decompresser.inflate(result);
-                decompresser.end();
-                jsonStr = new String(result, 0, resultLength);
-            } catch (Exception e) {
-                log.error("Failed to deserialize connection info", e);
-                return null;
-            }
+    public static WiFiNetworkConnectionInfo deserializeConnectionInfo(final String serializedStr) {
+        String jsonStr = serializedStr;
+        if (SHOULD_OBFUSCATE) {
+            jsonStr = ObfuscationUtil.unobfuscate(serializedStr);
         }
         return gson.fromJson(jsonStr, WiFiNetworkConnectionInfo.class);
     }
 
     public static String serializeConnectionInfo(final WiFiNetworkConnectionInfo connectionInfo) {
         String jsonString = gson.toJson(connectionInfo);
-        if (SHOULD_COMPRESS) {
-            log.info("Uncompressed data length = {}", jsonString.length());
-            byte[] output = new byte[ChameleonApplication.CERTIFICATE_BUFFER_SIZE];
-            Deflater compresser = new Deflater();
-            compresser.setLevel(Deflater.BEST_COMPRESSION);
-            compresser.setInput(jsonString.getBytes());
-            compresser.finish();
-            int compressedDataLength = compresser.deflate(output);
-            log.info("Compressed data length = {}", compressedDataLength);
-            compresser.end();
-            byte[] compressedArr = Arrays.copyOfRange(output, 0, compressedDataLength);
-
-            return Base64.encodeToString(compressedArr, Base64.DEFAULT);
+        if (SHOULD_OBFUSCATE) {
+            log.info("Before obfuscation, length = {}", jsonString.length());
+            String obfuscated = ObfuscationUtil.obfuscate(jsonString);
+            log.info("Obfuscated string is length = {}", obfuscated.length());
+            return obfuscated;
         } else {
             return jsonString;
         }
