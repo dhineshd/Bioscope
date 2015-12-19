@@ -1,0 +1,65 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#ffffff"
+    android:orientation="vertical"
+    tools:context="com.trioscope.chameleon.activity.TutorialFiveActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:id="@+id/tut_one_top_banner"
+        android:layout_height="48dp"
+        android:background="@color/bioscope_teal">
+
+        <ImageButton
+            android:id="@+id/next_tutorial_five"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:background="@null"
+            android:padding="18dp"
+            android:rotation="90"
+            android:src="@drawable/up_arrow_4x" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/tut_one_top_banner"
+        >
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="243dp"
+            android:id="@+id/tut_five_screen"
+            android:layout_marginTop="60dp"
+            android:layout_centerHorizontal="true"
+            android:src="@drawable/tutorial_library" />
+
+        <com.trioscope.chameleon.views.BioscopeLargeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="60dp"
+            android:layout_below="@+id/tut_five_screen"
+            android:id="@+id/tut_five_msg"
+            android:gravity="center"
+            style="@style/tutorialText"
+            android:text="Now your video will finish processing and you can move on to taking another one. Have fun!"
+            />
+    </RelativeLayout>
+
+    <com.trioscope.chameleon.views.BioscopeLargeTextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="bottom|center"
+        style="@style/tutorialFooterText"
+        android:layout_marginBottom="30dp"
+        android:text="5 of 5"
+        />
+
+</LinearLayout>
+

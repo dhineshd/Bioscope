@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
@@ -12,6 +13,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
@@ -67,6 +69,12 @@ public class ChameleonApplication extends Application {
     public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";
 
     public static final int SERVER_PORT = 7080;
+
+    public static final String TUTORIAL_SHOWN_PREFERENCE_KEY = "TUTORIAL_SHOWN";
+
+    public static final String TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP_KEY = "TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP";
+
+    public static final String EMPTY_STRING = "";
 
     @Getter
     private RotationState rotationState = new RotationState();

@@ -34,4 +34,16 @@
         <item name="android:textAllCaps">false</item>
     </style>
 
+    <style name="tutorialText">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/bioscope_purple</item>
+    </style>
+
+    <style name="tutorialFooterText">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/bioscope_purple_40_opacity</item>
+    </style>
+
 </resources>

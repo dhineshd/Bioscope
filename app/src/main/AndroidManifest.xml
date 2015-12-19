@@ -125,7 +125,26 @@
             android:enabled="true"
             android:exported="false" />
 
-
+        <activity
+            android:name=".activity.TutorialOneActivity"
+            android:label="@string/title_activity_tutorial_one" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialTwoActivity"
+            android:label="@string/title_activity_tutorial_two" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialThreeActivity"
+            android:label="@string/title_activity_tutorial_three" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialFourActivity"
+            android:label="@string/title_activity_tutorial_four" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialFiveActivity"
+            android:label="@string/title_activity_tutorial_five" >
+        </activity>
     </application>
 
 </manifest>
