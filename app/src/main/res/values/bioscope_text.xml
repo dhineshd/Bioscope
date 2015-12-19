@@ -46,4 +46,9 @@
         <item name="android:textColor">@color/bioscope_purple_40_opacity</item>
     </style>
 
+    <style name="tickMarkText">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">48sp</item>
+    </style>
+
 </resources>

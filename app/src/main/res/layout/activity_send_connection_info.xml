@@ -19,6 +19,8 @@
         android:text="Have a friend scan this code to connect"
         style="@style/primaryButtonLargeText"
         android:layout_centerHorizontal="true"
+        android:layout_marginLeft="30dp"
+        android:layout_marginRight="30dp"
         android:gravity="center"
         android:layout_marginTop="100dp"
         android:visibility="invisible"

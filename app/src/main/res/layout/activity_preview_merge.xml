@@ -72,15 +72,15 @@
             android:layout_height="0dp"
             android:layout_width="0dp"/>
 
-        <com.trioscope.chameleon.views.PrimaryButton
+        <Button
             android:id="@+id/button_merge"
             android:background="@drawable/primary_button_small_background"
             android:stateListAnimator="@anim/button_elevation_anim"
             android:layout_width="70dp"
             android:layout_height="70dp"
             android:layout_gravity="bottom|center"
-            style="@style/primaryButtonSmallText"
-            android:text="Save" />
+            style="@style/tickMarkText"
+            android:text="✓" />
 
         <View
             android:layout_weight="1"
