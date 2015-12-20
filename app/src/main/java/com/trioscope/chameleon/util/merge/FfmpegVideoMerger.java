@@ -47,6 +47,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,9 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     private Map<String, ProgressUpdatable> filenameToProgressUpdateableMap = new ConcurrentHashMap<>();
 
+    //This map is used for storing the individual filenames & time offset for playing video while merge is going on
+    private Map<String, VideoMergeTaskParams> filenameToVideoMergeTaskParamsMap = new ConcurrentHashMap<>();
+
     private ExecutorService executorService = Executors.newSingleThreadExecutor();
     private Future<?> currentRunningTask;
     private Notification.Builder notificationBuilder;
@@ -102,6 +106,36 @@ public class FfmpegVideoMerger implements VideoMerger {
 
     public void prepare() {
         // If no progressUpdatable is provided, perform the preparation synchronously
+    }
+
+    public VideoConfiguration getMajorVideo(String mergedOutputFilename) {
+
+        VideoMergeTaskParams param = filenameToVideoMergeTaskParamsMap.get(mergedOutputFilename);
+        if(param != null && param.getMajorVideoConfig() != null) {
+            return param.getMajorVideoConfig();
+        } else {
+            return null;
+        }
+    }
+
+    public VideoConfiguration getMinorVideo(String mergedOutputFilename) {
+
+        VideoMergeTaskParams param = filenameToVideoMergeTaskParamsMap.get(mergedOutputFilename);
+        if(param != null && param.getMinorVideoConfig() != null) {
+            return param.getMinorVideoConfig();
+        } else {
+            return null;
+        }
+    }
+
+    public MergeConfiguration getMergeConfiguration(String mergedOutputFilename) {
+
+        VideoMergeTaskParams param = filenameToVideoMergeTaskParamsMap.get(mergedOutputFilename);
+        if(param != null && param.getConfiguration() != null) {
+            return param.getConfiguration();
+        } else {
+            return null;
+        }
     }
 
     public void prepare(ProgressUpdatable progressUpdatable) {
@@ -146,6 +180,8 @@ public class FfmpegVideoMerger implements VideoMerger {
         db.insertVideoInfo(outputFile.getName(), VideoInfoType.BEING_MERGED, "true");
         addThumbnailToDb(majorVideoConfig.getFile(), outputFile, db);
         db.close();
+
+        filenameToVideoMergeTaskParamsMap.put(outputFile.getName(), params);
 
         tempFiles.add(majorVideoConfig.getFile());
         tempFiles.add(minorVideoConfig.getFile());
@@ -446,6 +482,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                 filenameToProgressUpdateableMap.get(outputFile.getName()).onCompleted();
                 filenameToProgressUpdateableMap.remove(outputFile.getName());
             }
+
+            filenameToVideoMergeTaskParamsMap.remove(outputFile.getName());
         }
 
         private void merge() {

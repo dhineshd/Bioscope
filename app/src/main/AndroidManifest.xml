@@ -145,6 +145,10 @@
             android:name=".activity.TutorialFiveActivity"
             android:label="@string/title_activity_tutorial_five" >
         </activity>
+        <activity
+            android:name=".activity.CustomPreviewActivity"
+            android:label="@string/title_activity_custom_preview" >
+        </activity>
     </application>
 
 </manifest>

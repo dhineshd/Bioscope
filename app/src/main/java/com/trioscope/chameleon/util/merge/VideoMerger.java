@@ -21,4 +21,10 @@ public interface VideoMerger {
             File outputDestination, MergeConfiguration configuration);
 
     Collection<File> getTemporaryFiles();
+
+    VideoConfiguration getMajorVideo(String mergedOutputFilename);
+
+    VideoConfiguration getMinorVideo(String mergedOutputFilename);
+
+    MergeConfiguration getMergeConfiguration(String mergedOutputFilename);
 }
