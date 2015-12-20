@@ -6,7 +6,7 @@
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="36dp"
+        android:layout_height="48dp"
         android:background="@color/bioscope_teal">
 
         <ImageView
@@ -26,10 +26,10 @@
             android:id="@+id/minimize_gallery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
+            android:layout_centerVertical="true"
             android:layout_centerHorizontal="true"
             android:background="@null"
-            android:padding="10dp"
+            android:padding="12dp"
             android:rotation="180"
             android:src="@drawable/up_arrow_4x" />
     </RelativeLayout>
