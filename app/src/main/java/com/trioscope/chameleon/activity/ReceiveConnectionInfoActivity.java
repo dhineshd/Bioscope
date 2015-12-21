@@ -187,6 +187,8 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     }
 
     private void cleanup() {
+        log.info("Performing cleanup..");
+
         if (connectToWifiNetworkBroadcastReceiver != null) {
             chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
             connectToWifiNetworkBroadcastReceiver = null;
