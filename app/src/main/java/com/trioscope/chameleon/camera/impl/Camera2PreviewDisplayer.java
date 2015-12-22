@@ -267,6 +267,12 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             log.debug("SensorOrientation: {}", characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION));
+
+            for (Range<Integer> fpsRange : characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)) {
+                log.info("Available target FPS range: {}", fpsRange.toString());
+            }
+            log.info("Min frame duration = {}", map.getOutputMinFrameDuration(ImageFormat.YUV_420_888,
+                    new android.util.Size(frameSize.getWidth(), frameSize.getHeight())));
             log.debug("Preview Surface: {}", previewSurface);
             prepareImageReader(cameraInfo.getCaptureResolution(), cameraInfo.getEncoding().getImageFormat());
 
