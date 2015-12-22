@@ -43,8 +43,6 @@ import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
 import com.trioscope.chameleon.util.network.IpUtil;
 import com.trioscope.chameleon.util.security.SSLUtil;
 
-import org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -591,6 +589,10 @@ public class ConnectionEstablishedActivity
         if (previewStreamer != null) {
             previewStreamer.stopStreaming();
             previewStreamer = null;
+        }
+
+        if (isRecording) {
+            stopRecording();
         }
 
         chameleonApplication.getServerEventListenerManager().removeListener(this);
