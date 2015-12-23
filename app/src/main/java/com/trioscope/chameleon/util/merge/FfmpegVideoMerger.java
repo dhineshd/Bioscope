@@ -32,7 +32,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,9 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.Data;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -301,8 +298,8 @@ public class FfmpegVideoMerger implements VideoMerger {
                     "[merged][2] overlay=main_w-overlay_w-108:main_h-overlay_h-54");
         } else if (configuration.getMergeLayoutType() == VideoMerger.MERGE_LAYOUT_TYPE_SIDE_BY_SIDE) {
 
-            params.add("[0] scale=720:1280,drawbox=c=white:t=8 [left]; " +
-                    "[1] scale=720:1280,drawbox=c=white:t=8 [right]; " +
+            params.add("[0] scale=540:960,drawbox=c=white:t=8 [left]; " +
+                    "[1] scale=540:960,drawbox=c=white:t=8 [right]; " +
                     "[left] pad=iw*2:ih [bg]; " +
                     "[bg][right] overlay=w,drawbox=c=white:t=8 [merged];" +
                     "[merged][2] overlay=main_w-overlay_w-108:main_h-overlay_h-54");
