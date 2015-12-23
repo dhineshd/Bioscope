@@ -71,7 +71,7 @@ public class MediaCodecRecorder implements VideoRecorder, CameraFrameAvailableLi
     private volatile Long firstFrameReceivedForRecordingTimeMillis;
     private volatile boolean videoEncoderSetupCompleted;
 
-    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
+    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraFrameSize();
     private byte[] finalFrameData;
     private File outputFile;
     private RecordingMetadata recordingMetadata;

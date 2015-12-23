@@ -88,7 +88,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
-        frameSize = ChameleonApplication.getDefaultCameraPreviewSize();
+        frameSize = ChameleonApplication.getDefaultCameraFrameSize();
 
         if (!supportedSizes.contains(frameSize)) {
             // Find supported size with desired aspect ratio
@@ -267,12 +267,19 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             log.debug("SensorOrientation: {}", characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION));
+
+            for (Range<Integer> fpsRange : characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)) {
+                log.info("Available target FPS range: {}", fpsRange.toString());
+            }
+            log.info("Min frame duration = {}", map.getOutputMinFrameDuration(ImageFormat.YUV_420_888,
+                    new android.util.Size(frameSize.getWidth(), frameSize.getHeight())));
             log.debug("Preview Surface: {}", previewSurface);
             prepareImageReader(cameraInfo.getCaptureResolution(), cameraInfo.getEncoding().getImageFormat());
 
             log.debug("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
                 final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+
                 requestBuilder.addTarget(imageReader.getSurface());
                 requestBuilder.addTarget(previewSurface);
                 log.debug("Creating capture session");

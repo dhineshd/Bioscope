@@ -47,7 +47,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
     private volatile long previousFrameScanTimeMs = 0;
 
     // TODO Initialize buffer after size is known
-    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraPreviewSize();
+    private Size cameraFrameSize = ChameleonApplication.getDefaultCameraFrameSize();
     private final int cameraFrameBytes = cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2;
     private final ByteArrayOutputStream stream = new ByteArrayOutputStream(cameraFrameBytes);
     private ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(cameraFrameBytes);
