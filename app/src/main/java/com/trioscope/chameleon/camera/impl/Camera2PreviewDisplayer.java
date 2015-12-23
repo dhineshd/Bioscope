@@ -88,7 +88,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
         List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
-        frameSize = ChameleonApplication.getDefaultCameraPreviewSize();
+        frameSize = ChameleonApplication.getDefaultCameraFrameSize();
 
         if (!supportedSizes.contains(frameSize)) {
             // Find supported size with desired aspect ratio
@@ -279,6 +279,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             log.debug("Creating CaptureRequest.Builder using cameraDevice {} and imageReader {}", cameraDevice, imageReader);
             try {
                 final CaptureRequest.Builder requestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+
                 requestBuilder.addTarget(imageReader.getSurface());
                 requestBuilder.addTarget(previewSurface);
                 log.debug("Creating capture session");

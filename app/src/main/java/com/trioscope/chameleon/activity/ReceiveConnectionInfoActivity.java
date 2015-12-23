@@ -25,7 +25,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.camera.CameraParams;
@@ -50,6 +49,8 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     private Gson gson = new Gson();
     private static final long MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS = 10000;
     private static final int MAX_ATTEMPTS_TO_ADD_NETWORK = 3;
+    private static final int MAX_CONNECTION_ATTEMPTS = 3;
+    private volatile int connectionAttemptsCount;
     private BroadcastReceiver connectToWifiNetworkBroadcastReceiver;
     private TextView connectionStatusTextView;
     private ChameleonApplication chameleonApplication;
@@ -225,15 +226,6 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
                     establishConnection(connectionInfo);
 
                 } else {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            showProgressBar();
-                            connectionStatusTextView.setText(
-                                    "Connecting\nto\n" + connectionInfo.getUserName());
-                        }
-                    });
-
                     chameleonApplication.enableWifiAndPerformActionWhenEnabled(new Runnable() {
                         @Override
                         public void run() {
@@ -260,10 +252,12 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             @Override
             public void run() {
                 showProgressBar();
-                connectionStatusTextView.setText("Connecting\nto\n" + connectionInfo.getUserName());
-
+                connectionStatusTextView.setText(
+                        "Connecting\nto\n" + connectionInfo.getUserName());
             }
         });
+
+        chameleonApplication.unregisterReceiverSafely(connectToWifiNetworkBroadcastReceiver);
 
         connectToWifiNetworkBroadcastReceiver = new BroadcastReceiver() {
 
@@ -292,7 +286,18 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             public void run() {
                 log.info("Current thread = {}", Thread.currentThread());
                 connectToWifiNetwork(connectionInfo);
-                connectionTimerHandler.postDelayed(this, MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS);
+
+                log.info("connectionAttemptsCount = {}", connectionAttemptsCount);
+
+                if (connectionAttemptsCount++ < MAX_CONNECTION_ATTEMPTS) {
+
+                    connectionTimerHandler.postDelayed(this, MAX_CONNECTION_ESTABLISH_WAIT_TIME_MS);
+
+                } else {
+                    connectionStatusTextView.setText("Failed to\n connect to\n" + connectionInfo.getUserName() + "!");
+                    hideProgressBar();
+                }
+
             }
         };
 
@@ -302,6 +307,11 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     private void showProgressBar() {
         progressBar.setVisibility(View.VISIBLE);
     }
+
+    private void hideProgressBar() {
+        progressBar.setVisibility(View.INVISIBLE);
+    }
+
 
     private void connectToWifiNetwork(final WiFiNetworkConnectionInfo connectionInfo) {
 

@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
@@ -13,7 +12,6 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Environment;
-import android.preference.PreferenceManager;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
@@ -61,9 +59,9 @@ public class ChameleonApplication extends Application {
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final int CERTIFICATE_BUFFER_SIZE = 3 * 1024;
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
-    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE = new Size(1280, 720);
-    private static final Size DEFAULT_CAMERA_PREVIEW_SIZE_API_23 = new Size(1280, 720);
-    private static final long MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS = 50;
+    // Sizes beyond 1280 x 720 are not reliable on all devices (may change in future)
+    private static final Size DEFAULT_CAMERA_FRAME_SIZE = new Size(1280, 720);
+    private static final long MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS = 10;
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
     public static final String APP_BOLD_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Bold.ttf";
@@ -73,8 +71,6 @@ public class ChameleonApplication extends Application {
     public static final String TUTORIAL_SHOWN_PREFERENCE_KEY = "TUTORIAL_SHOWN";
 
     public static final String TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP_KEY = "TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP";
-
-    public static final String EMPTY_STRING = "";
 
     @Getter
     private RotationState rotationState = new RotationState();
@@ -443,12 +439,10 @@ public class ChameleonApplication extends Application {
         }
     }
 
-    public static Size getDefaultCameraPreviewSize() {
-        // TODO : Fix frame processing latency for 1080p for API 23 and remove this
-        if (Build.VERSION.SDK_INT == 23) {
-            return DEFAULT_CAMERA_PREVIEW_SIZE_API_23;
-        }
-        return DEFAULT_CAMERA_PREVIEW_SIZE;
+    public static Size getDefaultCameraFrameSize() {
+        log.info("Build.MODEL = {}", Build.MODEL);
+        log.info("Build.MANUFACTURER = {}", Build.MANUFACTURER);
+        return DEFAULT_CAMERA_FRAME_SIZE;
     }
 
     public static boolean isUserLeavingOnLeaveHintTriggered(final long latestUserInteractionTimeMillis) {
