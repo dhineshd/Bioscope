@@ -7,7 +7,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECORD_VIDEO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
@@ -127,27 +126,33 @@
 
         <activity
             android:name=".activity.TutorialOneActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_tutorial_one" >
         </activity>
         <activity
             android:name=".activity.TutorialTwoActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_tutorial_two" >
         </activity>
         <activity
             android:name=".activity.TutorialThreeActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_tutorial_three" >
         </activity>
         <activity
             android:name=".activity.TutorialFourActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_tutorial_four" >
         </activity>
         <activity
             android:name=".activity.TutorialFiveActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_tutorial_five" >
         </activity>
         <activity
             android:name=".activity.CustomPreviewActivity"
-            android:label="@string/title_activity_custom_preview" >
+            android:label="@string/title_activity_custom_preview"
+            android:screenOrientation="portrait" >
         </activity>
     </application>
 
