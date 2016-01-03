@@ -72,6 +72,10 @@ public class ChameleonApplication extends Application {
 
     public static final String TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP_KEY = "TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP";
 
+    public static final String KONOTOR_APP_ID = "4a550f3b-6391-4854-8f36-8aacaa2928c2";
+
+    public static final String KONOTOR_APP_KEY = "76bad5cf-d107-4ad6-8f82-7f153b556b87";
+
     @Getter
     private RotationState rotationState = new RotationState();
 

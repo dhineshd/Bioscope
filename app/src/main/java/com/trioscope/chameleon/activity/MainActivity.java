@@ -16,6 +16,8 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
 
+import com.demach.konotor.Konotor;
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
@@ -142,5 +144,16 @@ public class MainActivity extends AppCompatActivity {
 
         log.info("Activity has resumed from background {}",
                 PreferenceManager.getDefaultSharedPreferences(this).getAll());
+
+        // Instantiate Konotor.
+        Konotor.getInstance(getApplicationContext())
+                .withUserName(getUserName())            // optional name by which to display the user
+                .withLaunchMainActivityOnFinish(true) // to launch your app on hitting the back button on Konotor's inbox interface, in case the app was not running already
+                .init(ChameleonApplication.KONOTOR_APP_ID, ChameleonApplication.KONOTOR_APP_KEY);
+    }
+
+    private String getUserName() {
+        return PreferenceManager.getDefaultSharedPreferences(getApplicationContext())
+                .getString(getString(R.string.pref_user_name_key), "");
     }
 }

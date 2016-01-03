@@ -52,4 +52,5 @@
     <string name="title_activity_tutorial_four">TutorialFourActivity</string>
     <string name="title_activity_tutorial_five">TutorialFiveActivity</string>
     <string name="title_activity_custom_preview">CustomPreviewActivity</string>
+    <string name="title_activity_feedback">FeedbackActivity</string>
 </resources>

@@ -126,32 +126,38 @@
 
         <activity
             android:name=".activity.TutorialOneActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_tutorial_one" >
+            android:label="@string/title_activity_tutorial_one"
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.TutorialTwoActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_tutorial_two" >
+            android:label="@string/title_activity_tutorial_two"
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.TutorialThreeActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_tutorial_three" >
+            android:label="@string/title_activity_tutorial_three"
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.TutorialFourActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_tutorial_four" >
+            android:label="@string/title_activity_tutorial_four"
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.TutorialFiveActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_tutorial_five" >
+            android:label="@string/title_activity_tutorial_five"
+            android:screenOrientation="portrait" >
         </activity>
         <activity
             android:name=".activity.CustomPreviewActivity"
             android:label="@string/title_activity_custom_preview"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.FeedbackActivity"
+            android:label="@string/title_activity_feedback"
+            android:noHistory="true"
             android:screenOrientation="portrait" >
         </activity>
     </application>

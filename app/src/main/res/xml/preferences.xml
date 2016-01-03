@@ -37,6 +37,10 @@
             <intent android:targetPackage="com.trioscope.chameleon"
                 android:targetClass="com.trioscope.chameleon.activity.AboutActivity" />
         </Preference>
+        <Preference android:title="Contact Us" >
+            <intent android:targetPackage="com.trioscope.chameleon"
+                android:targetClass="com.trioscope.chameleon.activity.FeedbackActivity" />
+        </Preference>
         <Preference
             android:defaultValue=""
             android:key="@string/pref_version_number_key"
