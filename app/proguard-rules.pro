@@ -59,6 +59,9 @@
     <methods>;
 }
 
+-dontwarn com.google.gson.demach.**
+-dontwarn com.demach.**
+
 # Application classes that will be serialized/deserialized over Gson
 -keep class com.trioscope.chameleon.types.** { *; }
 -keepnames class org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey

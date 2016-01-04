@@ -8,4 +8,5 @@
     <color name="primary_text">#000</color>
     <color name="secondary_text">#888</color>
     <color name="bioscope_purple_40_opacity">#669B296E</color>
+    <color name="konotor_theme_color">#92D2C2</color>
 </resources>
