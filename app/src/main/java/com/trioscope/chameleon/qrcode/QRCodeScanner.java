@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @RequiredArgsConstructor
 @Slf4j
-public class QRCodeScanner implements CameraFrameAvailableListener{
+public class QRCodeScanner implements CameraFrameAvailableListener {
     private static final int SCANNING_FRAMES_PER_SEC = 3;
     private static final int IMAGE_COMPRESSION_QUALITY = 100; // 0 worst - 100 best
 
@@ -48,7 +48,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
 
     // TODO Initialize buffer after size is known
     private Size cameraFrameSize = ChameleonApplication.getDefaultCameraFrameSize();
-    private final int cameraFrameBytes = cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3/2;
+    private final int cameraFrameBytes = cameraFrameSize.getWidth() * cameraFrameSize.getHeight() * 3 / 2;
     private final ByteArrayOutputStream stream = new ByteArrayOutputStream(cameraFrameBytes);
     private ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(cameraFrameBytes);
     private ByteBuffer outputByteBuffer = ByteBuffer.allocateDirect(cameraFrameBytes);
@@ -114,7 +114,9 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
             Bitmap bmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
             int centerHeight = bmp.getHeight() / 2;
             int centerWidth = bmp.getWidth() / 2;
-            int squareSide = 600; // pixels
+            double percentageOfImageForScreen = 0.7; // take the center
+            int squareSide = (int) Math.floor(centerWidth * percentageOfImageForScreen);
+            log.info("Attempting to create w,h={},{}", centerWidth, centerHeight);
             // Grab the center square area from bitmap for decoding
             bmp = Bitmap.createBitmap(bmp, centerWidth - squareSide / 2,
                     centerHeight - squareSide / 2, squareSide, squareSide);
@@ -123,7 +125,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener{
             BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(source));
             return decodeBitmap(binaryBitmap);
         } catch (Exception e) {
-            log.warn("Failed to decode QR code from image: " + e.getMessage());
+            log.error("Failed to decode QR code from image: " + e.getMessage() + " " + e.getClass() + " " + e);
         }
         return null;
     }

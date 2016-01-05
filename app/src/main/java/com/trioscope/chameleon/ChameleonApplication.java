@@ -6,12 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Environment;
+import android.util.Range;
 import android.view.SurfaceView;
 
 import com.trioscope.chameleon.broadcastreceiver.IncomingPhoneCallBroadcastReceiver;
@@ -59,8 +61,11 @@ public class ChameleonApplication extends Application {
     public static final int SEND_RECEIVE_BUFFER_SIZE_BYTES = 64 * 1024;
     public static final int CERTIFICATE_BUFFER_SIZE = 3 * 1024;
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
+
     // Sizes beyond 1280 x 720 are not reliable on all devices (may change in future)
     private static final Size DEFAULT_CAMERA_FRAME_SIZE = new Size(1280, 720);
+    private static final Size DEFAULT_LEGACY_CAMERA_FRAME_SIZE = new Size(768, 432);
+
     private static final long MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS = 10;
 
     public static final String APP_REGULAR_FONT_LOCATION = "fonts/roboto-slab/RobotoSlab-Regular.ttf";
@@ -75,6 +80,9 @@ public class ChameleonApplication extends Application {
     public static final String KONOTOR_APP_ID = "4a550f3b-6391-4854-8f36-8aacaa2928c2";
 
     public static final String KONOTOR_APP_KEY = "76bad5cf-d107-4ad6-8f82-7f153b556b87";
+
+    private static final Integer REASONABLE_FPS_BOUNDARY = 1000; // Above this FPS we assume the FPS not reported as frames per second, but as some other standard. This is used to detect older/lower quality camera2 implementations.
+
 
     @Getter
     private RotationState rotationState = new RotationState();
@@ -209,7 +217,6 @@ public class ChameleonApplication extends Application {
                     @Override
                     public void onOpened(CameraDevice camera) {
                         log.info("Found camera device callback {}", camera);
-
 
                         previewDisplayer = new Camera2PreviewDisplayer(ChameleonApplication.this, camera, manager);
                         previewDisplayer.setCameraFrameBuffer(cameraFrameBuffer);
@@ -446,6 +453,22 @@ public class ChameleonApplication extends Application {
     public static Size getDefaultCameraFrameSize() {
         log.info("Build.MODEL = {}", Build.MODEL);
         log.info("Build.MANUFACTURER = {}", Build.MANUFACTURER);
+        return DEFAULT_CAMERA_FRAME_SIZE;
+    }
+
+    public static Size getDeviceSpecificCameraFrameSize(CameraCharacteristics cc) {
+        log.info("Build.MODEL = {}", Build.MODEL);
+        log.info("Build.MANUFACTURER = {}", Build.MANUFACTURER);
+
+        Range<Integer>[] fpsRanges = cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+        log.info("Supported FPS ranges are {}", fpsRanges);
+
+        if (fpsRanges.length > 0 && fpsRanges[0].getLower() > REASONABLE_FPS_BOUNDARY) {
+            // This is an lower quality device, use a lower frame size so we keep the frame rate high
+            log.info("Determined camera2 is lower quality, returning {}", DEFAULT_LEGACY_CAMERA_FRAME_SIZE);
+            return DEFAULT_LEGACY_CAMERA_FRAME_SIZE;
+        }
+
         return DEFAULT_CAMERA_FRAME_SIZE;
     }
 

@@ -50,6 +50,21 @@
 -keepattributes Signature
 -keepattributes InnerClasses,EnclosingMethod
 
+# Demach GSON files
+-keep class com.google.gson.demach.** {
+    <fields>;
+    <methods>;
+}
+
+# Demach model
+-keep class com.demach.** {
+    <fields>;
+    <methods>;
+}
+
+-dontwarn com.google.gson.demach.**
+-dontwarn com.demach.**
+
 # Application classes that will be serialized/deserialized over Gson
 -keep class com.trioscope.chameleon.types.** { *; }
 -keepnames class org.spongycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey
@@ -64,3 +79,5 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
+
+

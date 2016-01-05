@@ -25,6 +25,7 @@ import com.trioscope.chameleon.camera.CameraParams;
 import com.trioscope.chameleon.camera.PreviewDisplayer;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
+import com.trioscope.chameleon.listener.impl.UpdateRateCalculator;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
@@ -77,41 +78,42 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
     }
 
     private void updateCameraInfo() {
-
-        CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
-
-        log.debug("Creating cameraInfo");
-        // Supposed to be universally supported by Camera2
-        CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
-
-        Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
-
-        List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
-
-        frameSize = ChameleonApplication.getDefaultCameraFrameSize();
-
-        if (!supportedSizes.contains(frameSize)) {
-            // Find supported size with desired aspect ratio
-            for (Size suppportedSize : supportedSizes) {
-                int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());
-                int widthRatio = suppportedSize.getWidth() / factor;
-                int heightRatio = suppportedSize.getHeight() / factor;
-                if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth()
-                        && heightRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight()) {
-                    frameSize = suppportedSize;
-                    break;
-                }
-            }
-        }
-        builder.cameraResolution(frameSize);
-        builder.captureResolution(frameSize);
-        builder.encoding(encoding);
-        cameraInfo = builder.build();
-
-        log.info("Using cameraInfo {}", cameraInfo);
-
         try {
             CameraCharacteristics cc = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            CameraInfo.CameraInfoBuilder builder = CameraInfo.builder();
+
+            log.debug("Creating cameraInfo");
+            // Supposed to be universally supported by Camera2
+            CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YUV_420_888;
+            //CameraInfo.ImageEncoding encoding = CameraInfo.ImageEncoding.YV12;
+
+            Set<CameraInfo.ImageEncoding> supportedEncodings = getSupportedEncodings();
+
+            List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
+
+            frameSize = ChameleonApplication.getDeviceSpecificCameraFrameSize(cc);
+
+            if (!supportedSizes.contains(frameSize)) {
+                // Find supported size with desired aspect ratio
+                for (Size suppportedSize : supportedSizes) {
+                    int factor = greatestCommonFactor(suppportedSize.getWidth(), suppportedSize.getHeight());
+                    int widthRatio = suppportedSize.getWidth() / factor;
+                    int heightRatio = suppportedSize.getHeight() / factor;
+                    if (widthRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getWidth()
+                            && heightRatio == ChameleonApplication.DEFAULT_ASPECT_RATIO.getHeight()) {
+                        frameSize = suppportedSize;
+                        break;
+                    }
+                }
+
+                log.info("Default frameSize is unsupported, using {} instead", frameSize);
+            }
+            builder.cameraResolution(frameSize);
+            builder.captureResolution(frameSize);
+            builder.encoding(encoding);
+            cameraInfo = builder.build();
+
+            log.info("Using cameraInfo {}", cameraInfo);
             curLensFacing = cc.get(CameraCharacteristics.LENS_FACING);
             currentOrientationDegrees = cc.get(CameraCharacteristics.SENSOR_ORIENTATION);
             log.debug("Camera is facing {}", curLensFacing);
@@ -120,7 +122,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             log.info("Camera auto white-balance available modes = {}", cc.get(CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES));
             log.info("CONTROL_AE_COMPENSATION_RANGE = {}", cc.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE));
             log.info("CONTROL_AE_COMPENSATION_STEP = {}", cc.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP));
-        } catch (Exception e) {
+        } catch (CameraAccessException e) {
             log.error("Unable to access camerainformation", e);
         }
     }
@@ -407,7 +409,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
             imageReader = ImageReader.newInstance(width, height, format, MAX_NUM_IMAGES);
             simpleImageListener = new SimpleImageListener();
             imageReader.setOnImageAvailableListener(simpleImageListener, new ThreadWithHandler().getHandler());
-            log.debug("Prepared image listener {}", simpleImageListener);
+            log.info("Prepared image listener {}", simpleImageListener);
         } catch (Exception e) {
             log.error("Unable to create ImageReader with parameters", e);
         }
@@ -457,16 +459,26 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
         return surfaceView;
     }
 
+    UpdateRateCalculator rateCalc = new UpdateRateCalculator();
+
     private class SimpleImageListener implements ImageReader.OnImageAvailableListener {
         byte[] buffer;
         CameraFrameData frameData;
         FrameInfo frameInfo;
         byte[] tempBuffer;
+        private boolean shouldActOnFrames = true; // A debugging helper
 
         @Override
         public void onImageAvailable(final ImageReader reader) {
             //TODO : Are we dropping images by not using acquireNextImage?
             Image image = reader.acquireLatestImage();
+
+            if (!shouldActOnFrames) {
+                rateCalc.updateReceived();
+                image.close();
+                return;
+            }
+
             if (image == null) {
                 log.debug("Null image from acquire latest image -- skipping");
                 return;
@@ -493,5 +505,6 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             cameraFrameBuffer.frameAvailable(cameraInfo, frameData, frameInfo);
         }
+
     }
 }
