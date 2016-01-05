@@ -130,7 +130,23 @@ public class PreferencesActivity extends AppCompatActivity {
                 boolean isOn = connectionPref.isChecked();
                 log.info("User changed the pref_ga_display_features_key Setting, current value is {}", isOn);
 
-                ChameleonApplication.getMetrics().setShouldEnableAdvertisingIdCollection(isOn);
+                if(!isOn) {
+                    log.info("Asking user for confirmation when disabling OpenH264");
+                    new AlertDialog.Builder(getActivity())
+                            .setTitle("Google Analytics")
+                            .setMessage("Do you really want disable Google Analytics to collect data about your traffic via anonymous identifiers.")
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setPositiveButton(android.R.string.yes, null)
+                            .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    if (connectionPref != null) {
+                                        connectionPref.setChecked(true);
+                                    }
+                                }
+                            }).show();
+                }
+
+                ChameleonApplication.getMetrics().setShouldEnableAdvertisingIdCollection(connectionPref.isChecked());
             }
 
             else {

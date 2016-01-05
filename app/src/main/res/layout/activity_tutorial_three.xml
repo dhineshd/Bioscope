@@ -1,0 +1,82 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#ffffff"
+    android:orientation="vertical"
+    tools:context="com.trioscope.chameleon.activity.TutorialThreeActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@color/bioscope_teal">
+
+        <Button
+            android:id="@+id/skip_tutorial_three"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            style="@style/textButtonSecondary"
+            android:background="@null"
+            android:text="Skip"
+            android:src="@drawable/up_arrow_4x" />
+
+        <ImageButton
+            android:id="@+id/next_tutorial_three"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:background="@null"
+            android:padding="18dp"
+            android:rotation="90"
+            android:src="@drawable/up_arrow_4x" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="243dp"
+            android:id="@+id/tut_three_screen_one"
+            android:layout_marginTop="60dp"
+            android:layout_marginLeft="18dp"
+            android:layout_alignParentLeft="true"
+            android:src="@drawable/tutorial_director_record" />
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="243dp"
+            android:src="@drawable/tutorial_crew_record"
+            android:layout_above="@+id/tut_three_msg"
+            android:layout_marginRight="18dp"
+            android:layout_alignParentEnd="true" />
+
+        <com.trioscope.chameleon.views.BioscopeLargeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="30dp"
+            android:layout_marginRight="30dp"
+            android:layout_marginTop="60dp"
+            android:layout_below="@+id/tut_three_screen_one"
+            android:gravity="center"
+            style="@style/tutorialText"
+            android:text="Start recording! You'll be controlling both phones and can see what your friend is capturing as well."
+            android:id="@+id/tut_three_msg" />
+
+
+
+    </RelativeLayout>
+
+    <com.trioscope.chameleon.views.BioscopeLargeTextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="bottom|center"
+        style="@style/tutorialFooterText"
+        android:layout_marginBottom="30dp"
+        android:text="3 of 5"
+        />
+
+</LinearLayout>

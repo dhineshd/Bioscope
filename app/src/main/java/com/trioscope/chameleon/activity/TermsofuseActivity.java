@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
+import android.text.util.Linkify;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -27,6 +28,8 @@ public class TermsofuseActivity extends AppCompatActivity {
 
     private ImageButton minimizeButton;
 
+    private TextView termsOfUseTextView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,6 +38,9 @@ public class TermsofuseActivity extends AppCompatActivity {
         termsOfUseWebView = (WebView) findViewById(R.id.terms_of_use_web_view);
 
         minimizeButton = (ImageButton) findViewById(R.id.minimize_terms_of_use);
+
+        termsOfUseTextView = (TextView) findViewById(R.id.terms_of_use_text_view);
+        Linkify.addLinks(termsOfUseTextView, Linkify.ALL);
 
         minimizeButton.setOnClickListener(new View.OnClickListener() {
             @Override

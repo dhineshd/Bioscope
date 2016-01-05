@@ -1,0 +1,78 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="0px"
+    android:paddingLeft="0px"
+    android:paddingRight="0px"
+    android:paddingTop="0px"
+    android:background="@android:color/black"
+    tools:context="com.trioscope.chameleon.activity.CustomPreviewActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@color/bioscope_teal">
+
+        <ImageButton
+            android:id="@+id/minimize_custom_preview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:background="@null"
+            android:padding="12dp"
+            android:rotation="270"
+            android:src="@drawable/up_arrow_4x" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/custom_preview_relativeLayout_major_video"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="2dp"
+        android:background="@drawable/border_image">
+
+        <TextureView
+            android:id="@+id/custom_preview_textureview_major_video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/custom_preview_relativeLayout_minor_video"
+        android:layout_width="108dp"
+        android:layout_height="192dp"
+        android:layout_gravity="bottom"
+        android:layout_marginLeft="54px"
+        android:layout_marginBottom="300px"
+        android:padding="2dp"
+        android:background="@drawable/border_image">
+
+        <TextureView
+            android:id="@+id/custom_preview_textureview_minor_video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerInParent="true"/>
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        >
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            style="@style/primaryButtonSmallText"
+            android:gravity="center"
+            android:text="This is a preview of your processing video"
+            android:layout_marginBottom="30dp"
+            />
+
+    </RelativeLayout>
+
+</FrameLayout>

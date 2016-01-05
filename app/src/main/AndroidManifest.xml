@@ -7,7 +7,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECORD_VIDEO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
@@ -16,6 +15,9 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="com.trioscope.chameleon.permission.C2D_MESSAGE" />
+
+    <permission android:name="com.trioscope.chameleon.permission.C2D_MESSAGE" android:protectionLevel="signature" />
 
     <uses-feature
         android:name="android.hardware.camera"
@@ -36,6 +38,15 @@
         </activity>
 
         <service android:name=".service.BackgroundRecorderService" />
+
+        <service android:name="com.trioscope.chameleon.GCMIntentService"/>
+        <receiver android:name="com.google.android.gcm.GCMBroadcastReceiver" android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
+                <category android:name="com.trioscope.chameleon" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".activity.SendConnectionInfoActivity"
@@ -125,7 +136,42 @@
             android:enabled="true"
             android:exported="false" />
 
-
+        <activity
+            android:name=".activity.TutorialOneActivity"
+            android:label="@string/title_activity_tutorial_one"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialTwoActivity"
+            android:label="@string/title_activity_tutorial_two"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialThreeActivity"
+            android:label="@string/title_activity_tutorial_three"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialFourActivity"
+            android:label="@string/title_activity_tutorial_four"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.TutorialFiveActivity"
+            android:label="@string/title_activity_tutorial_five"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.CustomPreviewActivity"
+            android:label="@string/title_activity_custom_preview"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name=".activity.FeedbackActivity"
+            android:label="@string/title_activity_feedback"
+            android:noHistory="true"
+            android:screenOrientation="portrait" >
+        </activity>
     </application>
 
 </manifest>

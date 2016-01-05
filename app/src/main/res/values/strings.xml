@@ -46,4 +46,11 @@
     <string name="title_activity_licenses">LicensesActivity</string>
     <string name="pref_version_number_key">VersionNumber</string>
     <string name="title_activity_about">AboutActivity</string>
+    <string name="title_activity_tutorial_one">TutorialOneActivity</string>
+    <string name="title_activity_tutorial_two">TutorialTwoActivity</string>
+    <string name="title_activity_tutorial_three">TutorialThreeActivity</string>
+    <string name="title_activity_tutorial_four">TutorialFourActivity</string>
+    <string name="title_activity_tutorial_five">TutorialFiveActivity</string>
+    <string name="title_activity_custom_preview">CustomPreviewActivity</string>
+    <string name="title_activity_feedback">FeedbackActivity</string>
 </resources>

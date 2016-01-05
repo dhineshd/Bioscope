@@ -30,13 +30,17 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
 import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.aop.Timed;
 import com.trioscope.chameleon.storage.BioscopeDBHelper;
 import com.trioscope.chameleon.storage.VideoInfoType;
+import com.trioscope.chameleon.types.RecordingMetadata;
 import com.trioscope.chameleon.util.FileUtil;
+import com.trioscope.chameleon.util.merge.MergeConfiguration;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
+import com.trioscope.chameleon.util.merge.VideoConfiguration;
 import com.trioscope.chameleon.util.merge.VideoMerger;
 import com.trioscope.chameleon.util.ui.GestureUtils;
 
@@ -78,6 +82,11 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
         }
     };
 
+    public static final String MAJOR_VIDEO_PATH_KEY = "MAJOR_VIDEO_PATH_KEY";
+    public static final String MINOR_VIDEO_PATH_KEY = "MINOR_VIDEO_PATH_KEY";
+    public static final String VIDEO_START_OFFSET_KEY = "VIDEO_START_OFFSET_KEY";
+    public static final String VIDEO_MERGE_LAYOUT_KEY = "VIDEO_MERGE_LAYOUT_KEY";
+
     private GestureDetectorCompat gestureDetector;
     private Executor backgroundThumbnailExecutor = Executors.newSingleThreadExecutor();
     private Map<String, Boolean> mergingFilenamesMap = new ConcurrentHashMap<>();// presence of filename in this map means video is currently merging
@@ -88,6 +97,7 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
     private List<File> libraryFiles = new ArrayList<>();
     private CacheVideoInfoTask cacheVideoInfoTask;
     private Map<String, Integer> fileNameToPercentMerged = new ConcurrentHashMap<>();
+    private Gson gson = new Gson();
 
     public void updatePercentMerged(String filename, int percent) {
         fileNameToPercentMerged.put(filename, percent);
@@ -179,6 +189,32 @@ public class VideoLibraryGridActivity extends AppCompatActivity {
                     Intent intentToPlayVideo = new Intent(Intent.ACTION_VIEW);
                     intentToPlayVideo.setDataAndType(Uri.parse("file://" + item.getAbsolutePath()), "video/*");
                     startActivity(intentToPlayVideo);
+                } else {
+
+                    VideoMerger merger = ((ChameleonApplication) getApplication()).getVideoMerger();
+
+                    VideoConfiguration majorVideoConfig = merger.getMajorVideo(item.getName());
+                    VideoConfiguration minorVideoConfig = merger.getMinorVideo(item.getName());
+                    MergeConfiguration mergeConfiguration = merger.getMergeConfiguration(item.getName());
+
+                    if(majorVideoConfig != null && majorVideoConfig.getFile()!= null &&
+                            minorVideoConfig != null && minorVideoConfig.getFile() != null &&
+                            mergeConfiguration != null) {
+
+                        Long videoStartOffset = mergeConfiguration.getVideoStartOffsetMilli();
+
+                        if(videoStartOffset == null) {
+                            videoStartOffset = 0L;
+                        }
+
+                        //The video is currently being merged, show the individual videos instead.
+                        Intent intent = new Intent(getApplicationContext(), CustomPreviewActivity.class);
+                        intent.putExtra(VideoLibraryGridActivity.MAJOR_VIDEO_PATH_KEY, majorVideoConfig.getFile().getAbsolutePath());
+                        intent.putExtra(VideoLibraryGridActivity.MINOR_VIDEO_PATH_KEY, minorVideoConfig.getFile().getAbsolutePath());
+                        intent.putExtra(VideoLibraryGridActivity.VIDEO_START_OFFSET_KEY, videoStartOffset);
+                        intent.putExtra(VideoLibraryGridActivity.VIDEO_MERGE_LAYOUT_KEY, mergeConfiguration.getMergeLayoutType());
+                        startActivity(intent);
+                    }
                 }
             }
         });

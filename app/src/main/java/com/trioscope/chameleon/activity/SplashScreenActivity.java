@@ -1,8 +1,11 @@
 package com.trioscope.chameleon.activity;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -10,6 +13,7 @@ import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.trioscope.chameleon.ChameleonApplication;
 import com.trioscope.chameleon.R;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.ProgressUpdatable;
@@ -23,7 +27,6 @@ public class SplashScreenActivity extends AppCompatActivity {
      * Duration of wait
      **/
     private final int SPLASH_DISPLAY_LENGTH = 1000;
-    private final int SPLASH_DISPLAY_LENGTH_WITH_DOWNLOAD = 7000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,17 +51,26 @@ public class SplashScreenActivity extends AppCompatActivity {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-            /* Create an Intent that will start the Menu-Activity. */
-                Intent mainIntent = new Intent(SplashScreenActivity.this, UserLoginActivity.class);
+
+                Intent nextIntent;
+
+                if(!isTutorialAlreadyShown()) {
+                    // If tutorial is not shown, show it first.
+                    nextIntent = new Intent(SplashScreenActivity.this, TutorialOneActivity.class);
+                    nextIntent.putExtra(ChameleonApplication.TUTORIAL_INVOKED_FROM_BEGINNING_OF_APP_KEY, true);
+                } else {
+                /* Create an Intent that will start the Menu-Activity. */
+                    nextIntent = new Intent(SplashScreenActivity.this, UserLoginActivity.class);
+                }
+
                 // create the transition animation - the images in the layouts
                 // of both activities are defined with android:transitionName="logo"
-
                 // get the common element for the transition in this activity
                 final ImageView logoImageView = (ImageView) findViewById(R.id.splash_logo);
 
                 ActivityOptionsCompat options = ActivityOptionsCompat
                         .makeSceneTransitionAnimation(SplashScreenActivity.this, logoImageView, "logo");
-                startActivity(mainIntent);
+                startActivity(nextIntent);
                 finish();
                 overridePendingTransition(R.anim.slide_in_bottom, R.anim.slide_out_top);
             }
@@ -104,5 +116,11 @@ public class SplashScreenActivity extends AppCompatActivity {
             TextView text = (TextView) findViewById(R.id.splash_status_text);
             text.setText("Error downloading necessary video encoders.\nPlease check your internet connection and restart the app.");
         }
+    }
+
+    private boolean isTutorialAlreadyShown() {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean tutorialShown = sharedPref.getBoolean(ChameleonApplication.TUTORIAL_SHOWN_PREFERENCE_KEY, false);
+        return tutorialShown;
     }
 }
