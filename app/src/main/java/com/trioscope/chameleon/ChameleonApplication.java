@@ -83,6 +83,7 @@ public class ChameleonApplication extends Application {
 
     private static final Integer REASONABLE_FPS_BOUNDARY = 1000; // Above this FPS we assume the FPS not reported as frames per second, but as some other standard. This is used to detect older/lower quality camera2 implementations.
 
+    public static final double ACCEPTABLE_QR_CODE_FRAME_RATE = 10; // Below this FPS we revert to lower quality video to keep high frame rate
 
     @Getter
     private RotationState rotationState = new RotationState();

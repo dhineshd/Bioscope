@@ -18,6 +18,7 @@ import com.trioscope.chameleon.listener.CameraFrameAvailableListener;
 import com.trioscope.chameleon.listener.CameraFrameBuffer;
 import com.trioscope.chameleon.listener.CameraFrameData;
 import com.trioscope.chameleon.listener.QRCodeScanEventListener;
+import com.trioscope.chameleon.listener.impl.UpdateRateCalculator;
 import com.trioscope.chameleon.stream.CameraFrameUtil;
 import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
@@ -55,6 +56,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener {
     private int[] bitmapPixels = new int[cameraFrameSize.getWidth() * cameraFrameSize.getHeight()];
     private QRCodeReader qrCodeReader = new QRCodeReader();
     private Executor decodeThreadPool = Executors.newSingleThreadExecutor();
+    private UpdateRateCalculator frameRateCalc = UpdateRateCalculator.builder().shouldLog(false).updateMemoryTime(1000).build();
 
     public void start() {
         cameraFrameBuffer.addListener(this);
@@ -66,6 +68,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener {
 
     @Override
     public void onFrameAvailable(CameraInfo cameraInfo, CameraFrameData data, FrameInfo frameInfo) {
+        frameRateCalc.updateReceived();
 
         int cameraWidth = cameraInfo.getCameraResolution().getWidth();
         int cameraHeight = cameraInfo.getCameraResolution().getHeight();
@@ -90,7 +93,14 @@ public class QRCodeScanner implements CameraFrameAvailableListener {
                             public void run() {
                                 String decodedText = decodeQRCode(imageBytes);
                                 if (decodedText != null) {
+                                    double frameRateDuringQRCode = frameRateCalc.getRecentUpdateRate();
                                     log.info("QR code detected = {}", decodedText);
+                                    log.info("Frame rate during QR code reading was {}fps", frameRateDuringQRCode);
+
+                                    if(frameRateDuringQRCode < ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE) {
+
+                                    }
+
                                     qrCodeScanEventListener.onTextDecoded(decodedText);
                                 }
                             }
