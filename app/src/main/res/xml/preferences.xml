@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     android:summary="Preferences for the Bioscope App"
-    android:title="Preferences"
-    >
+    android:title="Preferences">
 
     <PreferenceCategory
         android:layout="@layout/preference_category"
@@ -19,34 +18,41 @@
     <PreferenceCategory
         android:layout="@layout/preference_category"
         android:title="@string/pref_codec_title">
-        <ListPreference android:key="" />
+        <ListPreference
+            android:defaultValue="@string/pref_res_default"
+            android:entries="@array/camera_resolutions_names"
+            android:entryValues="@array/camera_resolutions_values"
+            android:key="@string/pref_res_key"
+            android:title="Camera Resolution" />
         <SwitchPreference
+            android:checked="true"
+            android:defaultValue="true"
             android:key="@string/pref_codec_key"
-            android:title="OpenH264 Codec"
-            android:defaultValue="true"
-            android:checked="true" />
+            android:title="OpenH264 Codec" />
         <SwitchPreference
-            android:key="@string/pref_ga_display_features_key"
-            android:title="Google Analytics Display Features"
+            android:checked="true"
             android:defaultValue="true"
-            android:checked="true" />
-        <Preference android:title="Terms of use" >
-            <intent android:targetPackage="com.trioscope.chameleon"
-                android:targetClass="com.trioscope.chameleon.activity.TermsofuseActivity" />
+            android:key="@string/pref_ga_display_features_key"
+            android:title="Google Analytics Display Features" />
+        <Preference android:title="Terms of use">
+            <intent
+                android:targetClass="com.trioscope.chameleon.activity.TermsofuseActivity"
+                android:targetPackage="com.trioscope.chameleon" />
         </Preference>
-        <Preference android:title="About" >
-            <intent android:targetPackage="com.trioscope.chameleon"
-                android:targetClass="com.trioscope.chameleon.activity.AboutActivity" />
+        <Preference android:title="About">
+            <intent
+                android:targetClass="com.trioscope.chameleon.activity.AboutActivity"
+                android:targetPackage="com.trioscope.chameleon" />
         </Preference>
-        <Preference android:title="Contact Us" >
-            <intent android:targetPackage="com.trioscope.chameleon"
-                android:targetClass="com.trioscope.chameleon.activity.FeedbackActivity" />
+        <Preference android:title="Contact Us">
+            <intent
+                android:targetClass="com.trioscope.chameleon.activity.FeedbackActivity"
+                android:targetPackage="com.trioscope.chameleon" />
         </Preference>
         <Preference
             android:defaultValue=""
             android:key="@string/pref_version_number_key"
-            android:title="Version Number"
-            />
+            android:title="Version Number" />
     </PreferenceCategory>
 
 </PreferenceScreen>

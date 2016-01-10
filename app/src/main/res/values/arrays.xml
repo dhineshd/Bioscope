@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string-array name="camera_resolutions_names">
+        <item>@string/pref_res_default</item>
+        <item>@string/pref_res_low</item>
+    </string-array>
+    <string-array name="camera_resolutions_values">
+        <item>@string/pref_res_default</item>
+        <item>@string/pref_res_low</item>
+    </string-array>
     <string-array name="stream_resolution_names">
         <item name="720p">720p</item>
         <item name="1080p">1080p</item>
