@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
@@ -13,6 +14,7 @@ import android.net.wifi.WifiManager;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Build;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.util.Range;
 import android.view.SurfaceView;
 
@@ -63,8 +65,8 @@ public class ChameleonApplication extends Application {
     public static final Size DEFAULT_ASPECT_RATIO = new Size(16, 9);
 
     // Sizes beyond 1280 x 720 are not reliable on all devices (may change in future)
-    private static final Size DEFAULT_CAMERA_FRAME_SIZE = new Size(1280, 720);
-    private static final Size DEFAULT_LEGACY_CAMERA_FRAME_SIZE = new Size(768, 432);
+    public static final Size DEFAULT_CAMERA_FRAME_SIZE = new Size(1280, 720);
+    public static final Size DEFAULT_LEGACY_CAMERA_FRAME_SIZE = new Size(768, 432);
 
     private static final long MAX_USER_INTERACTION_USER_LEAVING_DELAY_MS = 10;
 
@@ -457,20 +459,31 @@ public class ChameleonApplication extends Application {
         return DEFAULT_CAMERA_FRAME_SIZE;
     }
 
-    public static Size getDeviceSpecificCameraFrameSize(CameraCharacteristics cc) {
+    public Size getDeviceSpecificCameraFrameSize(CameraCharacteristics cc) {
         log.info("Build.MODEL = {}", Build.MODEL);
         log.info("Build.MANUFACTURER = {}", Build.MANUFACTURER);
+        log.info("Checking preferences first for device specific camera frame");
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        log.info("Preferences = {}", preferences.getAll());
+
+        if (preferences.contains(getString(R.string.pref_res_key))) {
+
+        }
 
         Range<Integer>[] fpsRanges = cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
         log.info("Supported FPS ranges are {}", fpsRanges);
 
+
+        Size returnResult = null;
         if (fpsRanges.length > 0 && fpsRanges[0].getLower() > REASONABLE_FPS_BOUNDARY) {
             // This is an lower quality device, use a lower frame size so we keep the frame rate high
             log.info("Determined camera2 is lower quality, returning {}", DEFAULT_LEGACY_CAMERA_FRAME_SIZE);
-            return DEFAULT_LEGACY_CAMERA_FRAME_SIZE;
+            returnResult = DEFAULT_LEGACY_CAMERA_FRAME_SIZE;
+        } else {
+            returnResult = DEFAULT_CAMERA_FRAME_SIZE;
         }
 
-        return DEFAULT_CAMERA_FRAME_SIZE;
+        return returnResult;
     }
 
     public static boolean isUserLeavingOnLeaveHintTriggered(final long latestUserInteractionTimeMillis) {

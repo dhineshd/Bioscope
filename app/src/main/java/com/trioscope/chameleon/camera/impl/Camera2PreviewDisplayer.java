@@ -91,7 +91,7 @@ public class Camera2PreviewDisplayer implements PreviewDisplayer {
 
             List<Size> supportedSizes = getSupportedSizes(encoding.getImageFormat());
 
-            frameSize = ChameleonApplication.getDeviceSpecificCameraFrameSize(cc);
+            frameSize = ((ChameleonApplication) context.getApplicationContext()).getDeviceSpecificCameraFrameSize(cc);
 
             if (!supportedSizes.contains(frameSize)) {
                 // Find supported size with desired aspect ratio

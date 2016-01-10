@@ -3,6 +3,9 @@ package com.trioscope.chameleon.util;
 import android.graphics.ImageFormat;
 import android.media.Image;
 
+import com.trioscope.chameleon.ChameleonApplication;
+import com.trioscope.chameleon.types.Size;
+
 import java.nio.ByteBuffer;
 
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +70,18 @@ public class ImageUtil {
             }
         } else {
             throw new RuntimeException("Unsupported image format: " + format);
+        }
+    }
+
+    public static Size getSizeFromString(String size) {
+        try {
+            String[] parts = size.split("x");
+            int width = Integer.parseInt(parts[0]);
+            int height = Integer.parseInt(parts[0]);
+            return new Size(width, height);
+        } catch (Exception e) {
+            log.error("Unable to parse size {}", size, e);
+            return ChameleonApplication.DEFAULT_CAMERA_FRAME_SIZE;
         }
     }
 

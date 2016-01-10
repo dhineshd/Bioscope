@@ -36,6 +36,7 @@
     <string name="pref_user_name_summary">Enter Name</string>
     <string name="pref_user_name_title">Username</string>
     <string name="pref_codec_key">UseOpenH</string>
+    <string name="pref_res_key">PreferredVideoResolution</string>
     <string name="pref_codec_title">More Information</string>
     <string name="title_activity_user_login">UserLoginActivity</string>
     <string name="title_activity_video_library">VideoLibraryActivity</string>
@@ -53,4 +54,6 @@
     <string name="title_activity_tutorial_five">TutorialFiveActivity</string>
     <string name="title_activity_custom_preview">CustomPreviewActivity</string>
     <string name="title_activity_feedback">FeedbackActivity</string>
+    <string name="pref_res_default">1280x720</string>
+    <string name="pref_res_low">768x432</string>
 </resources>

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.hardware.camera2.CaptureRequest;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiConfiguration;
@@ -12,6 +13,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -32,7 +34,9 @@ import com.trioscope.chameleon.listener.QRCodeScanEventListener;
 import com.trioscope.chameleon.metrics.MetricNames;
 import com.trioscope.chameleon.qrcode.QRCodeScanner;
 import com.trioscope.chameleon.types.PeerInfo;
+import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.WiFiNetworkConnectionInfo;
+import com.trioscope.chameleon.util.ImageUtil;
 import com.trioscope.chameleon.util.network.WifiUtil;
 
 import java.net.InetAddress;
@@ -175,6 +179,17 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
         log.info("User leave hint triggered");
+
+        if (qrCodeScanner != null) {
+            double frameRateReceived = qrCodeScanner.getFrameRateDuringQRCode();
+            if (frameRateReceived < ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE) {
+                log.info("During QR code scanning, frame rate was unacceptable. Frame rate received was {} < {}", frameRateReceived, ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE);
+                downgradePreferredResolution();
+            } else {
+                log.info("During QR code scanning, frame rate was acceptable at {}", frameRateReceived);
+            }
+        }
+
         if (ChameleonApplication.isUserLeavingOnLeaveHintTriggered(latestUserInteractionTimeMillis)) {
             log.info("User leave hint triggered and interacted with app recently. " +
                     "Assuming that user pressed home button.Finishing activity");
@@ -436,9 +451,7 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
 
     @Override
     public void onTextDecoded(final String decodedText) {
-
         if (connectionInfo == null) {
-
             if (decodedText != null) {
 
                 try {
@@ -453,6 +466,13 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        double frameRateReceived = qrCodeScanner.getFrameRateDuringQRCode();
+                        if (frameRateReceived < ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE) {
+                            log.info("During QR code scanning, frame rate was unacceptable. Frame rate received was {} < {}", frameRateReceived, ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE);
+                            downgradePreferredResolution();
+                        } else {
+                            log.info("During QR code scanning, frame rate was acceptable at {}", frameRateReceived);
+                        }
 
                         // Done with QR code scanning
                         qrCodeScanner.stop();
@@ -481,6 +501,22 @@ public class ReceiveConnectionInfoActivity extends AppCompatActivity
             } else {
                 log.warn("decodedText is null");
             }
+        }
+    }
+
+    private void downgradePreferredResolution() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ReceiveConnectionInfoActivity.this);
+        String curPref = preferences.getString(getString(R.string.pref_res_key), getString(R.string.pref_res_default));
+        Size prefAsSize = ImageUtil.getSizeFromString(curPref);
+        log.info("Current preference for frame size is {}", curPref);
+
+        if (prefAsSize.equals(ChameleonApplication.DEFAULT_CAMERA_FRAME_SIZE)) {
+            Size newSize = ChameleonApplication.DEFAULT_LEGACY_CAMERA_FRAME_SIZE;
+            log.info("Saving preference as {} instead", newSize);
+            preferences.edit().putString(getString(R.string.pref_res_key), getString(R.string.pref_res_low)).commit();
+            log.info("Saved preference as lower res");
+        } else {
+            log.warn("We are already using the smallest size we want to, unable to make it smaller.");
         }
     }
 }

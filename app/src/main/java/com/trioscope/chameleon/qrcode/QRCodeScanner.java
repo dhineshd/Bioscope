@@ -1,7 +1,9 @@
 package com.trioscope.chameleon.qrcode;
 
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.preference.PreferenceManager;
 
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.ChecksumException;
@@ -28,6 +30,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,13 +96,7 @@ public class QRCodeScanner implements CameraFrameAvailableListener {
                             public void run() {
                                 String decodedText = decodeQRCode(imageBytes);
                                 if (decodedText != null) {
-                                    double frameRateDuringQRCode = frameRateCalc.getRecentUpdateRate();
                                     log.info("QR code detected = {}", decodedText);
-                                    log.info("Frame rate during QR code reading was {}fps", frameRateDuringQRCode);
-
-                                    if(frameRateDuringQRCode < ChameleonApplication.ACCEPTABLE_QR_CODE_FRAME_RATE) {
-
-                                    }
 
                                     qrCodeScanEventListener.onTextDecoded(decodedText);
                                 }
@@ -144,5 +141,11 @@ public class QRCodeScanner implements CameraFrameAvailableListener {
     private String decodeBitmap(final BinaryBitmap binaryBitmap)
             throws FormatException, ChecksumException, NotFoundException {
         return qrCodeReader.decode(binaryBitmap).getText();
+    }
+
+    public double getFrameRateDuringQRCode() {
+        double frameRateDuringQRCode = frameRateCalc.getRecentUpdateRate();
+        log.info("Frame rate during QR code reading was {}fps", frameRateDuringQRCode);
+        return frameRateDuringQRCode;
     }
 }

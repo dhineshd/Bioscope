@@ -19,6 +19,7 @@
     <PreferenceCategory
         android:layout="@layout/preference_category"
         android:title="@string/pref_codec_title">
+        <ListPreference android:key="" />
         <SwitchPreference
             android:key="@string/pref_codec_key"
             android:title="OpenH264 Codec"
