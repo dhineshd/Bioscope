@@ -77,7 +77,7 @@ public class ImageUtil {
         try {
             String[] parts = size.split("x");
             int width = Integer.parseInt(parts[0]);
-            int height = Integer.parseInt(parts[0]);
+            int height = Integer.parseInt(parts[1]);
             return new Size(width, height);
         } catch (Exception e) {
             log.error("Unable to parse size {}", size, e);
