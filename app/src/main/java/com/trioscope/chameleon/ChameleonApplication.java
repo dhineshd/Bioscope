@@ -33,6 +33,7 @@ import com.trioscope.chameleon.types.CameraInfo;
 import com.trioscope.chameleon.types.Size;
 import com.trioscope.chameleon.types.ThreadWithHandler;
 import com.trioscope.chameleon.util.FileUtil;
+import com.trioscope.chameleon.util.ImageUtil;
 import com.trioscope.chameleon.util.merge.FfmpegVideoMerger;
 import com.trioscope.chameleon.util.merge.VideoMerger;
 import com.trioscope.chameleon.util.security.SSLUtil;
@@ -467,7 +468,10 @@ public class ChameleonApplication extends Application {
         log.info("Preferences = {}", preferences.getAll());
 
         if (preferences.contains(getString(R.string.pref_res_key))) {
-
+            String curPref = preferences.getString(getString(R.string.pref_res_key), getString(R.string.pref_res_default));
+            Size preferenceSize = ImageUtil.getSizeFromString(curPref);
+            log.info("Found {} in preferences, using {}", curPref, preferenceSize);
+            return preferenceSize;
         }
 
         Range<Integer>[] fpsRanges = cc.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
