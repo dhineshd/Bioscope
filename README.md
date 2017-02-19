@@ -13,4 +13,6 @@ This was a team effort with contributions from the following folks:
 
 The app is not actively maintained but can be found here: 
 
-https://play.google.com/store/apps/details?id=com.trioscope.chameleon
+android : https://play.google.com/store/apps/details?id=com.trioscope.chameleon
+
+iOS version (code not in repo) : https://itunes.apple.com/us/app/bioscope/id1109748810?mt=8
